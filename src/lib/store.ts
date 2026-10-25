@@ -5,6 +5,8 @@ import {
   type AppData,
   type CollectionKey,
   type Couple,
+  type CycleDay,
+  type CycleSettings,
   type DeviceState,
   type MealEntry,
   type Person,
@@ -15,7 +17,8 @@ import {
   type Slot,
 } from './types';
 import { uid } from './random';
-import { todayKey } from './date';
+import { MERGE_DAYS } from './cycle';
+import { diffDays, todayKey } from './date';
 
 const DATA_KEY = 'arta.data.v1';
 const DEVICE_KEY = 'arta.device.v1';
@@ -46,6 +49,8 @@ export function emptyData(): AppData {
     moods: {},
     hearts: {},
     games: {},
+    periods: {},
+    cycleDays: {},
   };
 }
 
@@ -363,6 +368,56 @@ export const actions = {
     const date = todayKey();
     const id = `${date}-${device.me}`;
     commitData(withRec(data, 'moods', { id, date, personId: device.me, mood, updatedAt: 0 }));
+  },
+
+  // ───── Zyklus ─────
+  setupCycle(settings: CycleSettings, lastStart?: string) {
+    actions.updateCouple({ cycle: settings });
+    if (lastStart) actions.startPeriod(lastStart);
+  },
+
+  updateCycle(changes: Partial<CycleSettings>) {
+    const cur = data.couple.cycle;
+    if (cur) actions.updateCouple({ cycle: { ...cur, ...changes } });
+  },
+
+  /** Kalender ausschalten – die Einträge bleiben erhalten, falls ihr ihn wieder einrichtet. */
+  disableCycle() {
+    actions.updateCouple({ cycle: undefined });
+  },
+
+  /** Trägt einen Periodenbeginn ein. Liegt schon einer in der Nähe, wird keiner doppelt angelegt. */
+  startPeriod(date: string): string | undefined {
+    const owner = data.couple.cycle?.personId;
+    if (!owner) return;
+    const near = Object.values(data.periods).find((p) => !p.deleted && p.personId === owner && Math.abs(diffDays(p.start, date)) < MERGE_DAYS);
+    if (near) {
+      if (near.start !== date) patch('periods', near.id, { start: date, end: near.end && near.end >= date ? near.end : undefined });
+      return near.id;
+    }
+    // Feste ID: Tragen beide Handys denselben Beginn ein, wird beim Sync daraus ein Eintrag.
+    const id = `${owner}-${date}`;
+    commitData(withRec(data, 'periods', { id, personId: owner, start: date, updatedAt: 0 }));
+    return id;
+  },
+
+  /** Setzt den letzten Periodentag – ohne Datum gilt die Periode wieder als offen. */
+  endPeriod(id: string, date?: string) {
+    const p = data.periods[id];
+    if (p && (!date || date >= p.start)) patch('periods', id, { end: date });
+  },
+
+  removePeriod(id: string) {
+    patch('periods', id, { deleted: true });
+  },
+
+  logCycleDay(date: string, changes: Partial<Pick<CycleDay, 'flow' | 'symptoms' | 'note'>>) {
+    const personId = data.couple.cycle?.personId;
+    if (!personId) return;
+    const id = `${date}-${personId}`;
+    const cur = data.cycleDays[id];
+    const base: CycleDay = cur && !cur.deleted ? cur : { id, date, personId, symptoms: [], updatedAt: 0 };
+    commitData(withRec(data, 'cycleDays', { ...base, ...changes, deleted: undefined }));
   },
 
   // ───── Spiele ─────

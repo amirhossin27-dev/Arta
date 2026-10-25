@@ -29,10 +29,20 @@ export interface Person extends Rec {
   favorites: string[];
 }
 
+/** Grundeinstellungen für den Periodenkalender: wessen Zyklus und die üblichen Längen. */
+export interface CycleSettings {
+  personId: PersonId;
+  /** Übliche Zykluslänge in Tagen – gilt, bis genug Perioden eingetragen sind. */
+  cycleLength: number;
+  /** Übliche Periodendauer in Tagen. */
+  periodLength: number;
+}
+
 export interface Couple extends Rec {
   id: 'couple';
   anniversary?: string;
   weeklyGoal: number;
+  cycle?: CycleSettings;
 }
 
 export interface PlanItem extends Rec {
@@ -117,6 +127,24 @@ export interface GameStat extends Rec {
   lastAt: number;
 }
 
+export type Flow = 'schmier' | 'leicht' | 'mittel' | 'stark';
+
+/** Eine Periode. Ohne `end` läuft sie noch (oder das Ende wurde nicht eingetragen). */
+export interface Period extends Rec {
+  personId: PersonId;
+  start: string;
+  end?: string;
+}
+
+/** Tagebuch-Eintrag zum Zyklus (ID `${date}-${personId}`). */
+export interface CycleDay extends Rec {
+  date: string;
+  personId: PersonId;
+  flow?: Flow;
+  symptoms: string[];
+  note?: string;
+}
+
 export interface AppData {
   v: 1;
   persons: Record<PersonId, Person>;
@@ -129,12 +157,14 @@ export interface AppData {
   moods: Record<string, Mood>;
   hearts: Record<string, Hearts>;
   games: Record<string, GameStat>;
+  periods: Record<string, Period>;
+  cycleDays: Record<string, CycleDay>;
 }
 
-export type CollectionKey = 'plan' | 'meals' | 'shopping' | 'notes' | 'coupons' | 'moods' | 'hearts' | 'games';
+export type CollectionKey = 'plan' | 'meals' | 'shopping' | 'notes' | 'coupons' | 'moods' | 'hearts' | 'games' | 'periods' | 'cycleDays';
 export type RecOf<K extends CollectionKey> = AppData[K][string];
 
-export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts', 'games'];
+export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts', 'games', 'periods', 'cycleDays'];
 
 export type PopupFreq = 'oft' | 'normal' | 'selten' | 'aus';
 

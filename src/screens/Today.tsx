@@ -28,6 +28,7 @@ import { actions, useData, useDevice } from '../lib/store';
 import { fill } from '../lib/text';
 import type { MealType, Person, Slot } from '../lib/types';
 import { nav } from '../lib/ui';
+import { CycleTodayCard } from './Cycle';
 
 const MEAL_SLOT: Record<MealType, Slot> = { fruehstueck: 'morgens', mittag: 'mittags', snack: 'mittags', abend: 'abends' };
 
@@ -138,6 +139,8 @@ export function Today() {
           💌 {partner.name} hat dir {unread.length === 1 ? 'eine Botschaft' : `${unread.length} Botschaften`} geschickt
         </button>
       )}
+
+      <CycleTodayCard />
 
       <div className="stats-row">
         <div className="stat">
