@@ -20,6 +20,7 @@ import { Flappy } from './Flappy';
 import { Game2048 } from './Game2048';
 import { GuessWho } from './GuessWho';
 import { Invaders } from './Invaders';
+import { Kart } from './Kart';
 import { Kniffel } from './Kniffel';
 import { gameSummary, isBetter, otherSide, type GameSummary, type Side } from './logic';
 import { Ludo } from './Ludo';
@@ -56,6 +57,7 @@ const COMPONENTS: Record<GameId, ComponentType<GameProps>> = {
   slf: Slf,
   guesswho: GuessWho,
   memory: Memory,
+  kart: Kart,
   pong: Pong,
   reaction: Reaction,
   snake: Snake,
@@ -108,7 +110,7 @@ function RecordBoard({ meta, summary }: { meta: GameMeta; summary: GameSummary }
           <span className="record-crown">{leader === id ? '👑' : ''}</span>
         </div>
       ))}
-      {meta.lowerIsBetter && <p className="lobby-note">Je weniger Züge, desto besser.</p>}
+      {meta.lowerIsBetter && <p className="lobby-note">{meta.scoreLabel === 'Sek.' ? 'Je schneller, desto besser.' : 'Je weniger Züge, desto besser.'}</p>}
     </div>
   );
 }
@@ -194,7 +196,7 @@ export function GameScreen({ id, join, onClose }: { id: GameId; join?: string; o
       shared: mv.shared(round),
       acts: mv.acts(round),
       publish: (snap) => publishShared(matchId, round, snap),
-      pushAct: (a) => pushAct(matchId, round, a),
+      pushAct: (a, keep) => pushAct(matchId, round, a, keep),
     };
   }, [mv, matchId, round]);
 
@@ -372,7 +374,7 @@ export function GameScreen({ id, join, onClose }: { id: GameId; join?: string; o
     else text = 'Gleich nochmal – du schaffst mehr! 💪';
     return {
       emoji: record ? '🏆' : meta.emoji,
-      title: record ? 'Neuer Rekord!' : meta.id === 'memory' ? 'Geschafft!' : 'Game over',
+      title: record ? 'Neuer Rekord!' : meta.id === 'kart' ? 'Im Ziel! 🏁' : meta.id === 'memory' ? 'Geschafft!' : 'Game over',
       text,
       score,
     };

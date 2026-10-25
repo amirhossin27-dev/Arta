@@ -42,6 +42,39 @@ export function tone(freq: number, ms = 90, type: OscillatorType = 'square', vol
   }
 }
 
+/** Leises Motorbrummen für Rennspiele: `set` passt Tonhöhe und Lautstärke an, `stop` beendet es. */
+export function hum(): { set(freq: number, vol: number): void; stop(): void } | null {
+  if (getDevice().sound === false) return null;
+  try {
+    const c = audioCtx();
+    if (!c) return null;
+    const o = c.createOscillator();
+    const lp = c.createBiquadFilter();
+    const g = c.createGain();
+    o.type = 'sawtooth';
+    o.frequency.value = 60;
+    lp.type = 'lowpass';
+    lp.frequency.value = 420;
+    g.gain.value = 0;
+    o.connect(lp).connect(g).connect(c.destination);
+    o.start();
+    return {
+      set(freq, vol) {
+        const t = c.currentTime;
+        o.frequency.setTargetAtTime(freq, t, 0.06);
+        g.gain.setTargetAtTime(getDevice().sound === false ? 0 : vol, t, 0.08);
+      },
+      stop() {
+        const t = c.currentTime;
+        g.gain.setTargetAtTime(0, t, 0.05);
+        o.stop(t + 0.4);
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
 function melody(notes: number[], step = 110, ms = 140, type: OscillatorType = 'square') {
   notes.forEach((f, i) => window.setTimeout(() => tone(f, ms, type), i * step));
 }

@@ -184,12 +184,13 @@ export function publishShared(id: string, r: number, snap: NetSnap) {
   writeMine((m) => (m && m.id === id ? { ...m, r, seq: snap.seq, st: snap.st, ack: snap.ack } : m));
 }
 
-export function pushAct(id: string, r: number, a: unknown) {
+/** `keep`: so viele Züge bleiben im Kanal stehen – Echtzeitspiele brauchen nur den neuesten. */
+export function pushAct(id: string, r: number, a: unknown, keep = 16) {
   writeMine((m) => {
     if (!m || m.id !== id) return m;
     const list = (m.acts ?? []).filter((x) => x.r === r);
     const n = (list.length ? list[list.length - 1].n : 0) + 1;
-    return { ...m, acts: [...list.slice(-15), { n, r, a }] };
+    return { ...m, acts: [...(keep > 1 ? list.slice(-(keep - 1)) : []), { n, r, a }] };
   });
 }
 
