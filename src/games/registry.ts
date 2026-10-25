@@ -1,7 +1,14 @@
 export type GameId =
   | 'uno'
+  | 'maumau'
   | 'romme'
+  | 'kniffel'
   | 'ludo'
+  | 'fitdice'
+  | 'chess'
+  | 'checkers'
+  | 'muehle'
+  | 'battleship'
   | 'connect4'
   | 'tictactoe'
   | 'slf'
@@ -9,6 +16,11 @@ export type GameId =
   | 'memory'
   | 'pong'
   | 'reaction'
+  | 'tetris'
+  | 'invaders'
+  | 'flappy'
+  | 'g2048'
+  | 'minesweeper'
   | 'snake'
   | 'breakout'
   | 'simon';
@@ -16,7 +28,7 @@ export type GameId =
 /** duo: zu zweit an einem Handy · cpu: gegen die KI 🤖 · online: jeder am eigenen Handy · solo: allein auf Highscore-Jagd */
 export type GameMode = 'duo' | 'cpu' | 'online' | 'solo';
 
-export type GameCategory = 'karten' | 'raten' | 'arcade';
+export type GameCategory = 'karten' | 'brett' | 'raten' | 'arcade';
 
 export interface GameMeta {
   id: GameId;
@@ -49,6 +61,18 @@ export const GAMES: GameMeta[] = [
     colors: ['#ff3b3b', '#ffb000'],
   },
   {
+    id: 'maumau',
+    name: 'Mau-Mau',
+    emoji: '♣️',
+    tagline: 'Der deutsche Kartenklassiker mit 32 Karten',
+    rules:
+      'Leg eine Karte gleicher Farbe oder gleichen Werts. Eine 7 heißt: der andere zieht 2 – außer er legt selbst eine 7, dann zieht der nächste 4. Eine 8 lässt den anderen aussetzen. Der Bube passt immer, und du wünschst dir eine Farbe. Wer nicht kann, zieht eine Karte. Wer zuerst alle Karten los ist, gewinnt: Mau-Mau!',
+    modes: ['duo', 'online', 'cpu'],
+    category: 'karten',
+    minutes: '4 Min',
+    colors: ['#2b59c3', '#5ec2ff'],
+  },
+  {
     id: 'romme',
     name: 'Rommé',
     emoji: '♠️',
@@ -61,9 +85,22 @@ export const GAMES: GameMeta[] = [
     colors: ['#1f7a4d', '#4cc38a'],
   },
   {
+    id: 'kniffel',
+    name: 'Kniffel',
+    emoji: '🎲',
+    tagline: 'Würfeln, halten, nochmal würfeln – volle Hütte!',
+    rules:
+      'Pro Zug darfst du bis zu dreimal würfeln. Tippe Würfel an, um sie zu halten. Danach trägst du das Ergebnis in ein freies Feld ein – oben zählen nur die passenden Augen (ab 63 gibt es 35 Bonus), unten Pasch, Full House, Straßen, Kniffel und Chance. Nach 13 Runden gewinnt, wer mehr Punkte hat. Allein jagst du deinen Rekord.',
+    modes: ['duo', 'online', 'cpu', 'solo'],
+    category: 'karten',
+    minutes: '10 Min',
+    colors: ['#c2185b', '#ff8a65'],
+    scoreLabel: 'Punkte',
+  },
+  {
     id: 'ludo',
     name: 'Mensch ärgere dich nicht',
-    emoji: '🎲',
+    emoji: '🏁',
     tagline: 'Würfeln, rauswerfen, ärgern – und trotzdem lieb haben',
     rules:
       'Mit einer 6 kommt eine Figur aufs Spielfeld, nach einer 6 würfelst du nochmal. Landest du auf einer gegnerischen Figur, fliegt sie raus. Wer zuerst alle vier Figuren im Ziel hat, gewinnt. Damit es schneller geht, steht zu Beginn schon eine Figur draußen.',
@@ -73,13 +110,74 @@ export const GAMES: GameMeta[] = [
     colors: ['#e63946', '#f4c430'],
   },
   {
+    id: 'fitdice',
+    name: 'Fitness-Würfel',
+    emoji: '💪',
+    tagline: 'Würfeln, schwitzen – wer zuerst schlappmacht, verliert',
+    rules:
+      'Ein Würfel bestimmt die Übung, der zweite die Menge. Abwechselnd würfelt ihr und macht die Übung – mit jeder Runde wird es ein Viertel mehr. Wer nicht mehr kann, tippt auf „Ich kann nicht mehr“ und hat verloren. Schafft ihr beide 8 Runden, ist es unentschieden. Allein zählt, wie viele Runden du durchhältst.',
+    modes: ['duo', 'online', 'cpu', 'solo'],
+    category: 'karten',
+    minutes: '10 Min',
+    colors: ['#ff6b35', '#ffd23f'],
+    scoreLabel: 'Runden',
+  },
+  {
+    id: 'chess',
+    name: 'Schach',
+    emoji: '♟️',
+    tagline: 'Das königliche Spiel – mit allen Regeln',
+    rules:
+      'Tippe eine Figur an, die möglichen Felder leuchten auf. Mit Rochade, en passant und Umwandlung. Wer den König mattsetzt, gewinnt; Patt, dreifache Wiederholung und 50 Züge ohne Schlagen sind unentschieden. Wer in einer Runde anfängt, spielt Weiß.',
+    modes: ['duo', 'online', 'cpu'],
+    category: 'brett',
+    minutes: '15 Min',
+    colors: ['#5d4037', '#d7a86e'],
+  },
+  {
+    id: 'checkers',
+    name: 'Dame',
+    emoji: '⚫',
+    tagline: 'Schräg ziehen, überspringen, zur Dame werden',
+    rules:
+      'Steine ziehen schräg nach vorn. Geschlagen wird durch Überspringen – auch rückwärts – und Schlagen ist Pflicht, mehrere Sprünge hintereinander inklusive. Wer die letzte Reihe erreicht, wird zur Dame und darf beliebig weit ziehen. Wer keinen Stein mehr hat oder nicht mehr ziehen kann, verliert.',
+    modes: ['duo', 'online', 'cpu'],
+    category: 'brett',
+    minutes: '8 Min',
+    colors: ['#8d2b2b', '#e9b872'],
+  },
+  {
+    id: 'muehle',
+    name: 'Mühle',
+    emoji: '⚪',
+    tagline: 'Drei in einer Reihe – und schon ist ein Stein weg',
+    rules:
+      'Erst setzt jeder abwechselnd seine 9 Steine, dann wird entlang der Linien gezogen. Drei eigene Steine in einer Linie sind eine Mühle – dann nimmst du dem anderen einen Stein weg. Mit nur noch 3 Steinen darfst du springen. Wer 2 Steine hat oder nicht mehr ziehen kann, verliert.',
+    modes: ['duo', 'online', 'cpu'],
+    category: 'brett',
+    minutes: '8 Min',
+    colors: ['#6d4c2e', '#c8a165'],
+  },
+  {
+    id: 'battleship',
+    name: 'Schiffe versenken',
+    emoji: '🚢',
+    tagline: 'Treffer, versenkt! Wer findet zuerst die ganze Flotte?',
+    rules:
+      'Jeder stellt seine Flotte auf (5, 4, 3, 3 und 2 Felder, Schiffe berühren sich nicht). Dann schießt ihr abwechselnd aufs Meer des anderen – bei einem Treffer darfst du gleich nochmal. Wer zuerst alle Schiffe versenkt, gewinnt.',
+    modes: ['duo', 'online', 'cpu'],
+    category: 'brett',
+    minutes: '8 Min',
+    colors: ['#0b4f8a', '#4fc3f7'],
+  },
+  {
     id: 'connect4',
     name: 'Vier gewinnt',
     emoji: '🔴',
     tagline: 'Steine fallen lassen, Vierer bauen',
     rules: 'Tippt auf eine Spalte, um euren Stein fallen zu lassen. Vier in einer Reihe gewinnen – auch schräg!',
     modes: ['duo', 'online', 'cpu'],
-    category: 'karten',
+    category: 'brett',
     minutes: '3 Min',
     colors: ['#ff5d5d', '#ffc23d'],
   },
@@ -90,7 +188,7 @@ export const GAMES: GameMeta[] = [
     tagline: 'Drei in einer Reihe – der Klassiker für zwischendurch',
     rules: 'Abwechselnd setzt ihr euer Zeichen. Wer zuerst drei in einer Reihe hat – waagerecht, senkrecht oder diagonal – gewinnt.',
     modes: ['duo', 'online', 'cpu'],
-    category: 'karten',
+    category: 'brett',
     minutes: '1 Min',
     colors: ['#ff4f81', '#ff9a6b'],
   },
@@ -154,6 +252,70 @@ export const GAMES: GameMeta[] = [
     colors: ['#ffb347', '#ff5d8f'],
   },
   {
+    id: 'tetris',
+    name: 'Herz-Tetris',
+    emoji: '🧩',
+    tagline: 'Klötzchen drehen, Reihen räumen – wie auf dem Game Boy',
+    rules:
+      'Wische nach links oder rechts zum Schieben, tippe zum Drehen und wische nach unten, um den Stein fallen zu lassen – oder nutze die Knöpfe. Volle Reihen verschwinden. Alle 10 Reihen wird es schneller. Vorbei ist es, wenn der Stapel oben anstößt.',
+    modes: ['solo'],
+    category: 'arcade',
+    minutes: '4 Min',
+    colors: ['#3949ab', '#26c6da'],
+    scoreLabel: 'Punkte',
+  },
+  {
+    id: 'invaders',
+    name: 'Herz-Invaders',
+    emoji: '👾',
+    tagline: 'Space Invaders – verteidige die Erde mit Herzen',
+    rules:
+      'Zieh den Finger, um dein Raumschiff zu steuern – es schießt von selbst Herzen ab. Triff alle Invader, bevor sie unten ankommen, und weich ihren Schüssen aus. Du hast 3 Leben, jede Welle wird schneller.',
+    modes: ['solo'],
+    category: 'arcade',
+    minutes: '3 Min',
+    colors: ['#1b1b3a', '#7c4dff'],
+    scoreLabel: 'Punkte',
+  },
+  {
+    id: 'flappy',
+    name: 'Flappy Herz',
+    emoji: '💘',
+    tagline: 'Tippen, flattern, durch die Lücke!',
+    rules: 'Tippe irgendwo hin, damit das Herz nach oben flattert. Flieg durch die Lücken zwischen den Säulen – jede Säule gibt einen Punkt. Nicht anstoßen!',
+    modes: ['solo'],
+    category: 'arcade',
+    minutes: '1 Min',
+    colors: ['#43a047', '#81d4fa'],
+    scoreLabel: 'Säulen',
+  },
+  {
+    id: 'g2048',
+    name: '2048',
+    emoji: '🔢',
+    tagline: 'Zahlen zusammenschieben bis zur 2048',
+    rules: 'Wische in eine Richtung – alle Kacheln rutschen mit. Zwei gleiche Zahlen verschmelzen zu einer doppelt so großen. Jede Verschmelzung gibt Punkte. Schaffst du die 2048? Vorbei ist es, wenn nichts mehr geht.',
+    modes: ['solo'],
+    category: 'arcade',
+    minutes: '5 Min',
+    colors: ['#f57c00', '#ffd54f'],
+    scoreLabel: 'Punkte',
+  },
+  {
+    id: 'minesweeper',
+    name: 'Minesweeper',
+    emoji: '💣',
+    tagline: 'Alle Felder aufdecken – nur nicht die Minen',
+    rules:
+      'Tippe ein Feld, um es aufzudecken. Die Zahl sagt, wie viele Minen daneben liegen. Mit dem Fahnen-Knopf (oder lange drücken) markierst du Minen. Wer alle sicheren Felder aufdeckt, gewinnt – je schneller, desto besser.',
+    modes: ['solo'],
+    category: 'arcade',
+    minutes: '3 Min',
+    colors: ['#546e7a', '#b0bec5'],
+    scoreLabel: 'Sek.',
+    lowerIsBetter: true,
+  },
+  {
     id: 'snake',
     name: 'Herz-Schlange',
     emoji: '🐍',
@@ -201,7 +363,8 @@ export const MODE_LABEL: Record<GameMode, string> = {
 };
 
 export const CATEGORY_INFO: Record<GameCategory, { emoji: string; title: string; text: string }> = {
-  karten: { emoji: '🎲', title: 'Karten & Brett', text: 'Die Klassiker vom Spieleabend – online, an einem Handy oder gegen die KI' },
+  karten: { emoji: '🃏', title: 'Karten & Würfel', text: 'Die Klassiker vom Spieleabend – online, an einem Handy oder gegen die KI' },
+  brett: { emoji: '♟️', title: 'Brett & Strategie', text: 'Schach, Dame, Mühle und Co. – Köpfchen ist gefragt' },
   raten: { emoji: '🧠', title: 'Rätseln & Raten', text: 'Wer weiß mehr, wer merkt sich mehr?' },
   arcade: { emoji: '🕹️', title: 'Arcade', text: 'Schnelle Retro-Runden – gegenüber am Handy oder allein auf Rekordjagd' },
 };
