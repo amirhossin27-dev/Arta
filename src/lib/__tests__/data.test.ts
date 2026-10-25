@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EXERCISES } from '../../data/exercises';
-import { RECIPES } from '../../data/recipes';
+import { CATEGORY_ORDER, CUISINE_ORDER, RECIPES } from '../../data/recipes';
 import { INGREDIENT_DB } from '../../data/ingredients';
 import { recipeNutrition, exerciseKcal, formatQty, suggestKcalGoal } from '../nutrition';
 import { dailyRecipes, dailyUnits } from '../daily';
@@ -29,6 +29,37 @@ describe('Inhalte', () => {
       // Makros und kcal passen grob zusammen (Ballaststoffe & Rundung erlauben Abweichung)
       const fromMacros = n.protein * 4 + n.carbs * 4 + n.fat * 9;
       expect(Math.abs(fromMacros - n.kcal) / n.kcal, r.name).toBeLessThan(0.2);
+    }
+  });
+
+  it('deckt viele Arten und Länderküchen ab', () => {
+    expect(RECIPES.length).toBeGreaterThanOrEqual(120);
+    for (const c of CATEGORY_ORDER) expect(RECIPES.filter((r) => r.category === c).length, c).toBeGreaterThanOrEqual(4);
+    for (const c of CUISINE_ORDER) expect(RECIPES.filter((r) => r.cuisine === c).length, c).toBeGreaterThanOrEqual(5);
+    for (const meal of ['fruehstueck', 'mittag', 'abend', 'snack'] as const) {
+      expect(RECIPES.filter((r) => r.meal === meal).length, meal).toBeGreaterThanOrEqual(20);
+    }
+  });
+
+  it('kennzeichnet vegane und vegetarische Rezepte passend zu den Zutaten', () => {
+    for (const r of RECIPES) {
+      const diets = new Set(r.ingredients.map((ing) => INGREDIENT_DB[ing.key].diet));
+      const meatOrFish = diets.has('fleisch') || diets.has('fisch');
+      if (r.tags.includes('vegan')) expect([...diets].filter(Boolean), r.id).toEqual([]);
+      if (r.tags.includes('vegetarisch')) expect(meatOrFish, r.id).toBe(false);
+      // Alles ohne Fleisch und Fisch soll auch im Veggie-Filter auftauchen
+      if (!meatOrFish) expect(r.tags.includes('vegan') || r.tags.includes('vegetarisch'), r.id).toBe(true);
+    }
+  });
+
+  it('hält, was die Schlagworte versprechen', () => {
+    for (const r of RECIPES) {
+      const n = recipeNutrition(r);
+      if (r.tags.includes('high-protein')) expect(n.protein, r.id).toBeGreaterThanOrEqual(r.meal === 'snack' ? 10 : 20);
+      if (r.tags.includes('low-carb')) expect(n.carbs, r.id).toBeLessThanOrEqual(30);
+      if (r.tags.includes('schnell')) expect(r.minutes, r.id).toBeLessThanOrEqual(20);
+      expect(r.steps.length, r.id).toBeGreaterThanOrEqual(2);
+      expect(new Set(r.ingredients.map((ing) => ing.key)).size, `${r.id}: doppelte Zutat`).toBe(r.ingredients.length);
     }
   });
 

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { INGREDIENT_DB } from '../data/ingredients';
 import { QUICK_FOODS } from '../data/foods';
-import { MEAL_LABEL, MEAL_ORDER, MEAL_SHORT, RECIPES, RECIPE_BY_ID, TAG_LABEL, type Recipe } from '../data/recipes';
+import { CATEGORY_LABEL, CUISINE_LABEL, MEAL_LABEL, MEAL_ORDER, MEAL_SHORT, RECIPES, RECIPE_BY_ID, TAG_LABEL, type Recipe } from '../data/recipes';
 import { celebrateMeal } from '../lib/celebrate';
 import { todayKey } from '../lib/date';
 import { cls, usePeople } from '../lib/hooks';
@@ -11,6 +11,7 @@ import { recipeToShopping } from '../lib/shopping';
 import { actions, type Who } from '../lib/store';
 import type { MealEntry, MealType } from '../lib/types';
 import { nav } from '../lib/ui';
+import { FoodScan } from './foodScan';
 import { Segmented, Sheet, Stepper } from './ui';
 
 export function RecipeCard({ recipe, date, wide }: { recipe: Recipe; date?: string; wide?: boolean }) {
@@ -86,6 +87,8 @@ export function RecipeSheet({ id, date, onClose }: { id: string; date?: string; 
             {MEAL_LABEL[recipe.meal].emoji} {MEAL_LABEL[recipe.meal].label}
           </span>
           <span className="badge">⏱️ {recipe.minutes} Min</span>
+          <span className="badge">{CATEGORY_LABEL[recipe.category]}</span>
+          <span className="badge">{CUISINE_LABEL[recipe.cuisine]}</span>
           {recipe.tags.map((t) => (
             <span key={t} className="badge soft">
               {TAG_LABEL[t]}
@@ -179,7 +182,7 @@ export function RecipeSheet({ id, date, onClose }: { id: string; date?: string; 
   );
 }
 
-type AddTab = 'rezepte' | 'schnell' | 'eigenes';
+type AddTab = 'rezepte' | 'schnell' | 'foto' | 'eigenes';
 
 export function AddMealSheet({ date, meal, onClose }: { date: string; meal: MealType; onClose: () => void }) {
   const { me } = usePeople();
@@ -237,10 +240,12 @@ export function AddMealSheet({ date, meal, onClose }: { date: string; meal: Meal
         options={[
           ['rezepte', '📖 Rezepte'],
           ['schnell', '⚡ Schnell'],
+          ['foto', '📸 Foto'],
           ['eigenes', '✏️ Eigenes'],
         ]}
       />
-      {tab !== 'eigenes' && (
+      {tab === 'foto' && <FoodScan date={date} meal={meal} who={who} onDone={onClose} />}
+      {(tab === 'rezepte' || tab === 'schnell') && (
         <input className="search" type="search" placeholder="Suchen …" value={query} onChange={(e) => setQuery(e.target.value)} />
       )}
 
