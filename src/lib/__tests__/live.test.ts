@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { applyStreamEvent, deriveRoom, newRoom, seal, unseal } from '../live';
+import { applyStreamEvent, CHANNEL_PREFIX, deriveRoom, newRoom, seal, sealJson, unseal, unsealJson } from '../live';
 import { emptyData } from '../store';
 import { buildPayload, decodePayload, encodePayload } from '../sync';
 import type { AppData } from '../types';
@@ -53,6 +53,23 @@ describe('Live-Sync: Verschlüsselung', () => {
     const node = await seal(buildPayload(busyCouple(), 'a', 'dev-1', '2026-10-25'), key);
     // Regel in database.rules.json: ct ≤ 1 000 000 Zeichen
     expect(node.ct.length).toBeLessThan(100_000);
+  });
+});
+
+describe('Live-Sync: Spiel-Kanäle', () => {
+  it('verschlüsselt beliebige Spielstände und hält sich an die Datenbank-Regeln', async () => {
+    const { key } = await deriveRoom(newRoom().secret);
+    const doc = { v: 1, by: 'a', at: 5, m: { id: 'x1', game: 'uno', st: { hands: { p1: [{ id: 1, c: 'r', v: '7' }] } } } };
+    const node = await sealJson(doc, 1234, key);
+    expect(Object.keys(node).sort()).toEqual(['at', 'ct', 'iv', 'v']);
+    expect(node.at).toBe(1234);
+    expect(node.iv.length).toBeLessThanOrEqual(32);
+    expect(node.ct).not.toContain('uno');
+    expect(await unsealJson(node, key)).toEqual(doc);
+  });
+
+  it('nutzt Knotennamen, die die Regeln erlauben', () => {
+    for (const me of ['a', 'b']) expect(`${CHANNEL_PREFIX}${me}`).toMatch(/^[-_0-9A-Za-z]{6,40}$/);
   });
 });
 

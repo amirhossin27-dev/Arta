@@ -52,7 +52,16 @@ export interface LiveNode {
 }
 
 export async function seal(p: SyncPayload, key: CryptoKey): Promise<LiveNode> {
-  const json = enc.encode(JSON.stringify(p));
+  return sealJson(p, p.at, key);
+}
+
+export async function unseal(node: LiveNode, key: CryptoKey): Promise<SyncPayload> {
+  return checkPayload(await unsealJson(node, key));
+}
+
+/** Beliebige Daten verschlüsselt verpacken (für den Stand und für die Spiele-Kanäle). */
+export async function sealJson(value: unknown, at: number, key: CryptoKey): Promise<LiveNode> {
+  const json = enc.encode(JSON.stringify(value));
   const zip = canCompress();
   const body = zip ? await pipe(json, new CompressionStream('deflate-raw')) : json;
   const plain = new Uint8Array(body.length + 1);
@@ -60,14 +69,14 @@ export async function seal(p: SyncPayload, key: CryptoKey): Promise<LiveNode> {
   plain.set(body, 1);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plain);
-  return { v: 1, at: p.at, iv: toB64Url(iv), ct: toB64Url(new Uint8Array(ct)) };
+  return { v: 1, at, iv: toB64Url(iv), ct: toB64Url(new Uint8Array(ct)) };
 }
 
-export async function unseal(node: LiveNode, key: CryptoKey): Promise<SyncPayload> {
+export async function unsealJson(node: LiveNode, key: CryptoKey): Promise<unknown> {
   const plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64Url(node.iv) }, key, fromB64Url(node.ct)));
   const body = plain.subarray(1);
   const json = plain[0] === 1 ? await pipe(body, new DecompressionStream('deflate-raw')) : body;
-  return checkPayload(JSON.parse(new TextDecoder().decode(json)));
+  return JSON.parse(new TextDecoder().decode(json));
 }
 
 function isNode(x: unknown): x is LiveNode {
@@ -207,6 +216,7 @@ const nodeUrl = (id: string, device: string) => `${LIVE_DB_URL}/rooms/${id}/${de
 interface Session {
   room: LiveRoom;
   keys?: RoomKeys;
+  keysReady: Promise<RoomKeys>;
   stream?: EventSource;
   mirror: Tree;
   /** Zuletzt übernommener Stand je Gerät (`at`), damit nichts doppelt zusammengeführt wird. */
@@ -248,12 +258,16 @@ function connect(s: Session) {
       return;
     }
     const first = status.state !== 'online';
-    const { room, touched } = applyStreamEvent(s.mirror, type, msg.path ?? '/', msg.data);
+    const prev = s.mirror;
+    const { room, touched } = applyStreamEvent(prev, type, msg.path ?? '/', msg.data);
     s.mirror = room;
     s.streamRetries = 0;
     if (first) setStatus({ state: 'online', message: undefined });
     const me = getDevice().deviceId;
-    for (const dev of touched) if (dev !== me) s.queue = s.queue.then(() => mergeNode(s, dev, s.mirror[dev]));
+    for (const name of new Set([...Object.keys(prev), ...Object.keys(room)])) {
+      if (isChannel(name) && prev[name] !== room[name]) s.queue = s.queue.then(() => readChannel(s, name, room[name]));
+    }
+    for (const dev of touched) if (dev !== me && !isChannel(dev)) s.queue = s.queue.then(() => mergeNode(s, dev, s.mirror[dev]));
     if (!s.greeted) s.queue = s.queue.then(() => schedulePush(0));
   };
   es.addEventListener('put', onData('put') as EventListener);
@@ -361,6 +375,112 @@ export function liveSummary(stats: MergeStats): string {
   return parts.join(' · ');
 }
 
+// ───── Kanäle (Online-Spiele) ─────
+
+/**
+ * Neben den Geräte-Ständen kann ein Raum kleine „Kanäle“ enthalten – genauso verschlüsselt und
+ * mit denselben Datenbank-Regeln. Die Spiele schicken darüber ihre Online-Partien hin und her.
+ * Jeder Kanal hat genau einen Schreiber, deshalb reicht „neuester Zeitstempel gewinnt“.
+ */
+export const CHANNEL_PREFIX = 'arcade-';
+const isChannel = (name: string) => name.startsWith(CHANNEL_PREFIX);
+
+const channels = new Map<string, { value: unknown; at: number }>();
+const channelListeners = new Set<() => void>();
+const channelRetry = new Map<string, number>();
+const sending = new Set<string>();
+let channelVersion = 0;
+
+function setChannel(name: string, value: unknown, at: number) {
+  if (value === undefined) channels.delete(name);
+  else channels.set(name, { value, at });
+  channelVersion++;
+  channelListeners.forEach((l) => l());
+}
+
+function clearChannels() {
+  channelRetry.forEach((t) => window.clearTimeout(t));
+  channelRetry.clear();
+  if (!channels.size) return;
+  channels.clear();
+  channelVersion++;
+  channelListeners.forEach((l) => l());
+}
+
+async function readChannel(s: Session, name: string, node: unknown) {
+  if (s.closed || !s.keys) return;
+  const known = channels.get(name);
+  if (!isNode(node)) {
+    // Gelöscht – außer wir haben gerade selbst etwas geschickt, das noch unterwegs ist.
+    if (node === undefined && known && !channelRetry.has(name) && !sending.has(name)) setChannel(name, undefined, 0);
+    return;
+  }
+  if (known && known.at >= node.at) return; // z. B. das Echo unseres eigenen Uploads
+  let value: unknown;
+  try {
+    value = await unsealJson(node, s.keys.key);
+  } catch {
+    return;
+  }
+  if (s.closed || (channels.get(name)?.at ?? -1) >= node.at) return;
+  setChannel(name, value, node.at);
+}
+
+export function subscribeChannels(fn: () => void) {
+  channelListeners.add(fn);
+  return () => {
+    channelListeners.delete(fn);
+  };
+}
+
+export const channelsVersion = () => channelVersion;
+
+export function channelValue(name: string): unknown {
+  return channels.get(name)?.value;
+}
+
+/** Hat der Raum schon geantwortet? Vorher wissen wir nicht, was in den Kanälen steht. */
+export const channelsLoaded = () => status.state === 'online';
+
+/**
+ * Wert in einen Kanal schreiben. Lokal sofort sichtbar, der Upload wird bei Fehlern wiederholt,
+ * solange kein neuerer Wert nachkommt. `false`, wenn kein Live-Raum aktiv ist.
+ */
+export function sendChannel(name: string, value: unknown): boolean {
+  const s = session;
+  if (!s || s.closed || !isChannel(name)) return false;
+  const at = Math.max(Date.now(), (channels.get(name)?.at ?? 0) + 1);
+  setChannel(name, value, at);
+  window.clearTimeout(channelRetry.get(name));
+  channelRetry.delete(name);
+  void uploadChannel(s, name, value, at, 0);
+  return true;
+}
+
+async function uploadChannel(s: Session, name: string, value: unknown, at: number, tries: number) {
+  const current = () => !s.closed && channels.get(name)?.at === at;
+  sending.add(name);
+  try {
+    const keys = await s.keysReady;
+    if (!current()) return;
+    const body = JSON.stringify(await sealJson(value, at, keys.key));
+    const res = await fetch(`${nodeUrl(keys.id, name)}?print=silent`, { method: 'PUT', body });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  } catch {
+    if (!current()) return;
+    const delay = Math.min(20_000, 800 * 2 ** tries);
+    channelRetry.set(
+      name,
+      window.setTimeout(() => {
+        channelRetry.delete(name);
+        if (current()) void uploadChannel(s, name, value, at, tries + 1);
+      }, delay),
+    );
+  } finally {
+    sending.delete(name);
+  }
+}
+
 // ───── Hochladen ─────
 
 function schedulePush(delay = PUSH_DELAY) {
@@ -424,12 +544,15 @@ function stopSession() {
   window.clearTimeout(s.pushTimer);
   window.clearTimeout(s.retryTimer);
   session = null;
+  clearChannels();
   setStatus({ state: 'off', message: undefined, partnerAt: undefined, pending: false, lastPushAt: undefined });
 }
 
 function startSession(room: LiveRoom) {
+  const keysReady = deriveRoom(room.secret);
   const s: Session = {
     room,
+    keysReady,
     mirror: {},
     merged: new Map(),
     queue: Promise.resolve(),
@@ -442,7 +565,7 @@ function startSession(room: LiveRoom) {
   };
   session = s;
   setStatus({ state: 'connecting', message: undefined, pending: true });
-  deriveRoom(room.secret)
+  keysReady
     .then((keys) => {
       if (s.closed) return;
       s.keys = keys;

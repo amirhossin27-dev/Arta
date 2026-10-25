@@ -15,7 +15,7 @@ export type SheetState =
   | { type: 'settings' }
   | { type: 'cheer' }
   | { type: 'who' }
-  | { type: 'game'; id: GameId };
+  | { type: 'game'; id: GameId; join?: string };
 
 interface UIState {
   tab: Tab;

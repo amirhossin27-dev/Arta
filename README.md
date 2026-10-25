@@ -45,9 +45,12 @@ Sie läuft als **Web-App im Browser** und lässt sich wie eine normale App auf d
 - Die Vorhersagen sind Schätzungen – kein Verhütungsmittel und kein Ersatz für ärztliche Beratung
 
 **🎮 Spiele (Arta Arcade)**
-- Kurze Klassiker für zwischendurch, an einem Handy zu zweit oder allein
-- Zu zweit: Tic-Tac-Toe, Vier gewinnt, Pärchen-Memory, Pong-Duell (gegenübersitzen!) und Blitz-Duell (wer tippt schneller, wenn das Herz erscheint?) – die meisten auch gegen den Computer „Arta 🤖“
-- Solo mit Highscore-Duell: Herz-Schlange (Snake im Game-Boy-Look), Herz-Breakout und Herz-Simon
+- Kurze Klassiker für zwischendurch: an einem Handy zu zweit, **online jeder am eigenen Handy**, gegen die KI 🤖 oder allein
+- Karten & Brett: Uno, Rommé, Mensch ärgere dich nicht, Vier gewinnt, Tic-Tac-Toe
+- Rätseln & Raten: Stadt Land Fluss (mit Wortliste und Veto für Quatsch-Antworten), Wer ist wer? (24 Gesichter, 18 Fragen) und Pärchen-Memory
+- Arcade: Pong-Duell (gegenübersitzen!), Blitz-Duell, dazu solo mit Highscore-Duell Herz-Schlange, Herz-Breakout und Herz-Simon
+- Bei Spielen mit verdeckten Karten kommt an einem Handy zwischen den Zügen ein Sichtschutz – „Gib das Handy weiter, nicht spicken!“
+- **Online gegeneinander:** Wer verbunden ist (Live-Sync, siehe unten), wählt im Spiel „🌐 Online“ – der Schatz bekommt sofort eine Einladung und tippt „Mitspielen“. Züge gehen verschlüsselt über denselben Live-Raum, „Nochmal“ startet die Revanche, und eine laufende Partie lässt sich nach dem Schließen der App fortsetzen
 - Einsatz wählen: Wer verliert, schenkt dem anderen automatisch einen Liebes-Gutschein (Kuss, Massage, Abwasch …)
 - Gesamtwertung mit Krone 👑, Siege und Rekorde werden beim Sync geteilt; 8-Bit-Sounds lassen sich abschalten
 
@@ -115,6 +118,7 @@ Weitere Befehle:
 - React 19 + TypeScript, gebaut mit Vite
 - Speicherung im Browser (`localStorage`), Offline-Unterstützung über einen Service Worker
 - Sync: Datenstand wird komprimiert (`deflate`) und per „last-writer-wins“ zusammengeführt – live über Firebase (REST + Server-Sent Events, AES-GCM-verschlüsselt, `src/lib/live.ts`) oder als Link
+- Online-Spiele: Jedes Handy schreibt einen eigenen verschlüsselten Kanal (`arcade-a` / `arcade-b`) in denselben Live-Raum, der Gastgeber führt den Spielstand (`src/games/online.ts`, Zug-Engine in `src/games/turn.ts`) – dafür sind keine neuen Datenbank-Regeln nötig
 - Keine Tracker, kein Firebase-SDK; außer der verschlüsselten Live-Datenbank keine externen Dienste
 
 ```
@@ -122,7 +126,7 @@ src/
   data/        Übungen, Rezepte, Zutaten-Nährwerte, Liebestexte, Zyklus-Wissen
   lib/         Speicher, Sync, Statistik, kcal-Berechnung, Tagesangebot, Zyklus-Rechnung
   components/  Wiederverwendbare Bausteine, Detailansichten, Einblendungen
-  games/       Spiele (Logik, Arcade-Bildschirm, Canvas-Spielschleife, 8-Bit-Sounds)
+  games/       Spiele (Regeln, KI, Online-Abgleich, Arcade-Bildschirm, Canvas-Spielschleife, 8-Bit-Sounds)
   screens/     Heute, Sport, Essen, Einkauf, Liebe, Spiele, Einrichtung
 ```
 

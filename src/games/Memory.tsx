@@ -1,24 +1,27 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { cls } from '../lib/hooks';
+import { MEMORY_PAIRS, memoryDef } from './classic';
 import { buzz, sfx } from './engine';
-import { memoryDeck, otherSide, type Side } from './logic';
-import { GameHint, TurnBar } from './parts';
+import { GameHint, TurnBar, turnHint, useOnChange } from './parts';
+import { useTurnGame } from './turn';
 import type { GameProps } from './types';
 
-const PAIRS = 8;
-
-export function Memory({ mode, p1, p2, starter, best, onEnd }: GameProps) {
+export function Memory(props: GameProps) {
+  const { mode, p1, p2, best, onEnd } = props;
   const solo = mode === 'solo';
-  const [deck] = useState(() => memoryDeck(PAIRS));
-  const [owner, setOwner] = useState<(Side | null)[]>(() => Array(PAIRS * 2).fill(null));
-  const [open, setOpen] = useState<number[]>([]);
-  const [turn, setTurn] = useState<Side>(solo ? 'p1' : starter);
-  const [moves, setMoves] = useState(0);
+  const g = useTurnGame(memoryDef, props);
+  const { deck, owner, open, turn, moves } = g.s;
   const [started] = useState(() => Date.now());
   const [now, setNow] = useState(Date.now());
   const players = { p1, p2 };
   const scores = { p1: owner.filter((o) => o === 'p1').length, p2: owner.filter((o) => o === 'p2').length };
   const done = owner.every(Boolean);
+
+  useOnChange(open.length, (prev, next) => next > prev && sfx.flip());
+  useOnChange(scores.p1 + scores.p2, () => {
+    sfx.match();
+    buzz(25);
+  });
 
   useEffect(() => {
     if (!solo || done) return;
@@ -26,35 +29,9 @@ export function Memory({ mode, p1, p2, starter, best, onEnd }: GameProps) {
     return () => window.clearInterval(t);
   }, [solo, done]);
 
-  const flip = (i: number) => {
-    if (open.length === 2 || open.includes(i) || owner[i]) return;
-    sfx.flip();
-    const next = [...open, i];
-    setOpen(next);
-    if (next.length < 2) return;
-    setMoves((m) => m + 1);
-    const [a, b] = next;
-    if (deck[a] === deck[b]) {
-      window.setTimeout(() => {
-        sfx.match();
-        buzz(25);
-        setOwner((o) => o.map((x, k) => (k === a || k === b ? turn : x)));
-        setOpen([]);
-      }, 450);
-    } else {
-      window.setTimeout(() => {
-        setOpen([]);
-        if (!solo) setTurn((t) => otherSide(t));
-      }, 950);
-    }
-  };
-
   useEffect(() => {
-    if (!done) return;
-    const t = window.setTimeout(() => {
-      if (solo) onEnd({ score: moves });
-      else onEnd({ winner: scores.p1 === scores.p2 ? 'draw' : scores.p1 > scores.p2 ? 'p1' : 'p2' });
-    }, 900);
+    if (!solo || !done) return;
+    const t = window.setTimeout(() => onEnd({ score: moves }), 900);
     return () => window.clearTimeout(t);
   }, [done]);
 
@@ -69,7 +46,7 @@ export function Memory({ mode, p1, p2, starter, best, onEnd }: GameProps) {
           <span>🏆 Rekord {best ?? '–'}</span>
         </div>
       ) : (
-        <TurnBar p1={p1} p2={p2} turn={turn} scores={scores} done={done} />
+        <TurnBar p1={p1} p2={p2} turn={g.turn} scores={scores} done={done} />
       )}
       <div className="memory-grid">
         {deck.map((emoji, i) => {
@@ -80,8 +57,8 @@ export function Memory({ mode, p1, p2, starter, best, onEnd }: GameProps) {
               key={i}
               className={cls('memory-card', shown && 'shown', !!o && 'matched')}
               style={o && !solo ? ({ '--pc': players[o].color } as CSSProperties) : undefined}
-              onClick={() => flip(i)}
-              disabled={!!o}
+              onClick={() => g.act({ t: 'flip', i })}
+              disabled={!!o || !g.myTurn}
               aria-label={shown ? emoji : 'verdeckte Karte'}
             >
               <span className="memory-inner">
@@ -98,8 +75,8 @@ export function Memory({ mode, p1, p2, starter, best, onEnd }: GameProps) {
             ? `Alle Pärchen in ${moves} Zügen gefunden! 🎉`
             : 'Alle Pärchen gefunden! 💞'
           : solo
-            ? 'Finde alle 8 Pärchen mit möglichst wenigen Zügen.'
-            : `${players[turn].emoji} ${players[turn].name} deckt auf`}
+            ? `Finde alle ${MEMORY_PAIRS} Pärchen mit möglichst wenigen Zügen.`
+            : turnHint(g, players, g.turn, `${players[turn].emoji} ${players[turn].name} deckt auf`)}
       </GameHint>
     </div>
   );

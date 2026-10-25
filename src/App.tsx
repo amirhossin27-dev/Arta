@@ -4,6 +4,7 @@ import { AddMealSheet, RecipeSheet } from './components/food';
 import { FoodScanSheet } from './components/foodScan';
 import { ExerciseSheet } from './components/exercise';
 import { GameScreen } from './games/GameScreen';
+import { ArcadeInvite } from './games/Invite';
 import { LoveLayer } from './components/LoveLayer';
 import { CheerSheet, SettingsSheet, SyncSheet, WhoSheet } from './components/sheets';
 import { dailyLove } from './lib/daily';
@@ -211,7 +212,8 @@ export default function App() {
       {sheet?.type === 'settings' && <SettingsSheet onClose={close} />}
       {sheet?.type === 'cheer' && <CheerSheet onClose={close} />}
       {sheet?.type === 'who' && <WhoSheet onClose={close} />}
-      {sheet?.type === 'game' && <GameScreen key={sheet.id} id={sheet.id} onClose={close} />}
+      {sheet?.type === 'game' && <GameScreen key={`${sheet.id}-${sheet.join ?? ''}`} id={sheet.id} join={sheet.join} onClose={close} />}
+      {live && <ArcadeInvite />}
 
       <LoveLayer />
     </div>
