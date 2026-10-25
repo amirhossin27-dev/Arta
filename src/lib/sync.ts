@@ -1,6 +1,6 @@
 import { addDays } from './date';
 import { normalizeData, observeStamp } from './store';
-import { COLLECTIONS, type AppData, type CollectionKey, type PersonId, type Rec } from './types';
+import { COLLECTIONS, type AppData, type CollectionKey, type LiveRoom, type PersonId, type Rec } from './types';
 
 /**
  * Paar-Sync ohne Server: Der Datenstand wird komprimiert in einen Link/Code gepackt,
@@ -13,6 +13,8 @@ export interface SyncPayload {
   device: string;
   at: number;
   data: AppData;
+  /** Einladung in den gemeinsamen Live-Sync-Raum (nur wenn Live-Sync verfügbar ist). */
+  live?: LiveRoom;
 }
 
 const DATED: CollectionKey[] = ['plan', 'meals', 'moods', 'hearts'];
@@ -99,7 +101,7 @@ export function mergeData(local: AppData, remoteRaw: AppData, me: PersonId): { d
 
 // ───── Kodierung ─────
 
-function toB64Url(bytes: Uint8Array): string {
+export function toB64Url(bytes: Uint8Array): string {
   let bin = '';
   for (let i = 0; i < bytes.length; i += 0x8000) {
     bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
@@ -107,7 +109,7 @@ function toB64Url(bytes: Uint8Array): string {
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-function fromB64Url(s: string): Uint8Array {
+export function fromB64Url(s: string): Uint8Array<ArrayBuffer> {
   const b64 = s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4);
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);
@@ -115,12 +117,12 @@ function fromB64Url(s: string): Uint8Array {
   return out;
 }
 
-async function pipe(bytes: Uint8Array, transform: CompressionStream | DecompressionStream): Promise<Uint8Array> {
+export async function pipe(bytes: Uint8Array, transform: CompressionStream | DecompressionStream): Promise<Uint8Array> {
   const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(transform);
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
-const canCompress = () => typeof CompressionStream !== 'undefined' && typeof DecompressionStream !== 'undefined';
+export const canCompress = () => typeof CompressionStream !== 'undefined' && typeof DecompressionStream !== 'undefined';
 
 export async function encodePayload(p: SyncPayload): Promise<string> {
   const bytes = new TextEncoder().encode(JSON.stringify(p));
@@ -146,16 +148,28 @@ export async function decodePayload(code: string): Promise<SyncPayload> {
     if (e instanceof SyncError) throw e;
     throw new SyncError('Der Code ist unvollständig oder beschädigt.');
   }
-  let parsed: SyncPayload;
+  let parsed: unknown;
   try {
     parsed = JSON.parse(json);
   } catch {
     throw new SyncError('Der Code ist beschädigt.');
   }
-  if (parsed?.app !== 'arta' || parsed.v !== 1 || (parsed.from !== 'a' && parsed.from !== 'b')) {
+  return checkPayload(parsed);
+}
+
+/** Prüft einen entpackten Stand (aus Link oder Live-Sync) und ergänzt fehlende Felder. */
+export function checkPayload(raw: unknown): SyncPayload {
+  const p = raw as SyncPayload | null;
+  if (p?.app !== 'arta' || p.v !== 1 || (p.from !== 'a' && p.from !== 'b')) {
     throw new SyncError('Das ist kein Arta-Code.');
   }
-  return { ...parsed, data: normalizeData(parsed.data) };
+  const live = isRoom(p.live) ? { secret: p.live.secret, since: p.live.since } : undefined;
+  return { ...p, live, data: normalizeData(p.data) };
+}
+
+function isRoom(x: unknown): x is LiveRoom {
+  const r = x as LiveRoom | undefined;
+  return typeof r?.secret === 'string' && /^[A-Za-z0-9_-]{43}$/.test(r.secret) && typeof r.since === 'number';
 }
 
 /** Findet den Code in einem Link oder einer eingefügten Nachricht. */

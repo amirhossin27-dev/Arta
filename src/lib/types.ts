@@ -148,6 +148,19 @@ export interface DeviceState {
   lastSyncAt?: number;
   /** Retro-Sounds in den Spielen (Standard: an). */
   sound?: boolean;
+  /** Gemeinsamer Live-Sync-Raum (Echtzeit über das Internet). */
+  live?: LiveRoom;
+}
+
+/**
+ * Zugang zum Live-Sync-Raum. Aus `secret` werden Raum-Adresse und Schlüssel abgeleitet;
+ * es reist nur in Einladungslinks. `since` entscheidet, welcher Raum gilt (der neuere gewinnt).
+ */
+export interface LiveRoom {
+  secret: string;
+  since: number;
+  /** Nur auf dem Gerät: wann der Partner zum ersten Mal live aufgetaucht ist. */
+  linkedAt?: number;
 }
 
 export function other(p: PersonId): PersonId {

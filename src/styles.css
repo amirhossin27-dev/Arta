@@ -3862,3 +3862,65 @@ input[type='checkbox'] {
     background-attachment: fixed;
   }
 }
+
+/* ───── Live-Sync ───── */
+
+.sync-btn {
+  position: relative;
+}
+
+.live-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: none;
+}
+
+.sync-btn .live-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.live-dot.online {
+  background: #22c55e;
+}
+
+.live-dot.connecting {
+  background: #f5a524;
+  animation: live-pulse 1.2s ease-in-out infinite;
+}
+
+.live-dot.error {
+  background: var(--danger);
+}
+
+@keyframes live-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot.connecting {
+    animation: none;
+  }
+}
+
+.live-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+}
+
+.live-card p {
+  margin: 0;
+}
+
+.live-card .link {
+  align-self: flex-start;
+}
