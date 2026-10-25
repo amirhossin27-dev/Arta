@@ -35,6 +35,13 @@ Sie läuft als **Web-App im Browser** und lässt sich wie eine normale App auf d
 - Herzen senden, Liebesbotschaften (auch als versteckte Überraschung, die beim anderen zufällig auftaucht)
 - Liebes-Gutscheine verschenken und einlösen, Date-Ideen-Generator
 
+**🎮 Spiele (Arta Arcade)**
+- Kurze Klassiker für zwischendurch, an einem Handy zu zweit oder allein
+- Zu zweit: Tic-Tac-Toe, Vier gewinnt, Pärchen-Memory, Pong-Duell (gegenübersitzen!) und Blitz-Duell (wer tippt schneller, wenn das Herz erscheint?) – die meisten auch gegen den Computer „Arta 🤖“
+- Solo mit Highscore-Duell: Herz-Schlange (Snake im Game-Boy-Look), Herz-Breakout und Herz-Simon
+- Einsatz wählen: Wer verliert, schenkt dem anderen automatisch einen Liebes-Gutschein (Kuss, Massage, Abwasch …)
+- Gesamtwertung mit Krone 👑, Siege und Rekorde werden beim Sync geteilt; 8-Bit-Sounds lassen sich abschalten
+
 **✨ Liebes-Einblendungen**
 Kleine Pop-ups, Herzchen und Konfetti: beim Öffnen, nach jedem Workout, wenn der Tagesplan geschafft ist und zwischendurch. Wie oft das passiert, stellt ihr in den Einstellungen ein.
 
@@ -44,7 +51,7 @@ Arta hat absichtlich keinen Server. Deshalb funktioniert das Synchronisieren üb
 
 1. Person A richtet Arta ein und tippt oben auf **🔄**, dann auf **„Link senden“** (z. B. per WhatsApp).
 2. Person B öffnet den Link. Arta erkennt die Einladung und richtet sich automatisch als „die andere Person“ ein.
-3. Ab dann schickt ihr euch ab und zu so einen Link, z. B. abends. Pläne, Essen, Einkaufsliste, Botschaften, Gutscheine und Herzen werden zusammengeführt.
+3. Ab dann schickt ihr euch ab und zu so einen Link, z. B. abends. Pläne, Essen, Einkaufsliste, Botschaften, Gutscheine, Herzen und Spielstände werden zusammengeführt.
 
 Die Daten stecken im Teil hinter dem `#` des Links. Dieser Teil wird nie an einen Server übertragen, auch nicht an GitHub.
 
@@ -94,7 +101,8 @@ src/
   data/        Übungen, Rezepte, Zutaten-Nährwerte, Liebestexte
   lib/         Speicher, Sync, Statistik, kcal-Berechnung, Tagesangebot
   components/  Wiederverwendbare Bausteine, Detailansichten, Einblendungen
-  screens/     Heute, Sport, Essen, Einkauf, Liebe, Einrichtung
+  games/       Spiele (Logik, Arcade-Bildschirm, Canvas-Spielschleife, 8-Bit-Sounds)
+  screens/     Heute, Sport, Essen, Einkauf, Liebe, Spiele, Einrichtung
 ```
 
 **Hinweis:** kcal- und Nährwerte sind Richtwerte und ersetzen keine Ernährungs- oder Trainingsberatung.

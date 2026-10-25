@@ -45,6 +45,7 @@ export function emptyData(): AppData {
     coupons: {},
     moods: {},
     hearts: {},
+    games: {},
   };
 }
 
@@ -343,10 +344,10 @@ export const actions = {
     return count;
   },
 
-  addCoupon(title: string, emoji: string) {
-    const me = device.me;
+  /** Standardmäßig schenkst du; nach einem Spiel-Einsatz schenkt der Verlierer (`from`). */
+  addCoupon(title: string, emoji: string, from: PersonId = device.me) {
     commitData(
-      withRec(data, 'coupons', { id: uid(), from: me, to: other(me), title, emoji, createdAt: Date.now(), updatedAt: 0 }),
+      withRec(data, 'coupons', { id: uid(), from, to: other(from), title, emoji, createdAt: Date.now(), updatedAt: 0 }),
     );
   },
 
@@ -364,6 +365,27 @@ export const actions = {
     commitData(withRec(data, 'moods', { id, date, personId: device.me, mood, updatedAt: 0 }));
   },
 
+  // ───── Spiele ─────
+  /** Trägt eine Runde in die Bilanz dieses Geräts ein (Sieg, Unentschieden und/oder Punktzahl). */
+  recordGame(game: string, outcome: { winner?: PersonId | 'draw'; score?: number; player?: PersonId; lowerIsBetter?: boolean }) {
+    const id = `${game}-${device.deviceId}`;
+    const cur = data.games[id];
+    const base = cur && !cur.deleted ? cur : { id, game, best: {}, wins: {}, draws: 0, plays: 0, lastAt: 0, updatedAt: 0 };
+    const best = { ...base.best };
+    const wins = { ...base.wins };
+    let draws = base.draws;
+    if (outcome.winner === 'draw') draws++;
+    else if (outcome.winner) wins[outcome.winner] = (wins[outcome.winner] ?? 0) + 1;
+    // 0 Punkte sind kein Rekord – beim Memory (wenig Züge = gut) zählt jede Runde.
+    if (outcome.score !== undefined && (outcome.score > 0 || outcome.lowerIsBetter)) {
+      const p = outcome.player ?? device.me;
+      const prev = best[p];
+      const better = prev === undefined || (outcome.lowerIsBetter ? outcome.score < prev : outcome.score > prev);
+      if (better) best[p] = outcome.score;
+    }
+    commitData(withRec(data, 'games', { ...base, best, wins, draws, plays: base.plays + 1, lastAt: Date.now() }));
+  },
+
   // ───── Gerät ─────
   setMe(me: PersonId) {
     commitDevice({ me });
@@ -371,6 +393,10 @@ export const actions = {
 
   setPopupFreq(popupFreq: PopupFreq) {
     commitDevice({ popupFreq });
+  },
+
+  setSound(sound: boolean) {
+    commitDevice({ sound });
   },
 
   markDailyPopup(date: string) {

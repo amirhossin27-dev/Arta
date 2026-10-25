@@ -270,3 +270,38 @@ export const LEVELS: { min: number; name: string; emoji: string }[] = [
   { min: 1500, name: 'Herzensathleten', emoji: '🏅' },
   { min: 2500, name: 'Legenden der Liebe', emoji: '👑' },
 ];
+
+// ───────────────────────── Spiele ─────────────────────────
+
+/** Worum ihr spielt: Wer verliert, schenkt dem anderen diesen Gutschein. */
+export const STAKES: { emoji: string; label: string; title: string }[] = [
+  { emoji: '💋', label: 'Kuss', title: 'Ein langer Kuss – sofort fällig' },
+  { emoji: '💆', label: 'Massage', title: 'Eine Massage' },
+  { emoji: '🥐', label: 'Frühstück', title: 'Frühstück ans Bett' },
+  { emoji: '🍽️', label: 'Abwasch', title: 'Einmal Abwasch übernehmen' },
+  { emoji: '🎬', label: 'Film', title: 'Du suchst den Film aus' },
+  { emoji: '🍦', label: 'Eis', title: 'Ein Eis deiner Wahl' },
+  { emoji: '🛒', label: 'Einkauf', title: 'Ich gehe diese Woche einkaufen' },
+  { emoji: '🏋️', label: 'Workout', title: 'Ich mache dein Lieblings-Workout mit' },
+];
+
+export const GAME_WIN = [
+  '{winner} gewinnt! {loser}, das schreit nach Revanche. 😏',
+  'Sieg für {winner}! Aber mal ehrlich: Mit {loser} hat man sowieso gewonnen. 💞',
+  '{winner} ist unschlagbar … zumindest diese Runde. 😜',
+  'Glückwunsch, {winner}! {loser} bekommt einen Trostkuss. 😘',
+  '{winner} holt sich den Sieg – {loser} holt sich eine Umarmung. 🤗',
+  'Punkt, Satz und Sieg für {winner}! 🏆',
+];
+
+export const GAME_DRAW = [
+  'Unentschieden – ihr seid einfach ein perfektes Team. 💞',
+  'Gleichstand! Ihr passt eben perfekt zusammen. 🤝',
+  'Keiner gewinnt, beide gewinnen. So ist das bei euch. 🥰',
+];
+
+export const GAME_CPU_WIN = ['Du hast Arta geschlagen! 🤖💥', 'Mensch schlägt Maschine! 💪', 'Arta verneigt sich vor dir. 🤖🙇'];
+
+export const GAME_CPU_LOSE = ['Arta war diesmal besser. Revanche? 🤖', 'Beep boop – Arta gewinnt. Gleich nochmal! 😤', 'Knapp! Arta hatte Glück. 🍀'];
+
+export const GAME_RECORD = ['Neuer Rekord! {partner} wird staunen. 🏆', 'Rekord geknackt! Zeig das mal {partner}. 😎', 'Persönliche Bestleistung! 🚀'];

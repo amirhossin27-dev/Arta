@@ -27,6 +27,8 @@ export function buildPayload(d: AppData, from: PersonId, deviceId: string, today
     const kept = Object.entries(col).filter(([, r]) => {
       if (DATED.includes(key)) return (r.date ?? '') >= since;
       if (key === 'shopping') return !r.deleted || r.updatedAt > Date.now() - 30 * 86_400_000;
+      // Spielbilanzen sind winzig (eine Zeile pro Spiel und Gerät) – immer komplett mitschicken.
+      if (key === 'games') return true;
       return r.updatedAt > recentTs || (key === 'notes' && !r.seen);
     });
     (out as unknown as Record<string, unknown>)[key] = Object.fromEntries(kept);

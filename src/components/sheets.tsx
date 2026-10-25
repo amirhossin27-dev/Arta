@@ -97,7 +97,7 @@ export function SyncSheet({ code, onClose }: { code?: string; onClose: () => voi
           Tippe auf <b>„Link senden“</b> und schick ihn {partner.name}.
         </li>
         <li>{partner.name} öffnet den Link – oder fügt die Nachricht unten bei „Stand übernehmen“ ein.</li>
-        <li>Pläne, Essen, Einkaufsliste, Botschaften und Herzen werden zusammengeführt. Am besten macht ihr das in beide Richtungen.</li>
+        <li>Pläne, Essen, Einkaufsliste, Botschaften, Herzen und Spielstände werden zusammengeführt. Am besten macht ihr das in beide Richtungen.</li>
       </ol>
 
       <div className="inset">
