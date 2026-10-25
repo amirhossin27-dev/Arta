@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { RANDOM_POPUPS } from './data/messages';
 import { AddMealSheet, RecipeSheet } from './components/food';
 import { ExerciseSheet } from './components/exercise';
+import { GameScreen } from './games/GameScreen';
 import { LoveLayer } from './components/LoveLayer';
 import { CheerSheet, SettingsSheet, SyncSheet, WhoSheet } from './components/sheets';
 import { dailyLove } from './lib/daily';
@@ -15,6 +16,7 @@ import { fill } from './lib/text';
 import { other } from './lib/types';
 import { nav, useUI, type Tab } from './lib/ui';
 import { Food } from './screens/Food';
+import { Games } from './screens/Games';
 import { Love } from './screens/Love';
 import { Onboarding } from './screens/Onboarding';
 import { Shopping } from './screens/Shopping';
@@ -27,9 +29,13 @@ const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: 'essen', label: 'Essen', emoji: '🥗' },
   { id: 'einkauf', label: 'Einkauf', emoji: '🛒' },
   { id: 'liebe', label: 'Liebe', emoji: '💞' },
+  { id: 'spiele', label: 'Spiele', emoji: '🎮' },
 ];
 
 const POPUP_INTERVAL = { oft: 90_000, normal: 4 * 60_000, selten: 10 * 60_000 } as const;
+
+/** Während ein Fenster oder ein Spiel offen ist, stören wir nicht mit Einblendungen. */
+const busy = () => !!document.querySelector('.sheet, .game-screen');
 
 function currentNames() {
   const d = getData();
@@ -84,12 +90,17 @@ function useLoveMoments(onboarded: boolean) {
       showLove({ emoji: '🎁', title: `Überraschung von ${d.persons[s.from].name}!`, text: s.text, big: true, tone: 'party' });
       return true;
     };
-    // Erste Überraschung kommt nach einer kleinen Weile – nicht sofort.
-    const first = window.setTimeout(revealSurprise, 20_000 + Math.random() * 40_000);
+    // Erste Überraschung kommt nach einer kleinen Weile – nicht sofort (und nicht mitten im Spiel).
+    let first: number | undefined;
+    const tryFirst = () => {
+      if (busy()) first = window.setTimeout(tryFirst, 15_000);
+      else revealSurprise();
+    };
+    first = window.setTimeout(tryFirst, 20_000 + Math.random() * 40_000);
     let interval: number | undefined;
     if (device.popupFreq !== 'aus') {
       interval = window.setInterval(() => {
-        if (document.visibilityState !== 'visible' || document.querySelector('.sheet')) return;
+        if (document.visibilityState !== 'visible' || busy()) return;
         if (revealSurprise()) return;
         showLove({ emoji: pickRandom(['💗', '💞', '✨', '🌷', '💌', '🥰']), text: fill(pickRandom(RANDOM_POPUPS), currentNames()), tone: 'love' });
       }, POPUP_INTERVAL[device.popupFreq]);
@@ -174,6 +185,7 @@ export default function App() {
         {ui.tab === 'essen' && <Food />}
         {ui.tab === 'einkauf' && <Shopping />}
         {ui.tab === 'liebe' && <Love />}
+        {ui.tab === 'spiele' && <Games />}
       </main>
 
       <nav className="tabbar" aria-label="Bereiche">
@@ -193,6 +205,7 @@ export default function App() {
       {sheet?.type === 'settings' && <SettingsSheet onClose={close} />}
       {sheet?.type === 'cheer' && <CheerSheet onClose={close} />}
       {sheet?.type === 'who' && <WhoSheet onClose={close} />}
+      {sheet?.type === 'game' && <GameScreen key={sheet.id} id={sheet.id} onClose={close} />}
 
       <LoveLayer />
     </div>

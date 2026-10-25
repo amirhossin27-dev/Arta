@@ -1,8 +1,9 @@
 import { useSyncExternalStore } from 'react';
+import type { GameId } from '../games/registry';
 import { todayKey } from './date';
 import type { MealType } from './types';
 
-export type Tab = 'heute' | 'sport' | 'essen' | 'einkauf' | 'liebe';
+export type Tab = 'heute' | 'sport' | 'essen' | 'einkauf' | 'liebe' | 'spiele';
 
 export type SheetState =
   | { type: 'exercise'; id: string; date?: string; planFirst?: boolean }
@@ -11,7 +12,8 @@ export type SheetState =
   | { type: 'sync'; code?: string }
   | { type: 'settings' }
   | { type: 'cheer' }
-  | { type: 'who' };
+  | { type: 'who' }
+  | { type: 'game'; id: GameId };
 
 interface UIState {
   tab: Tab;

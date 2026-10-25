@@ -104,6 +104,19 @@ export interface Hearts extends Rec {
   count: number;
 }
 
+/**
+ * Spielbilanz pro Spiel und Gerät (ID `${game}-${deviceId}`). Jedes Gerät schreibt nur seine
+ * eigene Zeile, deshalb gehen beim last-writer-wins-Sync keine Siege verloren.
+ */
+export interface GameStat extends Rec {
+  game: string;
+  best: Partial<Record<PersonId, number>>;
+  wins: Partial<Record<PersonId, number>>;
+  draws: number;
+  plays: number;
+  lastAt: number;
+}
+
 export interface AppData {
   v: 1;
   persons: Record<PersonId, Person>;
@@ -115,12 +128,13 @@ export interface AppData {
   coupons: Record<string, Coupon>;
   moods: Record<string, Mood>;
   hearts: Record<string, Hearts>;
+  games: Record<string, GameStat>;
 }
 
-export type CollectionKey = 'plan' | 'meals' | 'shopping' | 'notes' | 'coupons' | 'moods' | 'hearts';
+export type CollectionKey = 'plan' | 'meals' | 'shopping' | 'notes' | 'coupons' | 'moods' | 'hearts' | 'games';
 export type RecOf<K extends CollectionKey> = AppData[K][string];
 
-export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts'];
+export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts', 'games'];
 
 export type PopupFreq = 'oft' | 'normal' | 'selten' | 'aus';
 
@@ -132,6 +146,8 @@ export interface DeviceState {
   popupFreq: PopupFreq;
   lastDailyPopup?: string;
   lastSyncAt?: number;
+  /** Retro-Sounds in den Spielen (Standard: an). */
+  sound?: boolean;
 }
 
 export function other(p: PersonId): PersonId {
