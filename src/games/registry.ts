@@ -14,6 +14,7 @@ export type GameId =
   | 'slf'
   | 'guesswho'
   | 'memory'
+  | 'kart'
   | 'pong'
   | 'reaction'
   | 'tetris'
@@ -230,6 +231,20 @@ export const GAMES: GameMeta[] = [
     lowerIsBetter: true,
   },
   {
+    id: 'kart',
+    name: 'Herz-Kart',
+    emoji: '🏎️',
+    tagline: 'Kart-Rennen auf dem Herz-Ring – mit Turbo-Pilz, Banane und Herzpfeil',
+    rules:
+      'Drei Runden auf dem Herz-Ring – wer zuerst im Ziel ist, gewinnt. Gas gibt dein Kart von selbst, du lenkst mit ◀ und ▶. Hältst du eine Kurve lange gedrückt, driftest du und es sprühen Funken – beim Loslassen gibt’s einen Mini-Turbo. Fahr durch die ?-Boxen: 🍄 Turbo-Pilz gibt Tempo, 🍌 Bananen legst du hinter dich, 💘 der Herzpfeil fliegt dem anderen hinterher und bringt ihn ins Schleudern. Item einsetzen mit der Taste in der Mitte. Auf der Wiese wird’s langsam, orange Felder geben Schub. Zu zweit an einem Handy sitzt ihr euch gegenüber, allein fährst du Zeitfahren auf Rekordjagd.',
+    modes: ['duo', 'online', 'cpu', 'solo'],
+    category: 'arcade',
+    minutes: '2 Min',
+    colors: ['#ff4f81', '#ffb347'],
+    scoreLabel: 'Sek.',
+    lowerIsBetter: true,
+  },
+  {
     id: 'pong',
     name: 'Pong-Duell',
     emoji: '🏓',
@@ -366,5 +381,5 @@ export const CATEGORY_INFO: Record<GameCategory, { emoji: string; title: string;
   karten: { emoji: '🃏', title: 'Karten & Würfel', text: 'Die Klassiker vom Spieleabend – online, an einem Handy oder gegen die KI' },
   brett: { emoji: '♟️', title: 'Brett & Strategie', text: 'Schach, Dame, Mühle und Co. – Köpfchen ist gefragt' },
   raten: { emoji: '🧠', title: 'Rätseln & Raten', text: 'Wer weiß mehr, wer merkt sich mehr?' },
-  arcade: { emoji: '🕹️', title: 'Arcade', text: 'Schnelle Retro-Runden – gegenüber am Handy oder allein auf Rekordjagd' },
+  arcade: { emoji: '🕹️', title: 'Arcade', text: 'Schnelle Retro-Runden – Kart-Rennen, gegenüber am Handy oder allein auf Rekordjagd' },
 };

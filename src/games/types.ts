@@ -27,7 +27,8 @@ export interface NetLink {
   /** Züge des Gasts in Phasen, in denen beide gleichzeitig spielen. */
   acts: { n: number; a: unknown }[];
   publish(snap: NetSnap): void;
-  pushAct(a: unknown): void;
+  /** `keep`: wie viele Züge im Kanal stehen bleiben (Standard 16, Echtzeit: 1) */
+  pushAct(a: unknown, keep?: number): void;
 }
 
 export interface GameProps {
