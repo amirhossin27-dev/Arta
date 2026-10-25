@@ -6,6 +6,7 @@ import { Bar, ProgressRing } from '../components/ui';
 import { dailyLove, dailyQuestion } from '../lib/daily';
 import { diffDays, formatLong, greeting } from '../lib/date';
 import { cls, usePeople, useToday } from '../lib/hooks';
+import { isLive } from '../lib/live';
 import { heartBurst, showLove } from '../lib/love';
 import {
   activeMinutes,
@@ -36,7 +37,7 @@ export function sendHeartWithLove(e: MouseEvent, partnerName: string) {
   heartBurst(e, '❤️', 10);
   const count = actions.sendHeart();
   if (count === 1) {
-    showLove({ emoji: '❤️', title: 'Herz verschickt!', text: `${partnerName} bekommt es beim nächsten Sync.`, tone: 'love' });
+    showLove({ emoji: '❤️', title: 'Herz verschickt!', text: `${partnerName} bekommt es ${isLive() ? 'sofort' : 'beim nächsten Sync'}.`, tone: 'love' });
   } else if (count % 10 === 0) {
     showLove({ emoji: '🍭', title: `${count} Herzen heute!`, text: 'Ihr seid zuckersüß. 💕', tone: 'love' });
   }

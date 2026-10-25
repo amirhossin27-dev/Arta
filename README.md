@@ -2,7 +2,7 @@
 
 Arta ist eine App für Paare: Ihr plant zusammen Sport, Essen und Einkäufe, motiviert euch gegenseitig und schickt euch zwischendurch kleine Liebesbotschaften.
 
-Sie läuft als **Web-App im Browser** und lässt sich wie eine normale App auf den Home-Bildschirm legen (PWA). Sie braucht **kein Konto und keinen Server**: Alle Daten bleiben auf euren Handys.
+Sie läuft als **Web-App im Browser** und lässt sich wie eine normale App auf den Home-Bildschirm legen (PWA). Sie braucht **kein Konto**: Alle Daten liegen auf euren Handys. Für den Echtzeit-Sync wandert zusätzlich eine **Ende-zu-Ende-verschlüsselte** Kopie durch eine kleine Firebase-Datenbank.
 
 ## Was Arta kann
 
@@ -56,17 +56,29 @@ Kleine Pop-ups, Herzchen und Konfetti: beim Öffnen, nach jedem Workout, wenn de
 
 ## So verbindet ihr eure zwei Handys
 
-Arta hat absichtlich keinen Server. Deshalb funktioniert das Synchronisieren über einen Link:
+Einmal per Link verbinden, danach synchronisiert Arta **automatisch in Echtzeit** (Live-Sync ⚡):
 
 1. Person A richtet Arta ein und tippt oben auf **🔄**, dann auf **„Link senden“** (z. B. per WhatsApp).
-2. Person B öffnet den Link. Arta erkennt die Einladung und richtet sich automatisch als „die andere Person“ ein.
-3. Ab dann schickt ihr euch ab und zu so einen Link, z. B. abends. Pläne, Essen, Einkaufsliste, Botschaften, Gutscheine, Herzen und Spielstände werden zusammengeführt.
+2. Person B öffnet den Link. Arta erkennt die Einladung, richtet sich als „die andere Person“ ein und verbindet sich live.
+3. Fertig! Pläne, Essen, Einkaufsliste, Botschaften, Gutscheine, Herzen und Spielstände kommen ab dann innerhalb von etwa einer Sekunde auf dem anderen Handy an. Herzen und Botschaften poppen sofort auf.
 
-Die Daten stecken im Teil hinter dem `#` des Links. Dieser Teil wird nie an einen Server übertragen, auch nicht an GitHub.
+Ein grüner Punkt am 🔄 zeigt, dass die Live-Verbindung steht. Wer offline ist, bekommt alles nach, sobald das Handy wieder Internet hat.
+
+**Datenschutz:** Der Schlüssel steckt nur im Einladungslink (im Teil hinter dem `#`, der nie an einen Server geht). Jedes Handy verschlüsselt seinen Stand mit AES-256-GCM, bevor er in die Datenbank geht – Firebase bzw. Google sehen nur Zeichensalat. Behandelt den Link deshalb wie einen Hausschlüssel und schickt ihn nur eurem Schatz.
+
+**Notlösung ohne Live-Sync:** Unter 🔄 könnt ihr euch weiterhin jederzeit einen Link mit dem kompletten Stand schicken. Das klappt auch, wenn die Datenbank mal nicht erreichbar ist.
 
 > 📱 **iPhone-Tipp:** Ist Arta auf dem Home-Bildschirm installiert, öffnet iOS Links in Safari statt in der App. Dann einfach die ganze Nachricht kopieren und in Arta unter 🔄 → „Stand übernehmen“ einfügen.
 
 Ihr habt nur ein gemeinsames Gerät? Tippt oben auf eure beiden Symbole, um zu wechseln, wer gerade dran ist.
+
+### Live-Datenbank einrichten (einmalig, schon erledigt)
+
+Arta nutzt die kostenlose [Firebase Realtime Database](https://firebase.google.com/docs/database) ohne Firebase-SDK, nur über deren REST-Schnittstelle:
+
+1. In der [Firebase-Konsole](https://console.firebase.google.com) ein Projekt anlegen, dann **Realtime Database → Datenbank erstellen** (Standort z. B. Belgien, „gesperrter Modus“).
+2. Im Reiter **Regeln** den Inhalt von [`database.rules.json`](database.rules.json) einfügen und veröffentlichen. Die Regeln erlauben nur das Lesen und Schreiben einzelner Räume mit gültiger Raum-ID, keine Übersicht über alle Räume.
+3. Die Adresse der Datenbank in `src/lib/liveConfig.ts` eintragen (oder beim Bauen per `VITE_ARTA_DB_URL` setzen). Ohne Adresse fällt Arta automatisch auf den Link-Sync zurück.
 
 ## Starten
 
@@ -102,8 +114,8 @@ Weitere Befehle:
 
 - React 19 + TypeScript, gebaut mit Vite
 - Speicherung im Browser (`localStorage`), Offline-Unterstützung über einen Service Worker
-- Sync: Datenstand wird komprimiert (`deflate`) in den Link gepackt und per „last-writer-wins“ zusammengeführt
-- Keine externen Dienste, keine Tracker
+- Sync: Datenstand wird komprimiert (`deflate`) und per „last-writer-wins“ zusammengeführt – live über Firebase (REST + Server-Sent Events, AES-GCM-verschlüsselt, `src/lib/live.ts`) oder als Link
+- Keine Tracker, kein Firebase-SDK; außer der verschlüsselten Live-Datenbank keine externen Dienste
 
 ```
 src/

@@ -5,6 +5,7 @@ import { Chips, Empty, Segmented, WeekStrip } from '../components/ui';
 import { dailyUnits } from '../lib/daily';
 import { formatShort, relativeDay, todayKey } from '../lib/date';
 import { usePeople } from '../lib/hooks';
+import { useLive } from '../lib/live';
 import { activeMinutes, burnedFor, planFor } from '../lib/stats';
 import { useData } from '../lib/store';
 import type { Place } from '../lib/types';
@@ -26,6 +27,7 @@ const SECTIONS: { place: Place; sub: string }[] = [
 export function Sport() {
   const data = useData();
   const { me, partner } = usePeople();
+  const live = useLive();
   const { sportDate: date } = useUI();
   const [view, setView] = useState<View>('angebot');
   const [place, setPlace] = useState<'alle' | Place>('alle');
@@ -146,7 +148,9 @@ export function Sport() {
                 „Für wen?“ einfach {partner.name} wählen. 😉
               </p>
             )}
-            <p className="hint">Was {partner.name} auf dem eigenen Handy plant, siehst du nach dem nächsten Sync.</p>
+            <p className="hint">
+              Was {partner.name} auf dem eigenen Handy plant, {live ? 'erscheint hier automatisch.' : 'siehst du nach dem nächsten Sync.'}
+            </p>
           </div>
         </>
       )}

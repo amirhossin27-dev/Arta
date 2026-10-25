@@ -8,6 +8,7 @@ import {
   type CycleDay,
   type CycleSettings,
   type DeviceState,
+  type LiveRoom,
   type MealEntry,
   type Person,
   type PersonId,
@@ -119,7 +120,8 @@ let device: DeviceState = { ...defaultDevice(), ...((read(DEVICE_KEY) as Partial
 if (!read(DEVICE_KEY)) write(DEVICE_KEY, device);
 
 const listeners = new Set<() => void>();
-const subscribe = (fn: () => void) => {
+/** Meldet jede Änderung an Daten oder Geräteeinstellungen (z. B. für den Live-Sync). */
+export const subscribe = (fn: () => void) => {
   listeners.add(fn);
   return () => {
     listeners.delete(fn);
@@ -460,6 +462,10 @@ export const actions = {
 
   markSynced() {
     commitDevice({ lastSyncAt: Date.now() });
+  },
+
+  setLive(live: LiveRoom | undefined) {
+    commitDevice({ live });
   },
 
   /** Zweites Handy: Daten des Partners übernehmen und selbst die andere Person sein. */

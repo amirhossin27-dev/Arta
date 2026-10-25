@@ -21,6 +21,9 @@ function EmojiPicker({ value, onChange }: { value: string; onChange: (e: string)
   );
 }
 
+/** Erst nach dem Wechsel in die App zeigen – sonst verschwindet die Einblendung mit diesem Bildschirm. */
+const showAfterSwitch = (popup: Parameters<typeof showLove>[0]) => window.setTimeout(() => showLove(popup), 300);
+
 export function Onboarding({ initialCode }: { initialCode?: string }) {
   const [step, setStep] = useState<Step>(initialCode ? 'join' : 'welcome');
   const [meName, setMeName] = useState('');
@@ -34,7 +37,7 @@ export function Onboarding({ initialCode }: { initialCode?: string }) {
 
   const finish = () => {
     actions.setupCouple({ meName: meName.trim(), meEmoji, partnerName: partnerName.trim(), partnerEmoji, anniversary });
-    showLove({
+    showAfterSwitch({
       emoji: '💞',
       title: `Willkommen, ${meName.trim()}!`,
       text: `Schön, dass ihr da seid. Schick ${partnerName.trim()} gleich über 🔄 einen Sync-Link, dann seid ihr verbunden.`,
@@ -48,13 +51,15 @@ export function Onboarding({ initialCode }: { initialCode?: string }) {
     setError('');
     try {
       const payload = await readCode(text);
-      joinWith(payload);
+      const { liveJoined } = joinWith(payload);
       const meP = payload.data.persons[other(payload.from)];
       const partnerP = payload.data.persons[payload.from];
-      showLove({
+      showAfterSwitch({
         emoji: '💞',
         title: `Hallo ${meP.name}!`,
-        text: `Du bist jetzt mit ${partnerP.name} verbunden. Schick über 🔄 auch deinen Stand zurück.`,
+        text: liveJoined
+          ? `Du bist jetzt mit ${partnerP.name} live verbunden – ab sofort synchronisiert Arta eure Handys automatisch. ⚡`
+          : `Du bist jetzt mit ${partnerP.name} verbunden. Schick über 🔄 auch deinen Stand zurück.`,
         big: true,
         tone: 'party',
       });

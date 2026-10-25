@@ -8,6 +8,7 @@ import { CheerSheet, SettingsSheet, SyncSheet, WhoSheet } from './components/she
 import { dailyLove } from './lib/daily';
 import { todayKey } from './lib/date';
 import { cls, usePeople } from './lib/hooks';
+import { useLive, useLiveStatus } from './lib/live';
 import { showLove } from './lib/love';
 import { pickRandom } from './lib/random';
 import { alive, pendingSurprises, unreadNotes } from './lib/stats';
@@ -128,6 +129,8 @@ export default function App() {
   const ui = useUI();
   const { me, partner } = usePeople();
   const linkCode = useSyncLink();
+  const live = useLive();
+  const liveStatus = useLiveStatus();
   useLoveMoments(device.onboarded);
 
   useEffect(() => {
@@ -170,8 +173,9 @@ export default function App() {
             <span className="couple-chip-heart">♥</span>
             <span className="avatar sm">{partner.emoji}</span>
           </button>
-          <button className="icon-btn" onClick={() => nav.open({ type: 'sync' })} aria-label="Paar-Sync">
+          <button className="icon-btn sync-btn" onClick={() => nav.open({ type: 'sync' })} aria-label={live ? `Paar-Sync (live: ${liveStatus.state})` : 'Paar-Sync'}>
             🔄
+            {live && <span className={cls('live-dot', liveStatus.state)} aria-hidden="true" />}
           </button>
           <button className="icon-btn" onClick={() => nav.open({ type: 'settings' })} aria-label="Einstellungen">
             ⚙️

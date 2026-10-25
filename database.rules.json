@@ -1,0 +1,18 @@
+{
+  "rules": {
+    "rooms": {
+      "$room": {
+        ".read": "$room.length === 32 && $room.matches(/^[0-9a-f]+$/)",
+        "$device": {
+          ".write": "$room.length === 32 && $room.matches(/^[0-9a-f]+$/) && $device.length >= 6 && $device.length <= 40 && $device.matches(/^[-_0-9A-Za-z]+$/)",
+          ".validate": "newData.hasChildren(['v', 'at', 'iv', 'ct'])",
+          "v": { ".validate": "newData.val() === 1" },
+          "at": { ".validate": "newData.isNumber()" },
+          "iv": { ".validate": "newData.isString() && newData.val().length <= 32" },
+          "ct": { ".validate": "newData.isString() && newData.val().length <= 1000000" },
+          "$other": { ".validate": false }
+        }
+      }
+    }
+  }
+}

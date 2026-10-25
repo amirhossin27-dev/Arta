@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CHEERS, PERSON_EMOJIS } from '../data/messages';
 import { formatDateTime, todayKey } from '../lib/date';
 import { cls, usePeople } from '../lib/hooks';
+import { leaveRoom, liveAvailable, useLive, useLiveStatus, type LiveStatus } from '../lib/live';
 import { heartBurst, showLove } from '../lib/love';
 import { ACTIVITY_LABEL, suggestKcalGoal, type Activity, type Sex } from '../lib/nutrition';
 import { actions, getData, normalizeData, useData, useDevice, commitData } from '../lib/store';
@@ -13,9 +14,80 @@ import { Segmented, Sheet } from './ui';
 
 // ───────────────────────── Sync ─────────────────────────
 
+function liveLine(live: LiveStatus, partnerName: string, linked: boolean): { tone: string; text: string } {
+  if (live.state === 'error') return { tone: 'error', text: live.message ?? 'Live-Sync gestört.' };
+  if (live.state === 'offline') return { tone: 'offline', text: 'Gerade offline – deine Änderungen werden nachgeholt, sobald du wieder Internet hast.' };
+  if (live.state !== 'online') return { tone: 'connecting', text: 'Verbinde …' };
+  if (live.partnerAt || linked) return { tone: 'online', text: `Live verbunden mit ${partnerName} 💞 Alles kommt sofort auf dem anderen Handy an.` };
+  return { tone: 'online', text: `Live-Sync ist an. Sobald ${partnerName} deinen Link geöffnet hat, synchronisiert ihr euch automatisch.` };
+}
+
+function LiveCard() {
+  const device = useDevice();
+  const live = useLiveStatus();
+  const { partner } = usePeople();
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const room = device.live;
+  if (!room) {
+    return (
+      <div className="inset live-card">
+        <h3>⚡ Live-Sync</h3>
+        <p>
+          Einmal verbinden, danach landet alles <b>sofort</b> auf dem anderen Handy – ohne Links hin und her. Schick {partner.name} dafür unten einmal den Link.
+        </p>
+        <p className="muted small">🔒 Ende-zu-Ende-verschlüsselt: Nur eure Handys können die Daten lesen.</p>
+      </div>
+    );
+  }
+  const line = liveLine(live, partner.name, !!room.linkedAt);
+  return (
+    <div className="inset live-card">
+      <h3>⚡ Live-Sync</h3>
+      <p className="live-line">
+        <span className={cls('live-dot', line.tone)} aria-hidden="true" />
+        <span>{line.text}</span>
+      </p>
+      {live.partnerAt && (
+        <p className="muted small">
+          {partner.name} zuletzt aktiv: {formatDateTime(live.partnerAt)}
+          {live.pending ? ' · deine Änderungen werden gerade übertragen …' : ''}
+        </p>
+      )}
+      <p className="muted small">🔒 Ende-zu-Ende-verschlüsselt: Nur eure Handys können die Daten lesen.</p>
+      {confirmLeave ? (
+        <div className="notice warn">
+          <p>Live-Sync auf diesem Handy beenden? Deine Daten bleiben hier, werden aber nicht mehr automatisch mit {partner.name} abgeglichen.</p>
+          <div className="btn-row">
+            <button className="btn soft" onClick={() => setConfirmLeave(false)}>
+              Abbrechen
+            </button>
+            <button
+              className="btn primary"
+              onClick={() => {
+                setConfirmLeave(false);
+                void leaveRoom();
+              }}
+            >
+              Beenden
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button className="link small" onClick={() => setConfirmLeave(true)}>
+          Live-Sync auf diesem Handy beenden
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function SyncSheet({ code, onClose }: { code?: string; onClose: () => void }) {
   const device = useDevice();
   const { me, partner } = usePeople();
+  const live = useLive();
+  const liveStatus = useLiveStatus();
+  const liveOffer = liveAvailable();
+  const connected = live && (!!liveStatus.partnerAt || !!device.live?.linkedAt);
   const [share, setShare] = useState<{ text: string; link: string } | null>(null);
   const [status, setStatus] = useState('');
   const [input, setInput] = useState(code ?? '');
@@ -65,7 +137,11 @@ export function SyncSheet({ code, onClose }: { code?: string; onClose: () => voi
     setResult(r);
     if (r.ok) {
       setInput('');
-      showLove({ emoji: '🔄', title: `Synchronisiert mit ${r.partnerName}`, text: summarize(r.stats), tone: 'love' });
+      if (r.liveJoined) {
+        showLove({ emoji: '⚡', title: `Live verbunden mit ${r.partnerName}!`, text: 'Ab jetzt synchronisiert Arta eure Handys automatisch. 💞', big: true, tone: 'party' });
+      } else {
+        showLove({ emoji: '🔄', title: `Synchronisiert mit ${r.partnerName}`, text: summarize(r.stats), tone: 'love' });
+      }
       if (r.newHearts > 0) {
         heartBurst(undefined, '❤️', Math.min(r.newHearts, 20));
         showLove({ emoji: '❤️', title: `${r.newHearts}× Herz von ${r.partnerName}`, text: 'Da denkt jemand ganz fest an dich!', tone: 'love' });
@@ -91,17 +167,28 @@ export function SyncSheet({ code, onClose }: { code?: string; onClose: () => voi
 
   return (
     <Sheet title="🔄 Paar-Sync" onClose={onClose}>
-      <p className="lead">Arta speichert alles nur auf euren Handys – ganz ohne Konto oder Server. Mit einem Link bringt ihr euch gegenseitig auf den gleichen Stand.</p>
-      <ol className="how">
-        <li>
-          Tippe auf <b>„Link senden“</b> und schick ihn {partner.name}.
-        </li>
-        <li>{partner.name} öffnet den Link – oder fügt die Nachricht unten bei „Stand übernehmen“ ein.</li>
-        <li>Pläne, Essen, Einkaufsliste, Botschaften, Herzen und Spielstände werden zusammengeführt. Am besten macht ihr das in beide Richtungen.</li>
-      </ol>
+      {liveOffer ? (
+        <LiveCard />
+      ) : (
+        <p className="lead">Arta speichert alles nur auf euren Handys – ganz ohne Konto oder Server. Mit einem Link bringt ihr euch gegenseitig auf den gleichen Stand.</p>
+      )}
+      {!connected && (
+        <ol className="how">
+          <li>
+            Tippe auf <b>„Link senden“</b> und schick ihn {partner.name}.
+          </li>
+          <li>{partner.name} öffnet den Link – oder fügt die Nachricht unten bei „Stand übernehmen“ ein.</li>
+          {liveOffer ? (
+            <li>Fertig! Ab dann kommen Pläne, Essen, Einkaufsliste, Botschaften, Herzen und Spielstände automatisch in Echtzeit an.</li>
+          ) : (
+            <li>Pläne, Essen, Einkaufsliste, Botschaften, Herzen und Spielstände werden zusammengeführt. Am besten macht ihr das in beide Richtungen.</li>
+          )}
+        </ol>
+      )}
 
       <div className="inset">
-        <h3>📤 Meinen Stand an {partner.name} senden</h3>
+        <h3>{connected ? '📤 Stand zusätzlich per Link senden' : liveOffer ? `📤 ${partner.name} verbinden` : `📤 Meinen Stand an ${partner.name} senden`}</h3>
+        {connected && <p className="muted small">Braucht ihr nur, falls der Live-Sync mal hakt – oder für ein neues Handy.</p>}
         <button className="btn primary block" onClick={sendShare}>
           Link senden 💞
         </button>
@@ -156,11 +243,12 @@ export function SyncSheet({ code, onClose }: { code?: string; onClose: () => voi
 
 export function CheerSheet({ onClose }: { onClose: () => void }) {
   const { partner } = usePeople();
+  const live = useLive();
   const [custom, setCustom] = useState('');
   const send = (text: string) => {
     actions.sendNote(text, { kind: 'cheer' });
     heartBurst(undefined, '📣', 6);
-    showLove({ emoji: '📣', title: `${partner.name} angefeuert!`, text: `„${text}“ – kommt beim nächsten Sync an.`, tone: 'sport' });
+    showLove({ emoji: '📣', title: `${partner.name} angefeuert!`, text: `„${text}“ – kommt ${live ? 'sofort' : 'beim nächsten Sync'} an.`, tone: 'sport' });
     onClose();
   };
   return (
@@ -426,7 +514,12 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
 
       <h3>💾 Daten</h3>
       <div className="inset">
-        <p className="muted small">Alles bleibt auf deinem Gerät. Ein Backup schützt vor Datenverlust, z. B. beim Handywechsel.</p>
+        <p className="muted small">
+          {device.live
+            ? 'Alles liegt auf deinem Gerät, für den Live-Sync zusätzlich verschlüsselt in eurer Datenbank.'
+            : 'Alles bleibt auf deinem Gerät.'}{' '}
+          Ein Backup schützt vor Datenverlust, z. B. beim Handywechsel.
+        </p>
         <div className="btn-row">
           <button className="btn soft" onClick={exportBackup}>
             ⬇️ Backup sichern

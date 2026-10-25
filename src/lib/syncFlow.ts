@@ -1,11 +1,12 @@
 import { todayKey } from './date';
+import { adoptRoom, ensureRoom } from './live';
 import { heartsOn } from './stats';
 import { actions, emptyData, getData, getDevice, commitData } from './store';
 import { buildPayload, decodePayload, encodePayload, extractCode, mergeData, syncLink, SyncError, type MergeStats, type SyncPayload } from './sync';
 import { other } from './types';
 
 export type ApplyResult =
-  | { ok: true; stats: MergeStats; partnerName: string; newHearts: number }
+  | { ok: true; stats: MergeStats; partnerName: string; newHearts: number; liveJoined: boolean }
   | { ok: false; reason: 'own' | 'same-person' | 'invalid'; message: string; payload?: SyncPayload };
 
 export async function readCode(text: string): Promise<SyncPayload> {
@@ -39,23 +40,29 @@ export async function applySync(text: string): Promise<ApplyResult> {
   const { data, stats } = mergeData(getData(), payload.data, device.me);
   commitData(data);
   actions.markSynced();
+  const liveJoined = adoptRoom(payload.live);
   const newHearts = Math.max(0, heartsOn(data, today, payload.from) - before);
-  return { ok: true, stats, partnerName: data.persons[payload.from].name, newHearts };
+  return { ok: true, stats, partnerName: data.persons[payload.from].name, newHearts, liveJoined };
 }
 
 /** Neues Gerät: Stand des Partners übernehmen und selbst die andere Person werden. */
-export function joinWith(payload: SyncPayload) {
+export function joinWith(payload: SyncPayload): { liveJoined: boolean } {
   const { data } = mergeData(emptyData(), payload.data, other(payload.from));
   actions.joinAs(other(payload.from), data);
+  return { liveJoined: adoptRoom(payload.live, true) };
 }
 
 export async function createShareText(): Promise<{ text: string; link: string }> {
   const d = getData();
   const device = getDevice();
-  const payload = buildPayload(d, device.me, device.deviceId, todayKey());
+  // Mit Live-Sync lädt der Link gleich in den gemeinsamen Raum ein.
+  const live = ensureRoom();
+  const payload: SyncPayload = { ...buildPayload(d, device.me, device.deviceId, todayKey()), live };
   const link = syncLink(await encodePayload(payload));
   const me = d.persons[device.me];
-  const text = `💞 Arta-Update von ${me.name} ${me.emoji}\nTipp auf den Link, um unsere Pläne, Einkäufe & Liebesbotschaften zu synchronisieren:\n${link}`;
+  const text = live
+    ? `💞 Arta-Update von ${me.name} ${me.emoji}\nTipp auf den Link, dann sind unsere Handys live verbunden – Pläne, Einkäufe & Liebesbotschaften kommen ab dann sofort an:\n${link}`
+    : `💞 Arta-Update von ${me.name} ${me.emoji}\nTipp auf den Link, um unsere Pläne, Einkäufe & Liebesbotschaften zu synchronisieren:\n${link}`;
   return { text, link };
 }
 

@@ -4,6 +4,7 @@ import { Chips, Empty, Segmented } from '../components/ui';
 import { dailyQuestion } from '../lib/daily';
 import { diffDays, formatDate, formatDateTime, nextAnniversary } from '../lib/date';
 import { cls, usePeople, useToday } from '../lib/hooks';
+import { useLive } from '../lib/live';
 import { heartBurst, showLove } from '../lib/love';
 import { pickRandom } from '../lib/random';
 import { alive, heartsOn, notesFor, pendingSurprises } from '../lib/stats';
@@ -61,6 +62,7 @@ function Together() {
 
 function NoteComposer() {
   const { partner } = usePeople();
+  const live = useLive();
   const [text, setText] = useState('');
   const [surprise, setSurprise] = useState(false);
 
@@ -70,7 +72,11 @@ function NoteComposer() {
     showLove({
       emoji: surprise ? '🎁' : '💌',
       title: surprise ? 'Überraschung versteckt!' : 'Botschaft gespeichert!',
-      text: `${partner.name} bekommt sie beim nächsten Sync${surprise ? ' – zu einem zufälligen Zeitpunkt. 🤫' : '.'}`,
+      text: live
+        ? surprise
+          ? `Sie taucht bei ${partner.name} zu einem zufälligen Zeitpunkt auf. 🤫`
+          : `${partner.name} bekommt sie sofort.`
+        : `${partner.name} bekommt sie beim nächsten Sync${surprise ? ' – zu einem zufälligen Zeitpunkt. 🤫' : '.'}`,
       tone: 'love',
     });
     setText('');
@@ -109,12 +115,16 @@ function NoteComposer() {
           📱 Per WhatsApp
         </button>
       </div>
-      <p className="hint">
-        Botschaften erreichen {partner.name} über den Paar-Sync.{' '}
-        <button className="link inline" onClick={() => nav.open({ type: 'sync' })}>
-          Jetzt synchronisieren
-        </button>
-      </p>
+      {live ? (
+        <p className="hint">⚡ Ihr seid live verbunden – Botschaften kommen bei {partner.name} sofort an.</p>
+      ) : (
+        <p className="hint">
+          Botschaften erreichen {partner.name} über den Paar-Sync.{' '}
+          <button className="link inline" onClick={() => nav.open({ type: 'sync' })}>
+            Jetzt synchronisieren
+          </button>
+        </p>
+      )}
     </div>
   );
 }
