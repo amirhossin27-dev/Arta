@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { RANDOM_POPUPS } from './data/messages';
 import { AddMealSheet, RecipeSheet } from './components/food';
+import { FoodScanSheet } from './components/foodScan';
 import { ExerciseSheet } from './components/exercise';
 import { GameScreen } from './games/GameScreen';
 import { LoveLayer } from './components/LoveLayer';
@@ -205,6 +206,7 @@ export default function App() {
       {sheet?.type === 'exercise' && <ExerciseSheet key={sheet.id} id={sheet.id} date={sheet.date} planFirst={sheet.planFirst} onClose={close} />}
       {sheet?.type === 'recipe' && <RecipeSheet key={sheet.id} id={sheet.id} date={sheet.date} onClose={close} />}
       {sheet?.type === 'addMeal' && <AddMealSheet date={sheet.date} meal={sheet.meal} onClose={close} />}
+      {sheet?.type === 'foodScan' && <FoodScanSheet date={sheet.date} meal={sheet.meal} onClose={close} />}
       {sheet?.type === 'sync' && <SyncSheet code={sheet.code} onClose={close} />}
       {sheet?.type === 'settings' && <SettingsSheet onClose={close} />}
       {sheet?.type === 'cheer' && <CheerSheet onClose={close} />}

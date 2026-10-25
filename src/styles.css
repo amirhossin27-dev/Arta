@@ -2101,6 +2101,304 @@ input[type='checkbox'] {
   margin: 14px 0 6px;
 }
 
+/* Rezeptbuch-Filter */
+.cookbook-search {
+  margin: 0 0 8px;
+}
+
+.cookbook-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cookbook-count {
+  font-size: 0.85rem;
+  margin: 10px 0 0;
+}
+
+.more-recipes {
+  margin-top: 12px;
+}
+
+/* Foto-Erkennung */
+.scan-cta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 12px 0;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  text-align: left;
+  color: #fff;
+  background: linear-gradient(135deg, var(--food), var(--food-2));
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--food) 30%, transparent);
+  transition: transform 0.12s;
+}
+
+.scan-cta:active {
+  transform: scale(0.98);
+}
+
+.scan-cta-icon {
+  font-size: 2rem;
+  flex: none;
+}
+
+.scan-cta-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.scan-cta-text span {
+  font-size: 0.82rem;
+  opacity: 0.92;
+}
+
+.scan-cta-go {
+  font-size: 1.8rem;
+  font-weight: 300;
+  flex: none;
+}
+
+.scan {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.scan-pick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.scan-shot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 22px 10px;
+  border-radius: 20px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--food), var(--food-2));
+  transition: transform 0.12s;
+}
+
+.scan-shot.alt {
+  color: var(--text);
+  background: var(--food-soft);
+}
+
+.scan-shot:active {
+  transform: scale(0.97);
+}
+
+.scan-shot-icon {
+  font-size: 2.2rem;
+}
+
+.scan-photo {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.scan-photo img {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+}
+
+.scan-photo.scanning img {
+  filter: saturate(0.8) brightness(0.92);
+}
+
+.scan-beam {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 30%;
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--food-2) 55%, transparent), transparent);
+  animation: scan-sweep 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes scan-sweep {
+  from {
+    transform: translateY(-40%);
+  }
+  to {
+    transform: translateY(280%);
+  }
+}
+
+.scan-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 0;
+  font-weight: 750;
+}
+
+.scan-loading p {
+  margin: 0;
+  animation: fade-in 0.4s ease;
+}
+
+.scan-plate {
+  font-size: 2.2rem;
+  animation: scan-bob 1.2s ease-in-out infinite;
+}
+
+@keyframes scan-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+  50% {
+    transform: translateY(-6px) rotate(-8deg);
+  }
+}
+
+.scan-error {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+}
+
+.scan-error p {
+  margin: 0;
+  font-weight: 650;
+}
+
+.scan-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.scan-head h3 {
+  margin: 0 0 4px;
+}
+
+.scan-dish-emoji {
+  font-size: 2.4rem;
+  flex: none;
+}
+
+.scan-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.scan-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.scan-items li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.scan-item-emoji {
+  font-size: 1.4rem;
+  flex: none;
+}
+
+.scan-item-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.scan-item-info b {
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scan-item-info .muted {
+  font-size: 0.78rem;
+}
+
+.scan-grams {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.scan-grams > span {
+  min-width: 52px;
+  text-align: center;
+}
+
+.scan-fix {
+  display: flex;
+  gap: 8px;
+}
+
+.scan-fix input {
+  flex: 1;
+  min-width: 0;
+}
+
+.scan-fix .btn {
+  flex: none;
+}
+
+.scan-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.scan-setup-hero {
+  text-align: center;
+}
+
+.scan-setup-hero > span {
+  font-size: 2.6rem;
+}
+
+.scan-setup-hero h3 {
+  margin: 4px 0;
+}
+
+.scan-setup-hero p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.scan-setup a {
+  color: var(--food);
+  font-weight: 800;
+}
+
 /* ───────────── Einkauf ───────────── */
 .add-form {
   display: flex;

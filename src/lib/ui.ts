@@ -10,6 +10,7 @@ export type SheetState =
   | { type: 'exercise'; id: string; date?: string; planFirst?: boolean }
   | { type: 'recipe'; id: string; date?: string }
   | { type: 'addMeal'; date: string; meal: MealType }
+  | { type: 'foodScan'; date: string; meal: MealType }
   | { type: 'sync'; code?: string }
   | { type: 'settings' }
   | { type: 'cheer' }

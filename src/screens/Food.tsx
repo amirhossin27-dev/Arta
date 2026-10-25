@@ -1,22 +1,29 @@
 import { useState } from 'react';
-import { MEAL_LABEL, MEAL_ORDER, RECIPES, type RecipeTag } from '../data/recipes';
+import { CATEGORY_LABEL, CATEGORY_ORDER, CUISINE_LABEL, CUISINE_ORDER, MEAL_LABEL, MEAL_ORDER, RECIPES } from '../data/recipes';
 import { MealRow, RecipeCard } from '../components/food';
 import { Bar, Chips, Empty, ProgressRing, WeekStrip } from '../components/ui';
+import { filterRecipes, NO_FILTER, type RecipeFilter } from '../lib/cookbook';
 import { dailyRecipes } from '../lib/daily';
 import { relativeDay, todayKey } from '../lib/date';
+import { guessMeal } from '../lib/foodScan';
 import { usePeople } from '../lib/hooks';
 import { burnedFor, mealsFor, sumMeals } from '../lib/stats';
 import { useData } from '../lib/store';
-import type { MealType } from '../lib/types';
 import { nav, useUI } from '../lib/ui';
 
-type Filter = 'alle' | 'favoriten' | MealType | RecipeTag;
+/** So viele Rezepte zeigt das Rezeptbuch auf einmal, der Rest kommt per „Mehr anzeigen“. */
+const PAGE = 12;
 
 export function Food() {
   const data = useData();
   const { me, partner } = usePeople();
   const { foodDate: date } = useUI();
-  const [filter, setFilter] = useState<Filter>('alle');
+  const [filter, setFilterState] = useState<RecipeFilter>(NO_FILTER);
+  const [limit, setLimit] = useState(PAGE);
+  const setFilter = (changes: Partial<RecipeFilter>) => {
+    setFilterState({ ...filter, ...changes });
+    setLimit(PAGE);
+  };
 
   const meals = mealsFor(data, date, me.id);
   const eaten = sumMeals(meals);
@@ -29,12 +36,8 @@ export function Food() {
   // Grobe Makro-Ziele: 25 % Eiweiß, 50 % Kohlenhydrate, 25 % Fett
   const macroGoal = { protein: (me.kcalGoal * 0.25) / 4, carbs: (me.kcalGoal * 0.5) / 4, fat: (me.kcalGoal * 0.25) / 9 };
 
-  const list = RECIPES.filter((r) => {
-    if (filter === 'alle') return true;
-    if (filter === 'favoriten') return me.favorites.includes(r.id);
-    if (MEAL_ORDER.includes(filter as MealType)) return r.meal === filter;
-    return r.tags.includes(filter as RecipeTag);
-  });
+  const list = filterRecipes(RECIPES, filter, me.favorites);
+  const filtered = filter.meal !== 'alle' || filter.category !== 'alle' || filter.focus !== 'alle' || filter.cuisine !== 'alle' || filter.query.trim() !== '';
 
   return (
     <section className="screen">
@@ -81,6 +84,15 @@ export function Food() {
           ↩︎ Zurück zu heute
         </button>
       )}
+
+      <button className="scan-cta" onClick={() => nav.open({ type: 'foodScan', date, meal: guessMeal() })}>
+        <span className="scan-cta-icon">📸</span>
+        <span className="scan-cta-text">
+          <b>Essen fotografieren</b>
+          <span>Die KI erkennt dein Gericht und rechnet die Kalorien aus.</span>
+        </span>
+        <span className="scan-cta-go">›</span>
+      </button>
 
       {MEAL_ORDER.map((meal) => {
         const entries = meals.filter((m) => m.meal === meal);
@@ -135,36 +147,77 @@ export function Food() {
         <span className="section-emoji">📖</span>
         <div>
           <h2>Rezeptbuch</h2>
-          <p className="muted">{RECIPES.length} einfache, gesunde Gerichte</p>
+          <p className="muted">{RECIPES.length} einfache, gesunde Gerichte aus aller Welt</p>
         </div>
       </div>
-      <Chips
-        value={filter}
-        onChange={setFilter}
-        options={[
-          ['alle', 'Alle'],
-          ['favoriten', '❤️ Favoriten'],
-          ['fruehstueck', 'Frühstück'],
-          ['mittag', 'Mittag'],
-          ['abend', 'Abend'],
-          ['snack', 'Snacks'],
-          ['high-protein', '💪 Proteinreich'],
-          ['vegetarisch', '🌱 Veggie'],
-          ['vegan', '🌿 Vegan'],
-          ['schnell', '⚡ Schnell'],
-          ['date-night', '🕯️ Date-Night'],
-        ]}
+      <input
+        className="search cookbook-search"
+        type="search"
+        placeholder="Gericht, Zutat oder Küche suchen …"
+        value={filter.query}
+        onChange={(e) => setFilter({ query: e.target.value })}
       />
+      <div className="cookbook-filters">
+        <Chips
+          value={filter.meal}
+          onChange={(meal) => setFilter({ meal })}
+          options={[
+            ['alle', 'Alle'],
+            ['favoriten', '❤️ Favoriten'],
+            ['fruehstueck', 'Frühstück'],
+            ['mittag', 'Mittag'],
+            ['abend', 'Abend'],
+            ['snack', 'Snacks & Süßes'],
+          ]}
+        />
+        <Chips value={filter.category} onChange={(category) => setFilter({ category })} options={[['alle', 'Alle Arten'], ...CATEGORY_ORDER.map((c) => [c, CATEGORY_LABEL[c]] as [typeof c, string])]} />
+        <Chips
+          value={filter.focus}
+          onChange={(focus) => setFilter({ focus })}
+          options={[
+            ['alle', 'Jede Ernährung'],
+            ['high-protein', '💪 Proteinreich'],
+            ['vegetarisch', '🌱 Veggie'],
+            ['vegan', '🌿 Vegan'],
+            ['low-carb', '🥬 Low Carb'],
+            ['schnell', '⚡ Schnell'],
+            ['meal-prep', '📦 Meal-Prep'],
+            ['guenstig', '💶 Günstig'],
+            ['date-night', '🕯️ Date-Night'],
+            ['fisch', '🐟 Mit Fisch'],
+            ['fleisch', '🍗 Mit Fleisch'],
+          ]}
+        />
+        <Chips value={filter.cuisine} onChange={(cuisine) => setFilter({ cuisine })} options={[['alle', 'Alle Küchen'], ...CUISINE_ORDER.map((c) => [c, CUISINE_LABEL[c]] as [typeof c, string])]} />
+      </div>
+      {filtered && (
+        <p className="cookbook-count muted">
+          {list.length} von {RECIPES.length} Rezepten ·{' '}
+          <button className="link inline" onClick={() => setFilter(NO_FILTER)}>
+            Filter zurücksetzen
+          </button>
+        </p>
+      )}
       <div className="recipe-grid">
-        {list.map((r) => (
+        {list.slice(0, limit).map((r) => (
           <RecipeCard key={r.id} recipe={r} date={date} />
         ))}
       </div>
-      {!list.length && (
-        <Empty emoji="🤍" title="Noch keine Favoriten">
-          Tippe in einem Rezept auf das Herz, um es hier zu sammeln.
-        </Empty>
+      {list.length > limit && (
+        <button className="btn soft block more-recipes" onClick={() => setLimit(limit + PAGE * 2)}>
+          Mehr anzeigen ({list.length - limit} weitere)
+        </button>
       )}
+      {!list.length &&
+        (filter.meal === 'favoriten' && !me.favorites.length ? (
+          <Empty emoji="🤍" title="Noch keine Favoriten">
+            Tippe in einem Rezept auf das Herz, um es hier zu sammeln.
+          </Empty>
+        ) : (
+          <Empty emoji="🥄" title="Nichts gefunden">
+            Für diese Kombination gibt’s noch kein Rezept – probier einen anderen Filter.
+          </Empty>
+        ))}
     </section>
   );
 }
