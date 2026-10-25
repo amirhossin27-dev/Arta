@@ -35,6 +35,15 @@ Sie läuft als **Web-App im Browser** und lässt sich wie eine normale App auf d
 - Herzen senden, Liebesbotschaften (auch als versteckte Überraschung, die beim anderen zufällig auftaucht)
 - Liebes-Gutscheine verschenken und einlösen, Date-Ideen-Generator
 
+**🌸 Zyklus (Reiter unter „Liebe“)**
+- Periodenkalender: Beginn und Ende der Periode eintragen, Blutungsstärke, Symptome und Notizen als Tagebuch
+- Vorhersage der nächsten Perioden, des Eisprungs und der fruchtbaren Tage – je mehr Einträge, desto genauer (Durchschnitt der letzten Zyklen)
+- Aktueller Zyklustag und Phase (Menstruation, Follikelphase, Eisprung, Lutealphase) mit Erklärung, Sport- und Ernährungstipps
+- Tipps für beide: was ihr selbst guttut und wie der Partner unterstützen kann – passend zu Phase und eingetragenen Symptomen
+- Wissen: Fruchtbarkeit & Kinderwunsch, Schwangerschaftstest, Schwangerschaft mit Geburtstermin-Rechner, Geburt, Wochenbett & Baby, wann zur Frauenärztin
+- Kurzer Hinweis auf der Heute-Seite für euch beide
+- Die Vorhersagen sind Schätzungen – kein Verhütungsmittel und kein Ersatz für ärztliche Beratung
+
 **🎮 Spiele (Arta Arcade)**
 - Kurze Klassiker für zwischendurch, an einem Handy zu zweit oder allein
 - Zu zweit: Tic-Tac-Toe, Vier gewinnt, Pärchen-Memory, Pong-Duell (gegenübersitzen!) und Blitz-Duell (wer tippt schneller, wenn das Herz erscheint?) – die meisten auch gegen den Computer „Arta 🤖“
@@ -98,11 +107,11 @@ Weitere Befehle:
 
 ```
 src/
-  data/        Übungen, Rezepte, Zutaten-Nährwerte, Liebestexte
-  lib/         Speicher, Sync, Statistik, kcal-Berechnung, Tagesangebot
+  data/        Übungen, Rezepte, Zutaten-Nährwerte, Liebestexte, Zyklus-Wissen
+  lib/         Speicher, Sync, Statistik, kcal-Berechnung, Tagesangebot, Zyklus-Rechnung
   components/  Wiederverwendbare Bausteine, Detailansichten, Einblendungen
   games/       Spiele (Logik, Arcade-Bildschirm, Canvas-Spielschleife, 8-Bit-Sounds)
   screens/     Heute, Sport, Essen, Einkauf, Liebe, Spiele, Einrichtung
 ```
 
-**Hinweis:** kcal- und Nährwerte sind Richtwerte und ersetzen keine Ernährungs- oder Trainingsberatung.
+**Hinweis:** kcal- und Nährwerte sind Richtwerte und ersetzen keine Ernährungs- oder Trainingsberatung. Die Zyklus-Vorhersagen sind Schätzungen nach der Kalendermethode, kein Verhütungsmittel und kein Ersatz für ärztliche Beratung.

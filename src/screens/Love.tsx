@@ -8,7 +8,8 @@ import { heartBurst, showLove } from '../lib/love';
 import { pickRandom } from '../lib/random';
 import { alive, heartsOn, notesFor, pendingSurprises } from '../lib/stats';
 import { actions, useData, useDevice } from '../lib/store';
-import { nav } from '../lib/ui';
+import { nav, useUI } from '../lib/ui';
+import { Cycle } from './Cycle';
 import { sendHeartWithLove } from './Today';
 
 const MILESTONES = [100, 200, 365, 500, 730, 1000, 1500, 2000, 2500, 3000, 3650, 5000];
@@ -311,7 +312,7 @@ function DateIdeas() {
   );
 }
 
-export function Love() {
+function Us() {
   const data = useData();
   const device = useDevice();
   const { partner } = usePeople();
@@ -320,7 +321,7 @@ export function Love() {
   const receivedToday = heartsOn(data, today, partner.id);
 
   return (
-    <section className="screen">
+    <>
       <Together />
 
       <div className="card heart-card">
@@ -345,6 +346,23 @@ export function Love() {
         <p className="big-text">{dailyQuestion(today)}</p>
         <p className="hint">Fragt euch das heute Abend beim Essen. 🍽️</p>
       </div>
+    </>
+  );
+}
+
+export function Love() {
+  const { loveView } = useUI();
+  return (
+    <section className="screen">
+      <Segmented
+        value={loveView}
+        onChange={nav.setLoveView}
+        options={[
+          ['wir', '💞 Wir zwei'],
+          ['zyklus', '🌸 Zyklus'],
+        ]}
+      />
+      {loveView === 'zyklus' ? <Cycle /> : <Us />}
     </section>
   );
 }

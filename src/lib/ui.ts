@@ -4,6 +4,7 @@ import { todayKey } from './date';
 import type { MealType } from './types';
 
 export type Tab = 'heute' | 'sport' | 'essen' | 'einkauf' | 'liebe' | 'spiele';
+export type LoveView = 'wir' | 'zyklus';
 
 export type SheetState =
   | { type: 'exercise'; id: string; date?: string; planFirst?: boolean }
@@ -20,9 +21,10 @@ interface UIState {
   sheet: SheetState | null;
   sportDate: string;
   foodDate: string;
+  loveView: LoveView;
 }
 
-let state: UIState = { tab: 'heute', sheet: null, sportDate: todayKey(), foodDate: todayKey() };
+let state: UIState = { tab: 'heute', sheet: null, sportDate: todayKey(), foodDate: todayKey(), loveView: 'wir' };
 const listeners = new Set<() => void>();
 
 function set(changes: Partial<UIState>) {
@@ -58,5 +60,13 @@ export const nav = {
   },
   setFoodDate(foodDate: string) {
     set({ foodDate });
+  },
+  setLoveView(loveView: LoveView) {
+    set({ loveView });
+  },
+  /** Direkt in den Periodenkalender unter „Liebe“ springen. */
+  openCycle() {
+    set({ loveView: 'zyklus' });
+    nav.setTab('liebe');
   },
 };
