@@ -9,13 +9,24 @@ import { pickRandom } from '../lib/random';
 import { actions, useData, useDevice } from '../lib/store';
 import { other, type PersonId } from '../lib/types';
 import { nav } from '../lib/ui';
+import { Battleship } from './Battleship';
 import { Breakout } from './Breakout';
+import { Checkers } from './Checkers';
+import { Chess } from './Chess';
 import { ConnectFour } from './ConnectFour';
 import { sfx, unlockAudio } from './engine';
+import { FitDice } from './FitDice';
+import { Flappy } from './Flappy';
+import { Game2048 } from './Game2048';
 import { GuessWho } from './GuessWho';
+import { Invaders } from './Invaders';
+import { Kniffel } from './Kniffel';
 import { gameSummary, isBetter, otherSide, type GameSummary, type Side } from './logic';
 import { Ludo } from './Ludo';
+import { MauMau } from './MauMau';
 import { Memory } from './Memory';
+import { Minesweeper } from './Minesweeper';
+import { Muehle } from './Muehle';
 import { hostMatch, leaveMatch, markRecorded, publishShared, pushAct, setReady, useArcade } from './online';
 import { Pong } from './Pong';
 import { Reaction } from './Reaction';
@@ -24,14 +35,22 @@ import { Romme } from './Romme';
 import { Simon } from './Simon';
 import { Slf } from './Slf';
 import { Snake } from './Snake';
+import { Tetris } from './Tetris';
 import { TicTacToe } from './TicTacToe';
 import type { GameOutcome, GameProps, NetLink, Player } from './types';
 import { Uno } from './Uno';
 
 const COMPONENTS: Record<GameId, ComponentType<GameProps>> = {
   uno: Uno,
+  maumau: MauMau,
   romme: Romme,
+  kniffel: Kniffel,
   ludo: Ludo,
+  fitdice: FitDice,
+  chess: Chess,
+  checkers: Checkers,
+  muehle: Muehle,
+  battleship: Battleship,
   connect4: ConnectFour,
   tictactoe: TicTacToe,
   slf: Slf,
@@ -42,13 +61,18 @@ const COMPONENTS: Record<GameId, ComponentType<GameProps>> = {
   snake: Snake,
   breakout: Breakout,
   simon: Simon,
+  tetris: Tetris,
+  invaders: Invaders,
+  flappy: Flappy,
+  g2048: Game2048,
+  minesweeper: Minesweeper,
 };
 
 const P1_COLOR = '#ff4f81';
 const P2_COLOR = '#ffc23d';
 const CPU_COLOR = '#7fc8ff';
 /** Spiele mit verdeckten Karten oder Antworten */
-const GAME_HIDDEN = new Set<GameId>(['uno', 'romme', 'guesswho', 'slf']);
+const GAME_HIDDEN = new Set<GameId>(['uno', 'maumau', 'romme', 'guesswho', 'slf', 'battleship']);
 
 export const KI_PLAYER: Player = { name: 'KI', emoji: '🤖', color: CPU_COLOR, cpu: true };
 
@@ -321,10 +345,18 @@ export function GameScreen({ id, join, onClose }: { id: GameId; join?: string; o
     return { emoji: w.emoji, title: `${w.name} gewinnt!`, text: fillGame(pickRandom(GAME_WIN), w.name, l.name), stake: stakeText };
   };
 
-  const finishSolo = (score: number): RoundResult => {
+  const finishSolo = (score: number, failed?: boolean): RoundResult => {
     const rival = data.persons[other(soloId)];
     const prev = summary.best[soloId];
     const rivalBest = summary.best[rival.id];
+    if (failed) {
+      actions.recordGame(id, { player: soloId });
+      return {
+        emoji: '💥',
+        title: 'Boom!',
+        text: prev !== undefined ? `Dein Rekord bleibt bei ${prev} ${meta.scoreLabel}. Nächste Runde klappt’s! 💪` : 'Das war knapp – gleich nochmal, das erste Feld ist immer sicher! 💪',
+      };
+    }
     actions.recordGame(id, { score, player: soloId, lowerIsBetter: meta.lowerIsBetter });
     const record = (score > 0 || meta.lowerIsBetter) && isBetter(id, score, prev);
     const overtook = record && rivalBest !== undefined && isBetter(id, score, rivalBest) && (prev === undefined || !isBetter(id, prev, rivalBest));
@@ -347,7 +379,7 @@ export function GameScreen({ id, join, onClose }: { id: GameId; join?: string; o
   };
 
   const finish = (o: GameOutcome) => {
-    setResult('winner' in o ? finishDuel(o.winner) : finishSolo(o.score));
+    setResult('winner' in o ? finishDuel(o.winner) : finishSolo(o.score, o.failed));
     setPhase('result');
   };
 

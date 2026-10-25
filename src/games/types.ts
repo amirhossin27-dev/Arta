@@ -8,7 +8,8 @@ export interface Player {
   cpu: boolean;
 }
 
-export type GameOutcome = { winner: Side | 'draw' } | { score: number };
+/** Solo: `failed` = Runde verloren (z. B. Mine erwischt) – dann zählt die Zeit nicht als Rekord. */
+export type GameOutcome = { winner: Side | 'draw' } | { score: number; failed?: boolean };
 
 /** Der gemeinsame Spielstand einer Online-Runde, wie er in der Datenbank liegt. */
 export interface NetSnap {

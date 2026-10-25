@@ -46,10 +46,11 @@ Sie läuft als **Web-App im Browser** und lässt sich wie eine normale App auf d
 
 **🎮 Spiele (Arta Arcade)**
 - Kurze Klassiker für zwischendurch: an einem Handy zu zweit, **online jeder am eigenen Handy**, gegen die KI 🤖 oder allein
-- Karten & Brett: Uno, Rommé, Mensch ärgere dich nicht, Vier gewinnt, Tic-Tac-Toe
+- Karten & Würfel: Uno, Mau-Mau (7 = zwei ziehen, 8 = aussetzen, Bube wünscht), Rommé, Kniffel (auch allein), Mensch ärgere dich nicht, **Fitness-Würfel** – der Würfel bestimmt Übung und Wiederholungen, jede Runde wird es mehr, wer zuerst aufgibt, verliert
+- Brett & Strategie: Schach (mit Rochade, en passant, Umwandlung, Patt und Remis), Dame (deutsche Regeln: Schlagpflicht, Mehrfachsprung, fliegende Dame), Mühle (mit Springen ab drei Steinen), Schiffe versenken, Vier gewinnt, Tic-Tac-Toe
 - Rätseln & Raten: Stadt Land Fluss (mit Wortliste und Veto für Quatsch-Antworten), Wer ist wer? (24 Gesichter, 18 Fragen) und Pärchen-Memory
-- Arcade: Pong-Duell (gegenübersitzen!), Blitz-Duell, dazu solo mit Highscore-Duell Herz-Schlange, Herz-Breakout und Herz-Simon
-- Bei Spielen mit verdeckten Karten kommt an einem Handy zwischen den Zügen ein Sichtschutz – „Gib das Handy weiter, nicht spicken!“
+- Arcade: Pong-Duell (gegenübersitzen!), Blitz-Duell, dazu solo mit Highscore-Duell Herz-Tetris, Herz-Invaders, Flappy Herz, 2048, Minesweeper, Herz-Schlange, Herz-Breakout und Herz-Simon
+- Bei Spielen mit verdeckten Karten oder Flotten kommt an einem Handy zwischen den Zügen ein Sichtschutz – „Gib das Handy weiter, nicht spicken!“
 - **Online gegeneinander:** Wer verbunden ist (Live-Sync, siehe unten), wählt im Spiel „🌐 Online“ – der Schatz bekommt sofort eine Einladung und tippt „Mitspielen“. Züge gehen verschlüsselt über denselben Live-Raum, „Nochmal“ startet die Revanche, und eine laufende Partie lässt sich nach dem Schließen der App fortsetzen
 - Einsatz wählen: Wer verliert, schenkt dem anderen automatisch einen Liebes-Gutschein (Kuss, Massage, Abwasch …)
 - Gesamtwertung mit Krone 👑, Siege und Rekorde werden beim Sync geteilt; 8-Bit-Sounds lassen sich abschalten

@@ -39,7 +39,7 @@ function GameCard({ game }: { game: GameMeta }) {
   );
 }
 
-const SECTIONS: GameCategory[] = ['karten', 'raten', 'arcade'];
+const SECTIONS: GameCategory[] = ['karten', 'brett', 'raten', 'arcade'];
 
 export function Games() {
   const data = useData();
