@@ -39,7 +39,7 @@ describe('Tic-Tac-Toe', () => {
     expect(tttBestMove([X, X, _, _, O, _, _, _, _], 'p2')).toBe(2);
   });
 
-  it('Arta macht nur gültige Züge', () => {
+  it('die KI macht nur gültige Züge', () => {
     const rnd = mulberry32(7);
     const board: Cell[] = [X, O, X, _, O, _, _, X, _];
     for (let i = 0; i < 50; i++) expect(board[tttCpuMove(board, 'p2', rnd)]).toBeNull();
@@ -87,11 +87,11 @@ describe('Vier gewinnt', () => {
     expect(c4Winner(play([0, 1, 2]))).toBeNull();
   });
 
-  it('Arta nutzt Gewinnchancen und blockt Drohungen', () => {
+  it('die KI nutzt Gewinnchancen und blockt Drohungen', () => {
     // p2 hat drei unten in Spalte 0–2 → gewinnt mit 3
     const win = play([6, 0, 6, 1, 5, 2]);
     expect(c4CpuMove(win, 'p2', 4, mulberry32(1))).toBe(3);
-    // p1 droht mit drei unten in Spalte 1–3 (0 und 4 offen) → Arta muss eine Seite schließen
+    // p1 droht mit drei unten in Spalte 1–3 (0 und 4 offen) → die KI muss eine Seite schließen
     const threat = play([1, 6, 2, 6, 3]);
     expect([0, 4]).toContain(c4CpuMove(threat, 'p2', 4, mulberry32(2)));
   });

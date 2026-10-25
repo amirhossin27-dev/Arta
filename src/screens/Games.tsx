@@ -1,7 +1,8 @@
 import type { CSSProperties } from 'react';
 import { duelTotals, gameSummary } from '../games/logic';
-import { GAMES, type GameMeta } from '../games/registry';
+import { CATEGORY_INFO, GAMES, type GameCategory, type GameMeta } from '../games/registry';
 import { cls, usePeople } from '../lib/hooks';
+import { useLive } from '../lib/live';
 import { useData } from '../lib/store';
 import { nav } from '../lib/ui';
 
@@ -9,9 +10,9 @@ function GameCard({ game }: { game: GameMeta }) {
   const data = useData();
   const { me, partner } = usePeople();
   const s = gameSummary(data, game.id);
-  const duo = game.modes.includes('duo');
+  const duel = game.modes.some((m) => m !== 'solo');
   let stat: string | undefined;
-  if (duo && s.wins.a + s.wins.b + s.draws > 0) {
+  if (duel && s.wins.a + s.wins.b + s.draws > 0) {
     stat = `${me.emoji} ${s.wins[me.id]} : ${s.wins[partner.id]} ${partner.emoji}`;
   } else if (game.modes.includes('solo') && (s.best[me.id] !== undefined || s.best[partner.id] !== undefined)) {
     stat = `🏆 ${me.emoji} ${s.best[me.id] ?? '–'} · ${partner.emoji} ${s.best[partner.id] ?? '–'}`;
@@ -25,8 +26,9 @@ function GameCard({ game }: { game: GameMeta }) {
         <span className="muted">{game.tagline}</span>
         <span className="game-tags">
           <span className="tag">⏱ {game.minutes}</span>
-          {game.modes.includes('cpu') && <span className="tag">🤖 auch gegen Arta</span>}
-          {duo && game.modes.includes('solo') && <span className="tag">🙋 auch allein</span>}
+          {game.modes.includes('online') && <span className="tag">🌐 online</span>}
+          {game.modes.includes('cpu') && <span className="tag">🤖 gegen KI</span>}
+          {duel && game.modes.includes('solo') && <span className="tag">🙋 allein</span>}
           {stat && <span className="tag stat">{stat}</span>}
         </span>
       </span>
@@ -37,15 +39,16 @@ function GameCard({ game }: { game: GameMeta }) {
   );
 }
 
+const SECTIONS: GameCategory[] = ['karten', 'raten', 'arcade'];
+
 export function Games() {
   const data = useData();
   const { me, partner } = usePeople();
+  const live = useLive();
   const totals = duelTotals(data);
   const mine = totals.wins[me.id];
   const theirs = totals.wins[partner.id];
   const leader = mine === theirs ? null : mine > theirs ? me : partner;
-  const duoGames = GAMES.filter((g) => g.modes.includes('duo'));
-  const soloGames = GAMES.filter((g) => !g.modes.includes('duo'));
 
   return (
     <section className="screen">
@@ -75,31 +78,42 @@ export function Games() {
         </p>
       </div>
 
-      <div className="section-title">
-        <span className="section-emoji">👫</span>
-        <div>
-          <h2>Zu zweit</h2>
-          <p className="muted">An einem Handy gegeneinander – oder gegen Arta 🤖</p>
-        </div>
-      </div>
-      <div className="game-list">
-        {duoGames.map((g) => (
-          <GameCard key={g.id} game={g} />
-        ))}
+      <div className={cls('online-banner', live && 'on')}>
+        <span className="online-banner-emoji">🌐</span>
+        <span className="grow">
+          {live ? (
+            <>
+              <b>Online spielen ist bereit.</b> Wählt im Spiel „🌐 Online“ – {partner.name} bekommt die Einladung direkt aufs Handy.
+            </>
+          ) : (
+            <>
+              <b>Online gegeneinander spielen?</b> Einmal per Live-Sync verbinden – dann klappt's auch aus der Ferne.
+            </>
+          )}
+        </span>
+        {!live && (
+          <button className="btn soft small" onClick={() => nav.open({ type: 'sync' })}>
+            🔄 Verbinden
+          </button>
+        )}
       </div>
 
-      <div className="section-title">
-        <span className="section-emoji">🕹️</span>
-        <div>
-          <h2>Solo-Klassiker</h2>
-          <p className="muted">Jeder spielt für sich – wer hält den Rekord?</p>
+      {SECTIONS.map((cat) => (
+        <div key={cat}>
+          <div className="section-title">
+            <span className="section-emoji">{CATEGORY_INFO[cat].emoji}</span>
+            <div>
+              <h2>{CATEGORY_INFO[cat].title}</h2>
+              <p className="muted">{CATEGORY_INFO[cat].text}</p>
+            </div>
+          </div>
+          <div className="game-list">
+            {GAMES.filter((g) => g.category === cat).map((g) => (
+              <GameCard key={g.id} game={g} />
+            ))}
+          </div>
         </div>
-      </div>
-      <div className="game-list">
-        {soloGames.map((g) => (
-          <GameCard key={g.id} game={g} />
-        ))}
-      </div>
+      ))}
 
       <p className="hint center">Siege und Rekorde teilt ihr beim 🔄 Paar-Sync automatisch.</p>
     </section>

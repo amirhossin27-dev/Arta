@@ -61,7 +61,9 @@ export const sfx = {
   draw: () => melody([523, 523, 659], 120, 120, 'triangle'),
 };
 
-export function buzz(ms = 18) {
+export function buzz(ms: number | number[] = 18) {
+  // Ohne vorheriges Tippen blockt der Browser die Vibration (und meckert in der Konsole).
+  if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
   try {
     navigator.vibrate?.(ms);
   } catch {

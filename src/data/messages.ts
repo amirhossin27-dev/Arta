@@ -300,8 +300,8 @@ export const GAME_DRAW = [
   'Keiner gewinnt, beide gewinnen. So ist das bei euch. 🥰',
 ];
 
-export const GAME_CPU_WIN = ['Du hast Arta geschlagen! 🤖💥', 'Mensch schlägt Maschine! 💪', 'Arta verneigt sich vor dir. 🤖🙇'];
+export const GAME_CPU_WIN = ['Du hast die KI geschlagen! 🤖💥', 'Mensch schlägt Maschine! 💪', 'Die KI verneigt sich vor dir. 🤖🙇'];
 
-export const GAME_CPU_LOSE = ['Arta war diesmal besser. Revanche? 🤖', 'Beep boop – Arta gewinnt. Gleich nochmal! 😤', 'Knapp! Arta hatte Glück. 🍀'];
+export const GAME_CPU_LOSE = ['Die KI war diesmal besser. Revanche? 🤖', 'Beep boop – die KI gewinnt. Gleich nochmal! 😤', 'Knapp! Die KI hatte Glück. 🍀'];
 
 export const GAME_RECORD = ['Neuer Rekord! {partner} wird staunen. 🏆', 'Rekord geknackt! Zeig das mal {partner}. 😎', 'Persönliche Bestleistung! 🚀'];

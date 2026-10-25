@@ -2,7 +2,7 @@ import { alive } from '../lib/stats';
 import type { AppData, PersonId } from '../lib/types';
 import { GAME_BY_ID, GAMES, type GameId } from './registry';
 
-/** Spieler 1 sitzt unten (du), Spieler 2 oben (dein Schatz oder Arta 🤖). */
+/** Spieler 1 sitzt unten (du), Spieler 2 oben (dein Schatz oder die KI 🤖). */
 export type Side = 'p1' | 'p2';
 export type Cell = Side | null;
 
@@ -68,7 +68,7 @@ export function tttBestMove(board: Cell[], me: Side, rnd: Rnd = Math.random): nu
   return pick(moves, rnd);
 }
 
-/** Arta spielt meistens perfekt, aber nicht immer – sonst wäre es kein Spaß. */
+/** Die KI spielt meistens perfekt, aber nicht immer – sonst wäre es kein Spaß. */
 export function tttCpuMove(board: Cell[], me: Side, rnd: Rnd = Math.random): number {
   const empty = board.flatMap((c, i) => (c ? [] : [i]));
   if (rnd() < 0.22) return pick(empty, rnd);
@@ -181,7 +181,7 @@ function c4Negamax(b: Cell[], side: Side, depth: number, alpha: number, beta: nu
   return best;
 }
 
-/** Arta denkt ein paar Züge voraus – stark genug zum Ärgern, schwach genug zum Schlagen. */
+/** Die KI denkt ein paar Züge voraus – stark genug zum Ärgern, schwach genug zum Schlagen. */
 export function c4CpuMove(b: Cell[], me: Side, depth = 4, rnd: Rnd = Math.random): number {
   let best = -Infinity;
   let moves: number[] = [];

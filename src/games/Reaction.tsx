@@ -72,7 +72,7 @@ export function Reaction({ p1, p2, onEnd }: GameProps) {
   }, []);
 
   const status = (side: Side): string => {
-    if (phase === 'ready') return players[side].cpu ? 'Arta ist bereit 🤖' : 'Finger bereit halten!';
+    if (phase === 'ready') return players[side].cpu ? 'KI ist bereit 🤖' : 'Finger bereit halten!';
     if (phase === 'wait') return 'Warte auf das Herz …';
     if (phase === 'go') return 'JETZT TIPPEN!';
     if (info && (phase === 'point' || phase === 'over')) {
