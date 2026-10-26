@@ -108,6 +108,29 @@ export const TOGETHER_DONE = [
   'Ihr zwei seid unschlagbar! Bonus +10 Herzpunkte. 🏅',
 ];
 
+export const STEP_GOAL = [
+  'Schrittziel geknackt! {partner} wäre jetzt gern an deiner Seite gelaufen. 💞',
+  'Jeder Schritt heute war ein kleiner Schritt in Richtung Glück. 👣✨',
+  'Ziel erreicht! Deine Füße verdienen heute eine Massage von {partner}. 😍',
+  'Geschafft! So läuft das bei einem Power-Paar. 🏆',
+  'Wow, {me}! Heute bist du um die Welt gelaufen – fast. 🌍',
+];
+
+export const STEP_MILESTONE = [
+  'Weiter so – {partner} feuert dich an! 📣',
+  'Schritt für Schritt zu euren Zielen. 💪',
+  'Deine Schuhe lieben dich. 👟',
+  'Frische Luft steht dir. 🌿',
+  'Läuft bei dir! 😎',
+];
+
+export const PARTNER_STEP_GOAL = [
+  'Schick doch ein Herz als Belohnung! ❤️',
+  'Wie wär’s mit einer Fußmassage heute Abend? 🦶💆',
+  'Zeit, nachzuziehen? 😏👟',
+  'Stolz auf {partner}! 🏆',
+];
+
 export const MEAL_LOGGED = [
   'Lecker eingetragen! 🥗 Gutes Essen ist Selbstliebe.',
   'Notiert! Dein Körper freut sich über die gute Wahl. 💚',

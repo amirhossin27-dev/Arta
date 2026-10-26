@@ -2,6 +2,7 @@ import { EXERCISE_BY_ID } from '../data/exercises';
 import { LEVELS } from '../data/messages';
 import { addDays, startOfWeek } from './date';
 import { exerciseKcal, ZERO, type Nutrition } from './nutrition';
+import { STEP_GOAL_POINTS } from './steps';
 import type { AppData, LoveNote, MealEntry, PersonId, PlanItem, Rec, Slot } from './types';
 
 export function alive<T extends Rec>(col: Record<string, T>): T[] {
@@ -115,6 +116,7 @@ export function points(d: AppData): number {
     mealDays.set(key, (mealDays.get(key) ?? 0) + 1);
   }
   for (const count of mealDays.values()) if (count >= 3) pts += 5;
+  for (const s of alive(d.steps)) if (s.goal > 0 && s.count >= s.goal) pts += STEP_GOAL_POINTS;
   return pts;
 }
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { EXERCISES, PLACE_LABEL, type ExerciseCategory } from '../data/exercises';
 import { ExerciseCard, PlanRow } from '../components/exercise';
+import { StepsCard } from '../components/steps';
 import { Chips, Empty, Segmented, WeekStrip } from '../components/ui';
 import { dailyUnits } from '../lib/daily';
 import { formatShort, relativeDay, todayKey } from '../lib/date';
@@ -76,6 +77,8 @@ export function Sport() {
           ↩︎ Zurück zu heute
         </button>
       )}
+
+      <StepsCard date={date} />
 
       <Segmented
         value={view}
