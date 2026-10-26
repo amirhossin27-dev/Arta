@@ -444,10 +444,7 @@ export const actions = {
   },
 
   // ───── Gerät ─────
-  setMe(me: PersonId) {
-    commitDevice({ me });
-  },
-
+  // Wer man ist (`device.me`), steht nach dem Einrichten bzw. Verbinden fest – einen Wechsel gibt es bewusst nicht.
   setPopupFreq(popupFreq: PopupFreq) {
     commitDevice({ popupFreq });
   },
