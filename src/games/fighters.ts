@@ -27,23 +27,35 @@ export interface SpecialDef {
   color2: string;
 }
 
+/** Aussehen im Anime-Stil: Körperbau, Frisur, Gesicht und Kleidung */
 export interface FighterLook {
+  /** Kräftig mit breiten Schultern oder schlank und drahtig */
+  build: 'broad' | 'slim';
   skin: string;
   hair: string;
+  /** Wilde Stachelfrisur oder hoher Pferdeschwanz mit Pony */
   hairStyle: 'spiky' | 'ponytail';
-  /** Oberteil: Kampfanzug-Weste oder kurze Sportjacke */
+  eyes: string;
+  /** Gesicht in Ruhe: breites Grinsen mit Zähnen oder ein Schmunzeln */
+  smile: 'grin' | 'smirk';
+  /** Oberteil: offene Weste (Brust frei) oder kurzes Top (Bauch frei) */
   top: string;
-  topStyle: 'gi' | 'crop';
-  /** Kragen, Säume, Streifen */
+  topStyle: 'vest' | 'crop';
+  /** Kanten, Säume, Schnalle */
   trim: string;
   pants: string;
-  /** Weite Kampfanzug-Hose oder enge Leggings */
+  /** Weite Hose mit Wickeln am Knöchel oder enge Hose mit hohen Stiefeln */
   pantsStyle: 'wide' | 'tight';
+  /** Schärpe bzw. Gürtel */
   belt: string;
+  /** Bandagen bzw. Handschuhe */
   gloves: string;
+  hands: 'wrap' | 'glove';
   shoes: string;
   /** Stirnband mit flatternden Enden */
   band?: string;
+  /** Halstuch mit flatternden Enden */
+  scarf?: string;
 }
 
 export interface FighterDef {
@@ -90,20 +102,24 @@ export const FIGHTERS: FighterDef[] = [
     reach: 1,
     stats: { kraft: 5, tempo: 3, ausdauer: 4 },
     look: {
-      skin: '#e7b48f',
-      hair: '#1c1420',
+      build: 'broad',
+      skin: '#f0bd94',
+      hair: '#1b1526',
       hairStyle: 'spiky',
-      top: '#e2343f',
-      topStyle: 'gi',
-      trim: '#ffd6a0',
-      pants: '#f3ece4',
+      eyes: '#ff8a2a',
+      smile: 'grin',
+      top: '#d02d3a',
+      topStyle: 'vest',
+      trim: '#ffc53d',
+      pants: '#2b3050',
       pantsStyle: 'wide',
-      belt: '#151018',
-      gloves: '#c81f2c',
-      shoes: '#3a2a2a',
+      belt: '#f4ead8',
+      gloves: '#f7f1e6',
+      hands: 'wrap',
+      shoes: '#1d1922',
       band: '#ff3346',
     },
-    alt: { top: '#2f3542', trim: '#ff8f3d', pants: '#363b48', gloves: '#ff8f3d', band: '#ff8f3d', hair: '#e8e2d6' },
+    alt: { top: '#2d3346', trim: '#ff8f3d', pants: '#5a2230', band: '#ff8f3d', hair: '#ece6da', eyes: '#46c2ff', belt: '#26212e' },
     aura: '#ff7a2e',
     special: {
       kind: 'projectile',
@@ -132,19 +148,24 @@ export const FIGHTERS: FighterDef[] = [
     reach: 1.08,
     stats: { kraft: 3, tempo: 5, ausdauer: 3 },
     look: {
-      skin: '#f2c9a8',
-      hair: '#3a1e46',
+      build: 'slim',
+      skin: '#f6d0b0',
+      hair: '#3d2257',
       hairStyle: 'ponytail',
+      eyes: '#22c4ff',
+      smile: 'smirk',
       top: '#1fb7e8',
       topStyle: 'crop',
-      trim: '#e9fbff',
-      pants: '#1b1d33',
+      trim: '#eafcff',
+      pants: '#1d2038',
       pantsStyle: 'tight',
       belt: '#ffe14a',
       gloves: '#f4f7ff',
+      hands: 'glove',
       shoes: '#f4f7ff',
+      scarf: '#ffe14a',
     },
-    alt: { top: '#b04cff', trim: '#ffe7ff', hair: '#ffcf5a', belt: '#ff5fa2', pants: '#2a1838' },
+    alt: { top: '#b04cff', trim: '#ffe7ff', hair: '#ffcf5a', belt: '#ff5fa2', pants: '#2a1838', scarf: '#ff5fa2', eyes: '#c77dff' },
     aura: '#54e1ff',
     poses: {
       guard: { tor: 4, hd: -2, fs: 26, fe: 116, bs: 6, be: 126, fh: 28, fk: -30, bh: -22, bk: -6 },

@@ -4,7 +4,8 @@ import { otherSide, type Side } from './logic';
 
 /**
  * Herz-Fighter: alles, was man sieht. Die Kämpfer sind Gliederpuppen aus Posen (Gelenkwinkeln),
- * gezeichnet mit Kontur, Randlicht und flatternden Haaren; dazu zwei vorgerenderte Arenen mit
+ * gezeichnet im Anime-Stil: dicke Tusche-Kontur, Cel-Shading, große Augen mit wechselnder Mimik,
+ * Randlicht und flatternde Haare, Bänder und Tücher; dazu zwei vorgerenderte Arenen mit
  * Parallax-Ebenen, Spiegelung im Boden, Partikel, Kamera-Zoom und die Anzeige oben und unten.
  */
 
@@ -390,12 +391,6 @@ export function skeleton(x: number, y: number, face: 1 | -1, p: Pose): Sk {
   };
 }
 
-/** Punkt am Kopf: Winkel (Grad, 0 = oben, positiv = nach vorn) und Abstand in Kopfradien */
-function headPt(sk: Sk, deg: number, rr: number): Pt {
-  const a = sk.ha + deg * D2R;
-  return { x: sk.head.x + sk.face * Math.sin(a) * BONE.head * rr, y: sk.head.y + Math.cos(a) * BONE.head * rr };
-}
-
 /** Punkt am Rumpf: entlang (along, Einheiten über der Hüfte) und quer (side, positiv = vorn) */
 function bodyPt(sk: Sk, along: number, side: number): Pt {
   const ux = Math.sin(sk.ta);
@@ -408,12 +403,10 @@ function bodyPt(sk: Sk, along: number, side: number): Pt {
 interface Strand {
   pts: { x: number; y: number; px: number; py: number }[];
   len: number;
-  w0: number;
-  w1: number;
 }
 
-function newStrand(n: number, len: number, w0: number, w1: number): Strand {
-  return { pts: Array.from({ length: n }, () => ({ x: NaN, y: NaN, px: NaN, py: NaN })), len, w0, w1 };
+function newStrand(n: number, len: number): Strand {
+  return { pts: Array.from({ length: n }, () => ({ x: NaN, y: NaN, px: NaN, py: NaN })), len };
 }
 
 function stepStrand(s: Strand, a: Pt, dt: number, wind: number, face: number) {
@@ -507,9 +500,12 @@ export function updateCam(c: Cam, w: World, dt: number, u: number) {
   c.oy = (Math.random() - 0.5) * amp;
 }
 
-// ───────────────────────── Kämpfer zeichnen ─────────────────────────
+// ───────────────────────── Kämpfer zeichnen (Anime-Stil) ─────────────────────────
 
-const OUTLINE = '#170c1d';
+const INK = '#170c1d';
+
+/** Gesichtsausdruck – kommt aus dem Zustand des Kämpfers */
+export type Mood = 'idle' | 'shout' | 'hurt' | 'grit' | 'ko' | 'win';
 
 interface DrawOpts {
   /** Einfarbig (Nachbild, Treffer-Blitz) */
@@ -518,306 +514,992 @@ interface DrawOpts {
   rim?: string;
   rx?: number;
   ry?: number;
-  hurt?: boolean;
-  ko?: boolean;
+  mood?: Mood;
+  /** Spiegelbild im Boden: ohne Schatten und Feinheiten */
+  flat?: boolean;
+  /** Für das Blinzeln – ohne Zeit wird nicht geblinzelt */
+  time?: number;
 }
 
-interface FighterLookExt extends FighterLook {
-  outline: string;
+const vsub = (a: Pt, b: Pt): Pt => ({ x: a.x - b.x, y: a.y - b.y });
+const vlerp = (a: Pt, b: Pt, t: number): Pt => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+function vnorm(a: Pt): Pt {
+  const l = Math.hypot(a.x, a.y) || 1;
+  return { x: a.x / l, y: a.y / l };
 }
 
-function drawSk(ctx: CanvasRenderingContext2D, c: Cam, sk: Sk, look: FighterLook, strands: Strand[], o: DrawOpts) {
+const mixCache = new Map<string, string>();
+
+/** Farbe a in Richtung b mischen (t = 0…1) */
+function mixHex(a: string, b: string, t: number): string {
+  const key = `${a}${b}${t}`;
+  let v = mixCache.get(key);
+  if (!v) {
+    const x = hexRgb(a);
+    const y = hexRgb(b);
+    v = `rgb(${Math.round(lerp(x[0], y[0], t))},${Math.round(lerp(x[1], y[1], t))},${Math.round(lerp(x[2], y[2], t))})`;
+    mixCache.set(key, v);
+  }
+  return v;
+}
+
+/** Schattenton beim Cel-Shading: dunkler und etwas ins Violette, wie im Anime */
+const celDark = (col: string) => (col.startsWith('#') ? mixHex(col, '#2a1046', 0.36) : col);
+/** Hintere Arme und Beine liegen etwas im Schatten */
+const behind = (col: string) => (col.startsWith('#') ? mixHex(col, '#1d0b30', 0.2) : col);
+
+/**
+ * Gliedmaße: an beiden Enden rund, dazwischen geschwungen. `bulge` wölbt die Seite, auf die `toward`
+ * zeigt (Bizeps, Wade); ohne `toward` beide Seiten gleich.
+ */
+function limbPath(a: Pt, b: Pt, ra: number, rb: number, bulge = 0, toward?: Pt, at = 0.42): Path2D {
+  const d = vsub(b, a);
+  const u = vnorm(d);
+  const n = { x: -u.y, y: u.x };
+  let bp = bulge * 0.6;
+  let bm = bulge * 0.6;
+  if (toward) {
+    const s = n.x * toward.x + n.y * toward.y >= 0;
+    bp = s ? bulge : bulge * 0.2;
+    bm = s ? bulge * 0.2 : bulge;
+  }
+  const m = { x: a.x + d.x * at, y: a.y + d.y * at };
+  const rm = lerp(ra, rb, at);
+  const th = Math.atan2(n.y, n.x);
+  const p = new Path2D();
+  p.moveTo(a.x + n.x * ra, a.y + n.y * ra);
+  p.quadraticCurveTo(m.x + n.x * (rm + bp * 2), m.y + n.y * (rm + bp * 2), b.x + n.x * rb, b.y + n.y * rb);
+  p.arc(b.x, b.y, rb, th, th - Math.PI, true);
+  p.quadraticCurveTo(m.x - n.x * (rm + bm * 2), m.y - n.y * (rm + bm * 2), a.x - n.x * ra, a.y - n.y * ra);
+  p.arc(a.x, a.y, ra, th + Math.PI, th, true);
+  p.closePath();
+  return p;
+}
+
+/** Geschlossene Form durch Punkte: `sharp` = Spitze (Haarsträhne, Kragen), sonst rund */
+function blob(pts: Pt[], sharp: boolean[] = []): Path2D {
+  const n = pts.length;
+  const p = new Path2D();
+  const s0 = sharp.findIndex(Boolean);
+  if (s0 < 0) {
+    const m0 = vlerp(pts[0], pts[1], 0.5);
+    p.moveTo(m0.x, m0.y);
+    for (let i = 1; i <= n; i++) {
+      const q = pts[i % n];
+      const m = vlerp(q, pts[(i + 1) % n], 0.5);
+      p.quadraticCurveTo(q.x, q.y, m.x, m.y);
+    }
+    p.closePath();
+    return p;
+  }
+  const P = (i: number) => pts[(i + s0) % n];
+  const sh = (i: number) => !!sharp[(i + s0) % n];
+  p.moveTo(P(0).x, P(0).y);
+  for (let i = 1; i <= n; i++) {
+    const q = P(i);
+    if (sh(i)) {
+      if (sh(i - 1)) p.lineTo(q.x, q.y);
+      continue;
+    }
+    const t = sh(i + 1) ? P(i + 1) : vlerp(q, P(i + 1), 0.5);
+    p.quadraticCurveTo(q.x, q.y, t.x, t.y);
+  }
+  p.closePath();
+  return p;
+}
+
+function ellipsePath(c: Pt, rx: number, ry: number, rot: number): Path2D {
+  const p = new Path2D();
+  p.ellipse(c.x, c.y, Math.max(0.1, rx), Math.max(0.1, ry), rot, 0, Math.PI * 2);
+  return p;
+}
+
+/** Band oder Strähne entlang einer Punktkette. `cut`: Stoffende mit Kerbe, sonst spitz (Haar). */
+function ribbon(pts: Pt[], width: (t: number) => number, cut: boolean): Path2D {
+  const n = pts.length;
+  const L: Pt[] = [];
+  const R: Pt[] = [];
+  for (let i = 0; i < n; i++) {
+    const u = vnorm(vsub(pts[Math.min(n - 1, i + 1)], pts[Math.max(0, i - 1)]));
+    const w = width(i / (n - 1)) / 2;
+    L.push({ x: pts[i].x - u.y * w, y: pts[i].y + u.x * w });
+    R.push({ x: pts[i].x + u.y * w, y: pts[i].y - u.x * w });
+  }
+  const p = new Path2D();
+  p.moveTo(L[0].x, L[0].y);
+  for (let i = 1; i < n - 1; i++) {
+    const m = vlerp(L[i], L[i + 1], 0.5);
+    p.quadraticCurveTo(L[i].x, L[i].y, m.x, m.y);
+  }
+  p.lineTo(L[n - 1].x, L[n - 1].y);
+  const end = pts[n - 1];
+  const u = vnorm(vsub(end, pts[n - 2]));
+  const w1 = width(1);
+  if (cut) p.lineTo(end.x - u.x * w1 * 0.3, end.y - u.y * w1 * 0.3);
+  else p.lineTo(end.x + u.x * Math.max(3, w1 * 2), end.y + u.y * Math.max(3, w1 * 2));
+  p.lineTo(R[n - 1].x, R[n - 1].y);
+  for (let i = n - 2; i > 0; i--) {
+    const m = vlerp(R[i], R[i - 1], 0.5);
+    p.quadraticCurveTo(R[i].x, R[i].y, m.x, m.y);
+  }
+  p.lineTo(R[0].x, R[0].y);
+  p.closePath();
+  return p;
+}
+
+interface Shape {
+  p: Path2D;
+  col: string;
+  /** Breite des Schattenstreifens (Pixel); 0 = flach */
+  cel?: number;
+}
+
+interface Pass {
+  parts: Shape[];
+  /** Feinheiten nach dem Ausmalen: Tusche-Linien, Augen, Glanz */
+  after?: () => void;
+}
+
+interface Pen {
+  ctx: CanvasRenderingContext2D;
+  /** Konturstärke */
+  ow: number;
+  /** Feine Linien */
+  thin: number;
+  /** Richtung zum Licht (Bildschirm, Länge 1) */
+  L: Pt;
+  o: DrawOpts;
+}
+
+/**
+ * Eine Ebene ausmalen: erst die Tusche-Kontur aller Teile (so verschmelzen sie zu einer Form),
+ * dann die Farben mit hartem Schattenstreifen auf der lichtabgewandten Seite.
+ */
+function paint(d: Pen, parts: Shape[]) {
+  const { ctx, o } = d;
+  if (o.ghost) {
+    ctx.fillStyle = o.ghost;
+    for (const q of parts) ctx.fill(q.p);
+    return;
+  }
+  ctx.fillStyle = INK;
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = d.ow * 2;
+  for (const q of parts) {
+    ctx.stroke(q.p);
+    ctx.fill(q.p);
+  }
+  for (const q of parts) {
+    if (!q.cel || o.flat) {
+      ctx.fillStyle = q.col;
+      ctx.fill(q.p);
+      continue;
+    }
+    ctx.fillStyle = celDark(q.col);
+    ctx.fill(q.p);
+    ctx.save();
+    ctx.clip(q.p);
+    ctx.translate(d.L.x * q.cel, d.L.y * q.cel);
+    ctx.fillStyle = q.col;
+    ctx.fill(q.p);
+    ctx.restore();
+  }
+}
+
+function inkLine(d: Pen, pts: Pt[], w = d.thin, col = INK) {
+  if (d.o.ghost || d.o.flat || pts.length < 2) return;
+  const { ctx } = d;
+  ctx.strokeStyle = col;
+  ctx.lineWidth = w;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.stroke();
+}
+
+function inkCurve(d: Pen, a: Pt, c: Pt, b: Pt, w = d.thin, col = INK) {
+  if (d.o.ghost || d.o.flat) return;
+  const { ctx } = d;
+  ctx.strokeStyle = col;
+  ctx.lineWidth = w;
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.quadraticCurveTo(c.x, c.y, b.x, b.y);
+  ctx.stroke();
+}
+
+/** Anime-Köpfe sind etwas größer als das Skelett vorgibt */
+const HEAD_K = 1.22;
+const HEAD_R = BONE.head * HEAD_K;
+
+/** Punkt am Kopf in Kopfradien: lx nach vorn (Blickrichtung), ly nach oben – dreht mit dem Kopf */
+function headLocal(sk: Sk, lx: number, ly: number): Pt {
+  const s = Math.sin(sk.ha);
+  const co = Math.cos(sk.ha);
+  const y = ly + 0.16;
+  return { x: sk.head.x + sk.face * (co * lx + s * y) * HEAD_R, y: sk.head.y + (co * y - s * lx) * HEAD_R };
+}
+
+// ───── Haare, Bänder, Tücher: flatternde Ketten ─────
+
+interface StrandDef {
+  n: number;
+  len: number;
+  /** Breite (Welt-Einheiten) über die Länge, t = 0…1 */
+  width: (t: number) => number;
+  hair: boolean;
+  color: (l: FighterLook) => string;
+  at: (sk: Sk) => Pt;
+  wind: number;
+}
+
+function strandDefs(look: FighterLook): StrandDef[] {
+  const d: StrandDef[] = [];
+  if (look.hairStyle === 'ponytail') {
+    // Hoher, voller Pferdeschwanz: oben buschig, unten spitz
+    d.push({ n: 10, len: 7.6, width: (t) => 9 * (1 - t) * (1 + 0.55 * Math.sin(Math.PI * Math.min(1, t * 1.5))) + 1, hair: true, color: (l) => l.hair, at: (sk) => headLocal(sk, -0.82, 0.92), wind: 1 });
+  }
+  if (look.band) {
+    d.push({ n: 7, len: 6.8, width: () => 4.6, hair: false, color: (l) => l.band!, at: (sk) => headLocal(sk, -1.02, 0.5), wind: 1 });
+    d.push({ n: 6, len: 6.4, width: () => 4, hair: false, color: (l) => l.band!, at: (sk) => headLocal(sk, -1.02, 0.42), wind: 0.8 });
+  }
+  if (look.scarf) {
+    d.push({ n: 8, len: 7.4, width: (t) => 7.4 - t * 2, hair: false, color: (l) => l.scarf!, at: (sk) => bodyPt(sk, BONE.torso + 3, -8), wind: 1 });
+    d.push({ n: 6, len: 7, width: (t) => 6.2 - t * 1.6, hair: false, color: (l) => l.scarf!, at: (sk) => bodyPt(sk, BONE.torso + 1, -7), wind: 0.8 });
+  }
+  if (look.pantsStyle === 'wide') {
+    // Enden der Schärpe
+    d.push({ n: 6, len: 7.2, width: (t) => 6.4 - t * 1.6, hair: false, color: (l) => l.belt, at: (sk) => bodyPt(sk, 6, -12), wind: 0.5 });
+  }
+  return d;
+}
+
+interface Strands {
+  defs: StrandDef[];
+  list: Strand[];
+}
+
+function newStrands(look: FighterLook): Strands {
+  const defs = strandDefs(look);
+  return { defs, list: defs.map((s) => newStrand(s.n, s.len)) };
+}
+
+function stepStrands(st: Strands, sk: Sk, dt: number, wind: number) {
+  st.defs.forEach((s, i) => stepStrand(st.list[i], s.at(sk), dt, wind * s.wind, sk.face));
+}
+
+// ───── Körper ─────
+
+/** Umriss des Rumpfs: [entlang über der Hüfte, quer (+ = vorn)] */
+const TORSO: Record<FighterLook['build'], [number, number][]> = {
+  broad: [
+    [-4, -11],
+    [14, -11.5],
+    [30, -14],
+    [44, -15.5],
+    [52, -9],
+    [55, 0],
+    [50, 9],
+    [42, 16],
+    [33, 14],
+    [22, 11],
+    [10, 11.5],
+    [0, 12.5],
+    [-6, 4],
+    [-6, -6],
+  ],
+  slim: [
+    [-4, -13],
+    [8, -12],
+    [20, -9],
+    [34, -11],
+    [45, -12],
+    [52, -7],
+    [55, 0],
+    [50, 7],
+    [41, 13.5],
+    [32, 11],
+    [21, 8],
+    [10, 10.5],
+    [0, 12.5],
+    [-6, 4],
+    [-6, -7],
+  ],
+};
+
+/** Umriss des Kopfes in Kopfradien (vorn = +x), das Kinn ist spitz */
+const HEAD: Record<FighterLook['build'], [number, number][]> = {
+  broad: [
+    [0.86, 0.44],
+    [0.95, 0.06],
+    [0.89, -0.15],
+    [0.94, -0.38],
+    [0.78, -0.8],
+    [0.52, -1.1],
+    [0.1, -1.0],
+    [-0.42, -0.64],
+    [-0.84, -0.3],
+    [-1.02, 0.18],
+    [-0.82, 0.8],
+    [-0.24, 1.08],
+    [0.42, 1.02],
+    [0.8, 0.76],
+  ],
+  slim: [
+    [0.85, 0.44],
+    [0.93, 0.06],
+    [0.87, -0.15],
+    [0.9, -0.38],
+    [0.72, -0.8],
+    [0.46, -1.04],
+    [0.08, -0.92],
+    [-0.38, -0.6],
+    [-0.82, -0.3],
+    [-1.0, 0.18],
+    [-0.8, 0.8],
+    [-0.22, 1.08],
+    [0.42, 1.02],
+    [0.8, 0.76],
+  ],
+};
+
+type HairPt = [number, number, 0 | 1];
+
+/** Frisuren: hinten (hinter dem Kopf) und vorn (Ansatz und Pony über der Stirn). 1 = Spitze. */
+const HAIR: Record<FighterLook['hairStyle'], { back: HairPt[]; front: HairPt[]; shine: [number, number][][] }> = {
+  spiky: {
+    back: [
+      [-0.5, -0.55, 0],
+      [-1.5, -0.95, 1],
+      [-1.08, -0.3, 0],
+      [-1.95, 0.02, 1],
+      [-1.12, 0.36, 0],
+      [-1.82, 0.9, 1],
+      [-0.96, 0.86, 0],
+      [-1.3, 1.62, 1],
+      [-0.5, 1.18, 0],
+      [-0.36, 2.0, 1],
+      [0.02, 1.24, 0],
+      [0.5, 1.9, 1],
+      [0.5, 1.16, 0],
+      [1.12, 1.46, 1],
+      [0.86, 0.84, 0],
+      [0.2, 0.5, 0],
+      [-0.3, 0.0, 0],
+    ],
+    front: [
+      [-0.78, -0.12, 0],
+      [-1.0, 0.34, 0],
+      [-0.8, 0.98, 0],
+      [0.0, 1.22, 0],
+      [0.72, 1.04, 0],
+      [1.04, 0.62, 0],
+      [1.2, 0.1, 1],
+      [0.88, 0.44, 0],
+      [0.72, 0.14, 1],
+      [0.52, 0.46, 0],
+      [0.32, 0.18, 1],
+      [0.14, 0.46, 0],
+      [-0.06, 0.12, 1],
+      [-0.18, 0.3, 0],
+      [-0.3, -0.58, 1],
+      [-0.44, 0.0, 0],
+    ],
+    shine: [
+      [
+        [-0.42, 0.9],
+        [-0.02, 1.02],
+      ],
+      [
+        [0.3, 0.98],
+        [0.58, 0.88],
+      ],
+    ],
+  },
+  ponytail: {
+    back: [
+      [-0.55, -0.62, 0],
+      [-1.08, -0.22, 0],
+      [-1.14, 0.42, 0],
+      [-0.86, 0.98, 0],
+      [-0.2, 1.22, 0],
+      [0.5, 1.06, 0],
+      [0.4, 0.4, 0],
+      [-0.2, 0.0, 0],
+    ],
+    front: [
+      [-0.75, -0.08, 0],
+      [-1.02, 0.3, 0],
+      [-0.86, 0.94, 0],
+      [-0.1, 1.24, 0],
+      [0.6, 1.1, 0],
+      [1.02, 0.64, 0],
+      [1.12, 0.1, 1],
+      [0.86, 0.46, 0],
+      [0.66, 0.16, 1],
+      [0.48, 0.5, 0],
+      [0.28, 0.18, 1],
+      [0.12, 0.46, 0],
+      [-0.04, 0.12, 1],
+      [-0.14, -0.2, 0],
+      [-0.1, -1.08, 1],
+      [-0.34, -0.5, 0],
+      [-0.42, 0.04, 0],
+    ],
+    shine: [
+      [
+        [-0.64, 0.74],
+        [-0.22, 0.96],
+        [0.22, 0.98],
+      ],
+    ],
+  },
+};
+
+function drawSk(ctx: CanvasRenderingContext2D, c: Cam, sk: Sk, look: FighterLook, strands: Strands | null, o: DrawOpts) {
   const k = c.s;
-  const ow = Math.max(1.5, 2.4 * k);
-  const L: FighterLookExt = { ...look, outline: OUTLINE };
-  const wide = look.pantsStyle === 'wide';
-  const crop = look.topStyle === 'crop';
-  const W = {
-    thigh: (wide ? 18 : 14) * k,
-    shin: (wide ? 16 : 11.5) * k,
-    uarm: (crop ? 11 : 13.5) * k,
-    farm: (crop ? 10 : 11.5) * k,
-    waist: (crop ? 20 : 27) * k,
-    chest: (crop ? 28 : 36) * k,
-    neck: 10.5 * k,
-    foot: 9 * k,
-    fist: (crop ? 6.8 : 7.6) * k,
-    head: BONE.head * k,
-  };
-  const p = {
-    hip: S(c, sk.hip),
-    mid: S(c, sk.mid),
-    chest: S(c, sk.chest),
-    head: S(c, sk.head),
-    fe: S(c, sk.fe),
-    fh: S(c, sk.fh),
-    be: S(c, sk.be),
-    bh: S(c, sk.bh),
-    fk: S(c, sk.fk),
-    fa: S(c, sk.fa),
-    ft: S(c, sk.ft),
-    bk: S(c, sk.bk),
-    ba: S(c, sk.ba),
-    bt: S(c, sk.bt),
-  };
-  const ghost = o.ghost;
-  const seg = (a: Pt, b: Pt, w: number, color: string) => {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = w;
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
-  };
-  const dot = (a: Pt, r: number, color: string) => {
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(a.x, a.y, r, 0, Math.PI * 2);
-    ctx.fill();
-  };
-  type Seg = [Pt, Pt, number, string];
-  /** Erst die Kontur der ganzen Gliedmaße, dann die Farben – so trennt die Kontur Vorder- und Hinterteile. */
-  const group = (segs: Seg[], dots: [Pt, number, string][] = [], hi = false) => {
-    if (ghost) {
-      for (const [a, b, w] of segs) seg(a, b, w, ghost);
-      for (const [a, r] of dots) dot(a, r, ghost);
-      return;
-    }
-    for (const [a, b, w] of segs) seg(a, b, w + ow * 2, L.outline);
-    for (const [a, r] of dots) dot(a, r + ow, L.outline);
-    for (const [a, b, w, col] of segs) seg(a, b, w, col);
-    for (const [a, r, col] of dots) dot(a, r, col);
-    if (hi) {
-      // Glanzlicht oben – gibt den Gliedmaßen Rundung
-      ctx.globalAlpha *= 0.32;
-      for (const [a, b, w] of segs) seg({ x: a.x - w * 0.12, y: a.y - w * 0.18 }, { x: b.x - w * 0.12, y: b.y - w * 0.18 }, w * 0.32, '#ffffff');
-      ctx.globalAlpha /= 0.32;
-    }
-  };
-  const dark = (col: string) => (ghost ? ghost : shade(col, -0.2));
+  const d: Pen = { ctx, ow: Math.max(1.2, 2.1 * k), thin: Math.max(0.7, 1.05 * k), L: vnorm({ x: sk.face * 0.5, y: -0.86 }), o };
+  const broad = look.build === 'broad';
+  const J = (q: Pt) => S(c, q);
+  const B = (along: number, side: number) => S(c, bodyPt(sk, along, side));
+  const hip = J(sk.hip);
+  const sh = B(BONE.torso - 5, 0);
+  const toBack: Pt = { x: -sk.face, y: 0 };
+  const shadow = (w: number) => w * 0.36;
+  const layers: Pass[] = [];
 
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  const backArm: Seg[] = [
-    [p.chest, p.be, W.uarm, dark(crop ? look.top : look.skin)],
-    [p.be, p.bh, W.farm, dark(look.skin)],
-  ];
-  const backLeg: Seg[] = [
-    [p.hip, p.bk, W.thigh, dark(look.pants)],
-    [p.bk, p.ba, W.shin, dark(look.pants)],
-    [p.ba, p.bt, W.foot, dark(look.shoes)],
-  ];
-  const frontLeg: Seg[] = [
-    [p.hip, p.fk, W.thigh, look.pants],
-    [p.fk, p.fa, W.shin, look.pants],
-    [p.fa, p.ft, W.foot, look.shoes],
-  ];
-  const frontArm: Seg[] = [
-    [p.chest, p.fe, W.uarm, crop ? look.top : look.skin],
-    [p.fe, p.fh, W.farm, look.skin],
-  ];
-  const torso: Seg[] = [
-    [p.chest, p.head, W.neck, look.skin],
-    [p.hip, p.mid, W.waist, crop ? look.skin : look.top],
-    [p.mid, p.chest, W.chest, look.top],
-  ];
+  // ── Arme ──
+  const A = broad ? { ua: 7.6, ub: 6.0, fa: 6.4, fb: 5.0, fist: 7.6 } : { ua: 5.8, ub: 4.6, fa: 4.9, fb: 3.9, fist: 6.0 };
+  const arm = (e: Pt, h: Pt, col: (s: string) => string): Pass => {
+    const parts: Shape[] = [
+      { p: limbPath(sh, e, A.ua * k, A.ub * k, (broad ? 2.4 : 1.0) * k), col: col(look.skin), cel: shadow(A.ua * 2 * k) },
+      { p: limbPath(e, h, A.fa * k, A.fb * k, (broad ? 2.0 : 0.8) * k, undefined, 0.3), col: col(look.skin), cel: shadow(A.fa * 2 * k) },
+    ];
+    // Schulter: bei Kai ein kräftiger Muskel, bei Mila ein kurzer Ärmel
+    if (broad) parts.push({ p: ellipsePath(vlerp(sh, e, 0.16), A.ua * 1.32 * k, A.ua * 1.2 * k, 0), col: col(look.skin), cel: shadow(A.ua * 2.4 * k) });
+    else parts.push({ p: limbPath(sh, vlerp(sh, e, 0.44), A.ua * 1.18 * k, A.ua * 1.06 * k), col: col(look.top), cel: shadow(A.ua * 2 * k) });
+    const w0 = look.hands === 'wrap' ? 0.42 : 0.66;
+    parts.push({ p: limbPath(vlerp(e, h, w0), h, A.fa * 1.04 * k, A.fb * 1.12 * k), col: col(look.gloves), cel: shadow(A.fa * 2 * k) });
+    const u = vnorm(vsub(h, e));
+    const fc = { x: h.x + u.x * A.fist * 0.35 * k, y: h.y + u.y * A.fist * 0.35 * k };
+    parts.push({ p: ellipsePath(fc, A.fist * 1.12 * k, A.fist * 0.92 * k, Math.atan2(u.y, u.x)), col: col(look.gloves), cel: shadow(A.fist * 1.6 * k) });
+    return {
+      parts,
+      after: () => {
+        const n = { x: -u.y, y: u.x };
+        const cross = (t: number, r: number) => {
+          const q = vlerp(e, h, t);
+          inkLine(d, [
+            { x: q.x + n.x * r, y: q.y + n.y * r },
+            { x: q.x - n.x * r, y: q.y - n.y * r },
+          ]);
+        };
+        if (look.hands === 'wrap') for (const t of [0.42, 0.6, 0.76, 0.9]) cross(t, lerp(A.fa, A.fb, t) * 1.04 * k);
+        else cross(0.66, lerp(A.fa, A.fb, 0.66) * 1.04 * k);
+        if (!broad) {
+          const q = vlerp(sh, e, 0.44);
+          const un = vnorm(vsub(e, sh));
+          inkLine(d, [
+            { x: q.x - un.y * A.ua * 1.06 * k, y: q.y + un.x * A.ua * 1.06 * k },
+            { x: q.x + un.y * A.ua * 1.06 * k, y: q.y - un.x * A.ua * 1.06 * k },
+          ]);
+        }
+        // Knöchel
+        const kn = { x: fc.x + u.x * A.fist * 0.5 * k, y: fc.y + u.y * A.fist * 0.5 * k };
+        inkLine(d, [
+          { x: kn.x + n.x * A.fist * 0.55 * k, y: kn.y + n.y * A.fist * 0.55 * k },
+          { x: kn.x - n.x * A.fist * 0.55 * k, y: kn.y - n.y * A.fist * 0.55 * k },
+        ]);
+      },
+    };
+  };
+
+  // ── Beine ──
+  const foot = (an: Pt, toe: Pt, kn: Pt, col: string): Shape => {
+    const u = vnorm(vsub(toe, an));
+    let n = { x: -u.y, y: u.x };
+    const kd = vsub(kn, an);
+    if (n.x * kd.x + n.y * kd.y < 0) n = { x: -n.x, y: -n.y };
+    const len = BONE.foot * k;
+    const h = (broad ? 6 : 5.2) * k;
+    const P = (a: number, b: number) => ({ x: an.x + u.x * a * len + n.x * b * h, y: an.y + u.y * a * len + n.y * b * h });
+    return {
+      p: blob([P(-0.36, 0.75), P(-0.46, -0.15), P(-0.32, -0.66), P(1.18, -0.66), P(1.42, -0.18), P(1.16, 0.34), P(0.42, 0.66)], [false, false, true, true, false, false, false]),
+      col,
+      cel: h * 0.7,
+    };
+  };
+  const leg = (kn: Pt, an: Pt, toe: Pt, col: (s: string) => string): Pass => {
+    const parts: Shape[] = [];
+    if (look.pantsStyle === 'wide') {
+      parts.push({ p: limbPath(hip, kn, 11.4 * k, 9.4 * k, 2.6 * k), col: col(look.pants), cel: shadow(22 * k) });
+      parts.push({ p: limbPath(kn, an, 9.4 * k, 6.4 * k, 3.4 * k, toBack, 0.48), col: col(look.pants), cel: shadow(18 * k) });
+      parts.push({ p: limbPath(vlerp(kn, an, 0.8), an, 6.2 * k, 5.6 * k), col: col(look.gloves), cel: shadow(11 * k) });
+    } else {
+      parts.push({ p: limbPath(hip, kn, 9.2 * k, 6.2 * k, 1.6 * k), col: col(look.pants), cel: shadow(17 * k) });
+      parts.push({ p: limbPath(kn, an, 6.2 * k, 4.3 * k, 2 * k, toBack, 0.35), col: col(look.pants), cel: shadow(12 * k) });
+      parts.push({ p: limbPath(vlerp(kn, an, 0.14), an, 6.0 * k, 4.6 * k, 1.4 * k, toBack, 0.35), col: col(look.shoes), cel: shadow(11 * k) });
+    }
+    parts.push(foot(an, toe, kn, col(look.shoes)));
+    return {
+      parts,
+      after: () => {
+        const u = vnorm(vsub(an, kn));
+        const n = { x: -u.y, y: u.x };
+        if (look.pantsStyle === 'wide') {
+          // Wickel am Knöchel und Falten am Knie
+          for (const t of [0.8, 0.9]) {
+            const q = vlerp(kn, an, t);
+            const r = lerp(6.2, 5.6, (t - 0.8) / 0.2) * k;
+            inkLine(d, [
+              { x: q.x + n.x * r, y: q.y + n.y * r },
+              { x: q.x - n.x * r, y: q.y - n.y * r },
+            ]);
+          }
+          const q = vlerp(hip, kn, 0.78);
+          const ut = vnorm(vsub(kn, hip));
+          const nt = { x: -ut.y, y: ut.x };
+          inkCurve(d, { x: q.x + nt.x * 6 * k, y: q.y + nt.y * 6 * k }, { x: q.x + ut.x * 3 * k, y: q.y + ut.y * 3 * k }, { x: q.x - nt.x * 2 * k, y: q.y - nt.y * 2 * k });
+        } else {
+          // Stiefelschaft
+          const q = vlerp(kn, an, 0.24);
+          const r = lerp(6.0, 4.6, 0.12) * k;
+          inkLine(d, [
+            { x: q.x + n.x * r, y: q.y + n.y * r },
+            { x: q.x - n.x * r, y: q.y - n.y * r },
+          ]);
+        }
+      },
+    };
+  };
+
+  const fk = J(sk.fk);
+  const fa = J(sk.fa);
+  const ft = J(sk.ft);
+  const bk = J(sk.bk);
+  const ba = J(sk.ba);
+  const bt = J(sk.bt);
+  const fe = J(sk.fe);
+  const fh = J(sk.fh);
+  const be = J(sk.be);
+  const bh = J(sk.bh);
+
+  layers.push(arm(be, bh, behind));
+  layers.push(leg(bk, ba, bt, behind));
+
+  // ── Flatternde Bänder und der Pferdeschwanz (hinter dem Körper) ──
+  if (strands && !o.ghost) {
+    strands.defs.forEach((s, i) => {
+      const pts = strands.list[i].pts.map((q) => S(c, q));
+      if (pts.some((q) => Number.isNaN(q.x))) return;
+      const col = s.color(look);
+      layers.push({
+        parts: [{ p: ribbon(pts, (t) => s.width(t) * k, !s.hair), col: s.hair ? col : behind(col), cel: s.width(0) * k * 0.4 }],
+        after: s.hair
+          ? () => {
+              const m = Math.floor(pts.length * 0.75);
+              inkLine(d, pts.slice(1, m), d.thin * 0.8, celDark(col));
+            }
+          : undefined,
+      });
+    });
+  }
+
+  // ── Rumpf (Haut) ──
+  const Hl = (lx: number, ly: number) => S(c, headLocal(sk, lx, ly));
+  const torso = TORSO[look.build].map(([a, s]) => B(a, s));
+  layers.push({
+    parts: [
+      { p: limbPath(B(BONE.torso - 4, 0), Hl(0.0, -0.7), 5.6 * k, 5 * k), col: look.skin, cel: shadow(11 * k) },
+      { p: blob(torso), col: look.skin, cel: shadow((broad ? 28 : 22) * k) },
+    ],
+    after: () => {
+      if (broad) {
+        // Brust, Schlüsselbein, Bauchmuskeln
+        const sd = celDark(look.skin);
+        inkCurve(d, B(43, 6), B(35, 9), B(36, 15), d.thin * 1.2);
+        inkCurve(d, B(50, 3), B(49, 7), B(47, 11), d.thin, sd);
+        inkLine(d, [B(29, 9.5), B(12, 10)], d.thin, sd);
+        for (const a of [25, 18]) inkCurve(d, B(a, 7.5), B(a - 1.2, 9.4), B(a, 11), d.thin, sd);
+      } else {
+        inkCurve(d, B(16, 7), B(14.5, 8.2), B(13, 7.4));
+      }
+    },
+  });
+
+  // Vorderes Bein vor dem Rumpf, aber unter Hose und Gürtel – so bleibt die Hüfte sauber.
+  layers.push(leg(fk, fa, ft, (s) => s));
+
+  // ── Kleidung ──
+  const cloth: Shape[] = [];
+  const hipW = broad ? 12.6 : 13.6;
+  cloth.push({ p: blob([B(8, -hipW + 0.4), B(8, hipW - 0.6), B(-1, hipW), B(-9, 6), B(-9, -5), B(-2, -hipW)]), col: look.pants, cel: shadow(24 * k) });
+  if (broad) {
+    cloth.push({ p: blob([B(11, -13), B(11, 12.8), B(1, 13.6), B(1, -13.4)], [true, true, true, true]), col: look.belt, cel: shadow(20 * k) });
+  } else {
+    cloth.push({ p: blob([B(7, -13), B(7, 12.6), B(2.6, 13), B(2.6, -13.2)], [true, true, true, true]), col: look.belt, cel: shadow(16 * k) });
+  }
+  let vestEdge: Pt[] = [];
+  if (look.topStyle === 'vest') {
+    // Offene, ärmellose Weste mit hohem Kragen – die Brust bleibt frei.
+    const v: [number, number, 0 | 1][] = [
+      [61, -12, 1],
+      [55, -3, 0],
+      [51, 3, 1],
+      [44, 6, 0],
+      [33, 5, 0],
+      [21, 3.5, 0],
+      [10, 4.5, 1],
+      [9, -14.5, 1],
+      [26, -16, 0],
+      [42, -17.5, 0],
+      [52, -15, 0],
+    ];
+    cloth.push({ p: blob(v.map(([a, s]) => B(a, s)), v.map(([, , t]) => !!t)), col: look.top, cel: shadow(26 * k) });
+    vestEdge = [B(51, 3), B(44, 6), B(33, 5), B(21, 3.5), B(10, 4.5)];
+  } else {
+    const v: [number, number, 0 | 1][] = [
+      [53, -9, 0],
+      [56, -2, 0],
+      [51, 4, 0],
+      [46, 9, 0],
+      [41, 14.4, 0],
+      [34, 12.2, 0],
+      [29.5, 10.6, 1],
+      [28.5, -10.6, 1],
+      [40, -12.8, 0],
+      [48, -12.8, 0],
+    ];
+    cloth.push({ p: blob(v.map(([a, s]) => B(a, s)), v.map(([, , t]) => !!t)), col: look.top, cel: shadow(22 * k) });
+  }
+  if (look.scarf) {
+    cloth.push({ p: blob([B(BONE.torso + 6, -8), B(BONE.torso + 7.5, 6.5), B(BONE.torso - 1, 9.5), B(BONE.torso - 3, -9.5)]), col: look.scarf, cel: shadow(16 * k) });
+  }
+  layers.push({
+    parts: cloth,
+    after: () => {
+      if (vestEdge.length) {
+        // Goldene Kante an der offenen Weste
+        inkLine(d, vestEdge, 2.6 * k, look.trim);
+        inkLine(d, [B(10, 4.5), B(9, -14.5)], 2.2 * k, look.trim);
+      } else {
+        inkLine(d, [B(30, 10), B(29, -10)], 1.8 * k, look.trim);
+      }
+      if (broad) {
+        // Knoten der Schärpe
+        inkCurve(d, B(9, -6), B(6, -9), B(2, -7));
+      } else {
+        const bk0 = B(5, 11.4);
+        ctx.fillStyle = look.trim;
+        ctx.fillRect(bk0.x - 2.2 * k, bk0.y - 2.2 * k, 4.4 * k, 4.4 * k);
+      }
+      if (look.scarf) inkCurve(d, B(BONE.torso + 3, -8), B(BONE.torso + 1, 0), B(BONE.torso + 2, 8));
+    },
+  });
+
+  // ── Kopf ──
+  for (const l of headLayers(d, c, sk, look)) layers.push(l);
+
+  layers.push(arm(fe, fh, (s) => s));
 
   // Randlicht: die ganze Figur einmal in Lichtfarbe, leicht versetzt
-  if (o.rim && !ghost) {
-    const all = [...backArm, ...backLeg, ...torso, ...frontLeg, ...frontArm];
+  if (o.rim && !o.ghost) {
     ctx.save();
     ctx.translate(o.rx ?? 1.5, o.ry ?? -0.6);
-    for (const [a, b, w] of all) seg(a, b, w + ow * 2, o.rim);
-    dot(p.head, W.head + ow, o.rim);
-    dot(p.fh, W.fist + ow, o.rim);
-    dot(p.bh, W.fist + ow, o.rim);
+    ctx.fillStyle = o.rim;
+    ctx.strokeStyle = o.rim;
+    ctx.lineWidth = d.ow * 2;
+    for (const l of layers)
+      for (const q of l.parts) {
+        ctx.stroke(q.p);
+        ctx.fill(q.p);
+      }
     ctx.restore();
   }
-
-  group(backArm, [[p.bh, W.fist, dark(look.gloves)]]);
-  group(backLeg);
-
-  // Pferdeschwanz, Stirnband-Enden, Gürtel-Enden hinter dem Körper
-  for (const s of strands) {
-    const color = s === strands[0] && look.hairStyle === 'ponytail' ? look.hair : s.w0 > 4.6 ? look.belt : (look.band ?? look.hair);
-    drawStrand(ctx, c, s, ghost ?? color, ghost ? 0 : ow);
+  for (const l of layers) {
+    paint(d, l.parts);
+    if (l.after && !o.ghost && !o.flat) l.after();
   }
-
-  group(torso, [[S(c, bodyPt(sk, BONE.torso - 8, 0)), (crop ? 11 : 13) * k, look.top]], true);
-  if (!ghost) {
-    // Kragen bzw. Saum
-    const a = S(c, bodyPt(sk, BONE.torso - 3, -9));
-    const b = S(c, bodyPt(sk, crop ? BONE.torso * 0.5 : BONE.torso * 0.28, 8));
-    if (look.topStyle === 'gi') seg(a, b, 3.2 * k, look.trim);
-    else {
-      seg(S(c, bodyPt(sk, BONE.torso * 0.5, -10)), S(c, bodyPt(sk, BONE.torso * 0.5, 11)), 3 * k, look.trim);
-      seg(S(c, bodyPt(sk, BONE.torso - 6, -4)), S(c, bodyPt(sk, BONE.torso * 0.62, 10)), 2.2 * k, look.trim);
-    }
-    // Gürtel
-    const b0 = S(c, bodyPt(sk, crop ? 2 : 4, -12));
-    const b1 = S(c, bodyPt(sk, crop ? 2 : 4, 12));
-    seg(b0, b1, (crop ? 3.5 : 6) * k + ow, L.outline);
-    seg(b0, b1, (crop ? 3.5 : 6) * k, look.belt);
-  }
-
-  group(frontLeg, [], true);
-  if (!ghost && !wide) {
-    // Seitenstreifen der Leggings
-    ctx.globalAlpha *= 0.85;
-    seg(p.hip, p.fk, 2 * k, look.trim);
-    seg(p.fk, { x: lerp(p.fk.x, p.fa.x, 0.85), y: lerp(p.fk.y, p.fa.y, 0.85) }, 2 * k, look.trim);
-    ctx.globalAlpha /= 0.85;
-  }
-
-  drawHead(ctx, c, sk, look, W.head, ow, o);
-
-  group(frontArm, [[p.fh, W.fist, look.gloves]], true);
 }
 
-function drawStrand(ctx: CanvasRenderingContext2D, c: Cam, s: Strand, color: string, ow: number) {
-  const pts = s.pts.map((q) => S(c, q));
-  if (pts.some((q) => Number.isNaN(q.x))) return;
-  const n = pts.length - 1;
-  const pass = (extra: number, col: string) => {
-    ctx.strokeStyle = col;
-    for (let i = 0; i < n; i++) {
-      ctx.lineWidth = lerp(s.w0, s.w1, i / n) * c.s + extra;
-      ctx.beginPath();
-      ctx.moveTo(pts[i].x, pts[i].y);
-      ctx.lineTo(pts[i + 1].x, pts[i + 1].y);
-      ctx.stroke();
-    }
-  };
-  if (ow) pass(ow * 2, OUTLINE);
-  pass(0, color);
+function headLayers(d: Pen, c: Cam, sk: Sk, look: FighterLook): Pass[] {
+  const { ctx, o } = d;
+  const k = c.s;
+  const Rp = HEAD_R * k;
+  const H = (lx: number, ly: number) => S(c, headLocal(sk, lx, ly));
+  const hair = HAIR[look.hairStyle];
+  const shape = (pts: HairPt[]) => blob(
+    pts.map(([x, y]) => H(x, y)),
+    pts.map(([, , s]) => !!s),
+  );
+  const head = blob(
+    HEAD[look.build].map(([x, y]) => H(x, y)),
+    HEAD[look.build].map((_, i) => i === 5),
+  );
+  const front = shape(hair.front);
+  const ear = blob([H(-0.36, -0.08), H(-0.56, 0.02), H(-0.72, -0.22), H(-0.62, -0.52), H(-0.42, -0.54)]);
+  const mood = o.mood ?? 'idle';
+  const layers: Pass[] = [];
+
+  layers.push({ parts: [{ p: shape(hair.back), col: look.hair, cel: Rp * 0.5 }] });
+  layers.push({
+    parts: [{ p: head, col: look.skin, cel: Rp * 0.18 }],
+    after: () => {
+      // Schatten des Ponys auf der Stirn
+      ctx.save();
+      ctx.clip(head);
+      ctx.translate(-d.L.x * Rp * 0.05, Rp * 0.12);
+      ctx.fillStyle = celDark(look.skin);
+      ctx.fill(front);
+      ctx.restore();
+    },
+  });
+  layers.push({
+    parts: [{ p: ear, col: look.skin, cel: Rp * 0.14 }],
+    after: () => {
+      inkCurve(d, H(-0.46, -0.14), H(-0.6, -0.2), H(-0.5, -0.4));
+      face(d, H, Rp, look, mood, o.time);
+    },
+  });
+  layers.push({
+    parts: [{ p: front, col: look.hair, cel: Rp * 0.4 }],
+    after: () => {
+      // Glanz im Haar
+      const shine = look.hair.startsWith('#') ? mixHex(look.hair, '#9fb6ff', 0.4) : look.hair;
+      for (const line of hair.shine) inkLine(d, line.map(([x, y]) => H(x, y)), 2.4 * k, shine);
+      brows(d, H, look, mood);
+    },
+  });
+  if (look.band) {
+    const band = blob([H(0.99, 0.56), H(0.95, 0.34), H(-0.2, 0.5), H(-1.0, 0.36), H(-1.04, 0.6), H(-0.2, 0.74)], [true, true, false, true, true, false]);
+    layers.push({
+      parts: [
+        { p: band, col: look.band, cel: Rp * 0.16 },
+        { p: ellipsePath(H(-1.02, 0.48), Rp * 0.13, Rp * 0.17, 0), col: look.band, cel: Rp * 0.08 },
+      ],
+      after: () => inkLine(d, [H(0.2, 0.6), H(0.62, 0.56)], 1.4 * k, look.trim),
+    });
+  }
+  if (look.hairStyle === 'ponytail') {
+    layers.push({ parts: [{ p: ellipsePath(H(-0.78, 0.82), Rp * 0.08, Rp * 0.12, 0.5), col: look.belt, cel: Rp * 0.04 }] });
+  }
+  return layers;
 }
 
-const HAIR: Record<FighterLook['hairStyle'], [number, number][]> = {
-  spiky: [
-    [62, 0.9],
-    [48, 1.3],
-    [32, 1.0],
-    [18, 1.5],
-    [2, 1.05],
-    [-18, 1.62],
-    [-34, 1.06],
-    [-56, 1.68],
-    [-72, 1.05],
-    [-96, 1.55],
-    [-110, 1.0],
-    [-134, 1.3],
-    [-152, 0.95],
-    [-172, 0.85],
-    [-176, 0.4],
-    [70, 0.35],
-  ],
-  ponytail: [
-    [74, 0.98],
-    [88, 0.86],
-    [70, 1.12],
-    [40, 1.2],
-    [8, 1.22],
-    [-30, 1.2],
-    [-70, 1.16],
-    [-110, 1.08],
-    [-148, 0.98],
-    [-176, 0.86],
-    [-178, 0.4],
-    [72, 0.4],
-  ],
-};
+/** Augen, Nase und Mund – je nach Stimmung */
+function face(d: Pen, H: (x: number, y: number) => Pt, Rp: number, look: FighterLook, mood: Mood, time?: number) {
+  const { ctx } = d;
+  const broad = look.build === 'broad';
+  const blink = mood === 'idle' && time !== undefined && time % 3.6 < 0.11;
+  type EyeKind = 'open' | 'intense' | 'narrow' | 'closed' | 'happy' | 'squeeze' | 'spiral';
+  const kind: EyeKind = blink
+    ? 'closed'
+    : mood === 'shout'
+      ? 'intense'
+      : mood === 'grit'
+        ? 'narrow'
+        : mood === 'hurt'
+          ? 'squeeze'
+          : mood === 'ko'
+            ? 'spiral'
+            : mood === 'win'
+              ? 'happy'
+              : 'open';
+  const eh = broad ? 0.36 : 0.48;
+  eye(d, H, Rp, look, 0.22, -0.26, broad ? 0.46 : 0.48, eh, kind, false);
+  eye(d, H, Rp, look, 0.76, -0.26, broad ? 0.22 : 0.24, eh * 0.92, mood === 'win' && !broad ? 'closed' : kind, true);
 
-function drawHead(ctx: CanvasRenderingContext2D, c: Cam, sk: Sk, look: FighterLook, r: number, ow: number, o: DrawOpts) {
-  const h = S(c, sk.head);
-  const ghost = o.ghost;
-  ctx.fillStyle = ghost ?? OUTLINE;
-  ctx.beginPath();
-  ctx.arc(h.x, h.y, r + (ghost ? 0 : ow), 0, Math.PI * 2);
-  ctx.fill();
-  if (ghost) return;
+  // Nase: kleine Spitze an der Gesichtskante
   ctx.fillStyle = look.skin;
   ctx.beginPath();
-  ctx.arc(h.x, h.y, r, 0, Math.PI * 2);
+  const n0 = H(0.9, -0.28);
+  const n1 = H(1.06, -0.48);
+  const n2 = H(0.9, -0.52);
+  ctx.moveTo(n0.x, n0.y);
+  ctx.lineTo(n1.x, n1.y);
+  ctx.lineTo(n2.x, n2.y);
   ctx.fill();
-  // Ohr
-  const ear = S(c, headPt(sk, -100, 0.15));
-  ctx.fillStyle = shade(look.skin, -0.12);
-  ctx.beginPath();
-  ctx.arc(ear.x, ear.y, r * 0.22, 0, Math.PI * 2);
-  ctx.fill();
+  inkLine(d, [H(0.95, -0.34), n1, H(0.93, -0.52)]);
 
-  // Gesicht
-  const k = c.s;
-  const line = (a: Pt, b: Pt, w: number, col: string) => {
-    ctx.strokeStyle = col;
-    ctx.lineWidth = w;
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
-  };
-  const e = S(c, headPt(sk, 98, 0.5));
-  const e2 = S(c, headPt(sk, 104, 0.82));
-  if (o.ko) {
-    const m = 2.4 * k;
-    line({ x: e.x - m, y: e.y - m }, { x: e.x + m, y: e.y + m }, 1.6 * k, OUTLINE);
-    line({ x: e.x - m, y: e.y + m }, { x: e.x + m, y: e.y - m }, 1.6 * k, OUTLINE);
-  } else if (o.hurt) {
-    line(S(c, headPt(sk, 92, 0.45)), e2, 1.8 * k, OUTLINE);
-  } else {
-    line(e, e2, 2.6 * k, OUTLINE);
-    line(S(c, headPt(sk, 99, 0.62)), S(c, headPt(sk, 101, 0.72)), 1 * k, '#ffffff');
-  }
-  // Augenbraue: grimmig
-  line(S(c, headPt(sk, 76, 0.54)), S(c, headPt(sk, 92, 0.86)), 1.8 * k, look.hair);
   // Mund
-  line(S(c, headPt(sk, 140, 0.62)), S(c, headPt(sk, o.hurt ? 136 : 146, 0.82)), 1.4 * k, shade(look.skin, -0.45));
-  if (look.hairStyle === 'ponytail') {
-    const ch = S(c, headPt(sk, 122, 0.55));
-    ctx.fillStyle = 'rgba(255,110,140,0.35)';
-    ctx.beginPath();
-    ctx.arc(ch.x, ch.y, r * 0.2, 0, Math.PI * 2);
-    ctx.fill();
+  const fillShape = (p: Path2D, col: string) => {
+    ctx.fillStyle = col;
+    ctx.fill(p);
+    ctx.lineWidth = d.thin * 1.3;
+    ctx.strokeStyle = INK;
+    ctx.stroke(p);
+  };
+  const open = (pts: Pt[], sharp: boolean[], teeth: boolean, tongue: boolean) => {
+    const m = blob(pts, sharp);
+    fillShape(m, '#4a0c1c');
+    ctx.save();
+    ctx.clip(m);
+    if (tongue) {
+      ctx.fillStyle = '#ff6f8e';
+      ctx.fill(ellipsePath(H(0.58, -0.96), Rp * 0.22, Rp * 0.14, 0));
+    }
+    if (teeth) {
+      ctx.fillStyle = '#ffffff';
+      const t = blob([H(0.2, -0.48), H(1.0, -0.42), H(1.0, -0.62), H(0.2, -0.66)], [true, true, true, true]);
+      ctx.fill(t);
+    }
+    ctx.restore();
+    ctx.lineWidth = d.thin * 1.3;
+    ctx.strokeStyle = INK;
+    ctx.stroke(m);
+  };
+  const grin = look.smile === 'grin';
+  if (mood === 'shout') {
+    open([H(0.32, -0.58), H(0.9, -0.52), H(0.84, -0.9), H(0.58, -1.0), H(0.38, -0.82)], [true, true, false, false, false], true, true);
+  } else if (mood === 'win') {
+    if (grin) open([H(0.26, -0.56), H(0.9, -0.5), H(0.78, -0.82), H(0.52, -0.94), H(0.32, -0.74)], [true, true, false, false, false], true, true);
+    else open([H(0.4, -0.64), H(0.86, -0.58), H(0.66, -0.84)], [true, true, false], false, true);
+  } else if (mood === 'hurt' || mood === 'grit') {
+    const m = blob([H(0.38, -0.64), H(0.86, -0.6), H(0.84, -0.76), H(0.4, -0.78)], [true, true, true, true]);
+    fillShape(m, '#ffffff');
+    inkLine(d, [H(0.39, -0.71), H(0.85, -0.68)], d.thin * 0.8);
+    for (const x of [0.5, 0.62, 0.74]) inkLine(d, [H(x, -0.62), H(x, -0.77)], d.thin * 0.7);
+  } else if (mood === 'ko') {
+    open([H(0.44, -0.66), H(0.8, -0.64), H(0.74, -0.86), H(0.5, -0.88)], [false, false, false, false], false, true);
+  } else if (grin) {
+    // Breites Grinsen mit Zähnen – das Markenzeichen
+    const m = blob([H(0.28, -0.58), H(0.58, -0.62), H(0.92, -0.52), H(0.8, -0.74), H(0.56, -0.86), H(0.34, -0.74)], [true, false, true, false, false, false]);
+    fillShape(m, '#ffffff');
+    inkLine(d, [H(0.32, -0.65), H(0.58, -0.69), H(0.88, -0.6)], d.thin * 0.8);
+    inkCurve(d, H(0.26, -0.5), H(0.2, -0.56), H(0.24, -0.64));
+  } else {
+    inkCurve(d, H(0.42, -0.72), H(0.62, -0.78), H(0.84, -0.68), d.thin * 1.3);
+    inkLine(d, [H(0.42, -0.72), H(0.37, -0.66)], d.thin * 1.1);
   }
 
-  // Haare
-  const hp = HAIR[look.hairStyle].map(([a, rr]) => S(c, headPt(sk, a, rr)));
+  // Röte auf den Wangen
+  if (!broad || mood === 'win') {
+    ctx.save();
+    ctx.globalAlpha *= 0.55;
+    ctx.fillStyle = '#ff7c9a';
+    ctx.fill(ellipsePath(H(0.2, -0.56), Rp * 0.16, Rp * 0.08, 0));
+    ctx.restore();
+    for (const x of [0.14, 0.22, 0.3]) inkLine(d, [H(x, -0.51), H(x - 0.05, -0.61)], d.thin * 0.6, '#e2557a');
+  }
+  // Schweißtropfen beim Blocken
+  if (mood === 'grit') {
+    const s = blob([H(-0.62, 1.0), H(-0.48, 0.7), H(-0.62, 0.58), H(-0.76, 0.7)], [true, false, false, false]);
+    ctx.fillStyle = '#bfe9ff';
+    ctx.fill(s);
+    ctx.lineWidth = d.thin;
+    ctx.strokeStyle = INK;
+    ctx.stroke(s);
+  }
+}
+
+function eye(d: Pen, H: (x: number, y: number) => Pt, Rp: number, look: FighterLook, x: number, y: number, w: number, h: number, kind: 'open' | 'intense' | 'narrow' | 'closed' | 'happy' | 'squeeze' | 'spiral', far: boolean) {
+  const { ctx } = d;
+  const lash = Math.min(d.ow * (far ? 0.95 : 1.15), h * Rp * 0.24);
+  const slim = look.build === 'slim';
+  if (kind === 'closed') {
+    inkCurve(d, H(x - w * 0.55, y + h * 0.05), H(x, y - h * 0.32), H(x + w * 0.5, y + h * 0.02), lash);
+    return;
+  }
+  if (kind === 'happy') {
+    inkCurve(d, H(x - w * 0.55, y - h * 0.15), H(x, y + h * 0.6), H(x + w * 0.5, y - h * 0.15), lash);
+    return;
+  }
+  if (kind === 'squeeze') {
+    inkLine(d, [H(x - w * 0.55, y + h * 0.45), H(x + w * 0.42, y), H(x - w * 0.55, y - h * 0.4)], lash);
+    return;
+  }
+  if (kind === 'spiral') {
+    if (d.o.flat) return;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = d.thin;
+    ctx.beginPath();
+    for (let i = 0; i <= 24; i++) {
+      const a = i * 0.55;
+      const r = (i / 24) * 0.55;
+      const q = H(x + Math.cos(a) * w * r, y + Math.sin(a) * h * r);
+      if (i) ctx.lineTo(q.x, q.y);
+      else ctx.moveTo(q.x, q.y);
+    }
+    ctx.stroke();
+    return;
+  }
+  const lid = kind === 'narrow' ? 0.55 : 1;
+  const inner = H(x + w * 0.5, y - h * 0.05);
+  const top = H(x + w * 0.04, y + h * 0.55 * lid);
+  const outer = H(x - w * 0.56, y + h * 0.18 * lid);
+  const bottom = H(x - w * 0.02, y - h * 0.46);
+  const white = blob([inner, top, outer, bottom], [true, false, true, false]);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill(white);
+  // Iris mit Farbverlauf, Pupille, Glanzlichter
+  const iw = kind === 'intense' ? 0.2 : 0.3;
+  const ih = kind === 'intense' ? 0.36 : 0.52;
+  const ix = x + w * (far ? 0.14 : 0.1);
+  const iy = y - h * 0.02;
+  const iris: Pt[] = [];
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    iris.push(H(ix + Math.cos(a) * w * iw, iy + Math.sin(a) * h * ih));
+  }
+  const top2 = H(ix, iy + h * ih);
+  const bot2 = H(ix, iy - h * ih);
+  ctx.save();
+  ctx.clip(white);
+  const gr = ctx.createLinearGradient(top2.x, top2.y, bot2.x, bot2.y);
+  gr.addColorStop(0, shade(look.eyes, -0.6));
+  gr.addColorStop(0.5, look.eyes);
+  gr.addColorStop(1, shade(look.eyes, 0.4));
+  ctx.fillStyle = gr;
+  ctx.fill(blob(iris));
+  const pupil: Pt[] = [];
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    pupil.push(H(ix + Math.cos(a) * w * iw * 0.45, iy + Math.sin(a) * h * ih * 0.5));
+  }
+  ctx.fillStyle = INK;
+  ctx.fill(blob(pupil));
+  // Schatten des Lids
+  ctx.fillStyle = 'rgba(40,20,70,0.28)';
+  ctx.fill(blob([H(x - w, y + h * 0.7), H(x + w, y + h * 0.7), H(x + w, y + h * 0.18), H(x - w, y + h * 0.3)], [true, true, true, true]));
+  ctx.restore();
+  ctx.fillStyle = '#ffffff';
+  const hl = H(ix - w * iw * 0.35, iy + h * ih * 0.4);
   ctx.beginPath();
-  hp.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
-  ctx.closePath();
-  ctx.lineWidth = ow * 1.6;
-  ctx.strokeStyle = OUTLINE;
-  ctx.stroke();
-  ctx.fillStyle = look.hair;
+  ctx.arc(hl.x, hl.y, Math.max(0.6, h * Rp * (far ? 0.12 : 0.17)), 0, Math.PI * 2);
   ctx.fill();
-  // Glanz im Haar
-  ctx.strokeStyle = shade(look.hair, 0.35);
-  ctx.lineWidth = 1.4 * k;
+  const hl2 = H(ix + w * iw * 0.4, iy - h * ih * 0.45);
   ctx.beginPath();
-  const g0 = S(c, headPt(sk, 10, 0.95));
-  const g1 = S(c, headPt(sk, -40, 0.98));
-  ctx.moveTo(g0.x, g0.y);
-  ctx.lineTo(g1.x, g1.y);
+  ctx.arc(hl2.x, hl2.y, Math.max(0.4, h * Rp * 0.08), 0, Math.PI * 2);
+  ctx.fill();
+  // Wimpernlinie oben (dick, mit Schwung nach außen), unten fein
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = lash;
+  ctx.beginPath();
+  ctx.moveTo(inner.x, inner.y);
+  ctx.quadraticCurveTo(top.x, top.y, outer.x, outer.y);
+  const flick = far ? H(x + w * 0.72, y + h * 0.2) : H(x - w * (slim ? 0.86 : 0.74), y + h * (slim ? 0.42 : 0.3) * lid);
+  if (far) {
+    ctx.moveTo(inner.x, inner.y);
+    ctx.lineTo(flick.x, flick.y);
+  } else ctx.lineTo(flick.x, flick.y);
   ctx.stroke();
+  inkLine(d, [H(x - w * 0.38, y - h * 0.34), H(x + w * 0.16, y - h * 0.46)], d.thin * 0.9);
+}
 
-  if (look.band) {
-    const a = S(c, headPt(sk, 64, 1.0));
-    const b = S(c, headPt(sk, -100, 0.98));
-    line(a, b, 4.4 * k + ow * 2, OUTLINE);
-    line(a, b, 4.4 * k, look.band);
-  }
-  if (look.hairStyle === 'ponytail') {
-    const tie = S(c, headPt(sk, -64, 1.1));
-    ctx.fillStyle = OUTLINE;
-    ctx.beginPath();
-    ctx.arc(tie.x, tie.y, 3.4 * k + ow, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = look.trim;
-    ctx.beginPath();
-    ctx.arc(tie.x, tie.y, 3.4 * k, 0, Math.PI * 2);
-    ctx.fill();
-  }
+function brows(d: Pen, H: (x: number, y: number) => Pt, look: FighterLook, mood: Mood) {
+  const broad = look.build === 'broad';
+  const angry = mood === 'shout' || mood === 'grit' || mood === 'hurt';
+  const up = mood === 'win' || mood === 'ko';
+  // Innen (Nase) tiefer = entschlossen
+  const inner = angry ? -0.04 : up ? 0.18 : broad ? 0.03 : 0.12;
+  const outer = up ? 0.16 : broad ? 0.14 : 0.15;
+  const w = d.ow * (broad ? 1.5 : 1.0);
+  const col = look.hair.startsWith('#') ? mixHex(look.hair, INK, 0.3) : INK;
+  inkLine(d, [H(0.44, inner), H(-0.02, outer)], w, col);
+  inkLine(d, [H(0.9, inner + 0.02), H(0.68, inner + 0.07)], w * 0.85, col);
 }
 
 // ───────────────────────── Effekte ─────────────────────────
@@ -1632,7 +2314,7 @@ function drawProjectile(ctx: CanvasRenderingContext2D, c: Cam, x: number, y: num
 // ───────────────────────── Gesamtbild ─────────────────────────
 
 interface Rig {
-  strands: Strand[];
+  strands: Strands;
   trail: { x: number; y: number; t: number }[];
   ghosts: { sk: Sk; a: number; look: string }[];
   ghostT: number;
@@ -1647,11 +2329,7 @@ interface Rig {
 }
 
 function newRig(look: FighterLook): Rig {
-  const strands: Strand[] = [];
-  if (look.hairStyle === 'ponytail') strands.push(newStrand(8, 7, 8, 3));
-  if (look.band) strands.push(newStrand(6, 6.5, 4, 2), newStrand(6, 6, 3.6, 1.8));
-  if (look.pantsStyle === 'wide') strands.push(newStrand(4, 6, 4.8, 3.4), newStrand(4, 5.5, 4.8, 3.4));
-  return { strands, trail: [], ghosts: [], ghostT: 0, hpGhost: 1, hpDelay: 0, lastHp: 1, white: 0, shield: 0, combo: 0, comboT: 0, sk: null };
+  return { strands: newStrands(look), trail: [], ghosts: [], ghostT: 0, hpGhost: 1, hpDelay: 0, lastHp: 1, white: 0, shield: 0, combo: 0, comboT: 0, sk: null };
 }
 
 export interface Gfx {
@@ -1710,18 +2388,7 @@ function updateRig(g: Gfx, w: World, f: Fighter, r: Rig, sk: Sk, dt: number) {
   r.comboT += dt;
 
   // Haare & Bänder
-  const look = lookOf(f.def, f.alt);
-  let i = 0;
-  const wind = g.stage.id === 'tempel' ? -40 : 60;
-  if (look.hairStyle === 'ponytail') stepStrand(r.strands[i++], headPt(sk, -64, 1.12), dt, wind, sk.face);
-  if (look.band) {
-    stepStrand(r.strands[i++], headPt(sk, -102, 1.0), dt, wind, sk.face);
-    stepStrand(r.strands[i++], headPt(sk, -98, 0.92), dt, wind * 0.8, sk.face);
-  }
-  if (look.pantsStyle === 'wide') {
-    stepStrand(r.strands[i++], bodyPt(sk, 4, -12), dt, wind * 0.5, sk.face);
-    stepStrand(r.strands[i++], bodyPt(sk, 3, -11), dt, wind * 0.4, sk.face);
-  }
+  stepStrands(r.strands, sk, dt, g.stage.id === 'tempel' ? -40 : 60);
 
   // Wischspur der Schläge
   const now = g.time;
@@ -1883,6 +2550,30 @@ function ambient(g: Gfx, dt: number) {
 
 const isScreen = (p: Part) => p.k === 'petal' || p.k === 'fly';
 
+/** Welches Gesicht passt gerade? */
+function moodOf(f: Fighter): Mood {
+  switch (f.st) {
+    case 'ko':
+      return 'ko';
+    case 'hit':
+    case 'air':
+    case 'held':
+    case 'down':
+    case 'tired':
+      return 'hurt';
+    case 'block':
+    case 'bstun':
+    case 'rise':
+      return 'grit';
+    case 'attack':
+    case 'special':
+      return 'shout';
+    case 'win':
+      return 'win';
+  }
+  return 'idle';
+}
+
 function drawFighters(ctx: CanvasRenderingContext2D, g: Gfx, w: World, order: Side[], skel: Record<Side, Sk>, mirror: boolean) {
   const c = g.cam;
   for (const side of order) {
@@ -1890,8 +2581,7 @@ function drawFighters(ctx: CanvasRenderingContext2D, g: Gfx, w: World, order: Si
     const r = g.rigs[side];
     const sk = skel[side];
     const look = lookOf(f.def, f.alt);
-    const hurt = f.st === 'hit' || f.st === 'air' || f.st === 'held' || f.st === 'down' || f.st === 'tired';
-    const o: DrawOpts = { hurt, ko: f.st === 'ko', rim: mirror ? undefined : g.stage.rim, rx: g.stage.rx * 1.6 * g.u, ry: -0.6 * g.u };
+    const o: DrawOpts = { mood: moodOf(f), time: g.time + (side === 'p1' ? 0 : 1.3), flat: mirror, rim: mirror ? undefined : g.stage.rim, rx: g.stage.rx * 1.6 * g.u, ry: -0.6 * g.u };
     // Ansturm: Sie taucht abwechselnd vor und hinter dem Gegner auf.
     let shown = sk;
     if (f.st === 'special' && f.sp?.ph === 'lock' && f.sp.i % 2 === 1 && f.sp.i < RUSH_TIMES.length) {
@@ -1901,7 +2591,7 @@ function drawFighters(ctx: CanvasRenderingContext2D, g: Gfx, w: World, order: Si
       ctx.globalCompositeOperation = 'lighter';
       for (const gh of r.ghosts) {
         ctx.globalAlpha = gh.a * 0.6;
-        drawSk(ctx, c, gh.sk, look, [], { ghost: gh.look });
+        drawSk(ctx, c, gh.sk, look, null, { ghost: gh.look });
       }
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
@@ -1909,7 +2599,7 @@ function drawFighters(ctx: CanvasRenderingContext2D, g: Gfx, w: World, order: Si
     drawSk(ctx, c, shown, look, r.strands, o);
     if (!mirror && r.white > 0) {
       ctx.globalAlpha = Math.min(1, r.white * 12);
-      drawSk(ctx, c, shown, look, [], { ghost: '#ffffff' });
+      drawSk(ctx, c, shown, look, null, { ghost: '#ffffff' });
       ctx.globalAlpha = 1;
     }
   }
@@ -2128,7 +2818,7 @@ function drawCutIn(ctx: CanvasRenderingContext2D, g: Gfx, w: World, sk: Sk) {
   const big = skeleton(f.x, f.y, (dir > 0 ? 1 : -1) as 1 | -1, P(f.def, 'guard'));
   cam.cx = big.head.x;
   cam.gy = by + 12 * u + big.head.y * sc;
-  drawSk(ctx, cam, big, look, [], {});
+  drawSk(ctx, cam, big, look, null, { mood: 'shout' });
   ctx.restore();
   ctx.restore();
   // Schrift
@@ -2406,17 +3096,10 @@ export function drawPortrait(cv: HTMLCanvasElement, def: FighterDef, alt: boolea
   const sk = skeleton(0, 0, 1, P(def, 'guard'));
   const s = H / 78;
   const cam: Cam = { ...newCam(), W, H, cx: sk.head.x - 4, s, gy: H * 0.32 + sk.head.y * s, ox: 0, oy: 0 };
-  const rig = newRig(lookOf(def, alt));
-  for (let i = 0; i < 30; i++) {
-    const look = lookOf(def, alt);
-    let k = 0;
-    if (look.hairStyle === 'ponytail') stepStrand(rig.strands[k++], headPt(sk, -64, 1.12), 1 / 30, 0, 1);
-    if (look.band) {
-      stepStrand(rig.strands[k++], headPt(sk, -102, 1.0), 1 / 30, 0, 1);
-      stepStrand(rig.strands[k++], headPt(sk, -98, 0.92), 1 / 30, 0, 1);
-    }
-  }
-  drawSk(ctx, cam, sk, lookOf(def, alt), rig.strands.filter((st) => st.w0 < 4.6 || lookOf(def, alt).hairStyle === 'ponytail'), { rim: 'rgba(255,255,255,0.5)', rx: 1.2, ry: -0.6 });
+  const look = lookOf(def, alt);
+  const st = newStrands(look);
+  for (let i = 0; i < 40; i++) stepStrands(st, sk, 1 / 30, 0);
+  drawSk(ctx, cam, sk, look, st, { rim: 'rgba(255,255,255,0.5)', rx: 1.2, ry: -0.6, mood: 'idle' });
 }
 
 /** Vorschau in der Kämpferwahl: beide Kämpfer in der Arena, Kamera fest */
