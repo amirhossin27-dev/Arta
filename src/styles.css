@@ -2740,6 +2740,14 @@ input[type='checkbox'] {
   box-shadow: var(--shadow);
 }
 
+.partner-profile .person-settings-head {
+  align-items: center;
+}
+
+.partner-profile .person-settings-head p {
+  margin: 2px 0 0;
+}
+
 .emoji-picker {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
@@ -7322,6 +7330,16 @@ input[type='checkbox'] {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Während des Rennens: nichts auf der Seite lässt sich markieren oder kopieren (auch nicht die App dahinter) */
+.kart-lock,
+.kart-lock *:not(input):not(textarea) {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
 }
 
 .kart-view {
