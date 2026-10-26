@@ -24,6 +24,9 @@
   --game: #7c5cff;
   --game-2: #ff5dc8;
   --game-soft: #efeaff;
+  --steps: #13a8c2;
+  --steps-2: #5b8cff;
+  --steps-soft: #e2f5f9;
   --danger: #e5484d;
   --shadow: 0 6px 22px rgba(180, 60, 100, 0.09);
   --shadow-strong: 0 14px 40px rgba(180, 60, 100, 0.22);
@@ -46,6 +49,7 @@
     --shop-soft: #1c2645;
     --love-soft: #401d33;
     --game-soft: #2c2145;
+    --steps-soft: #14303a;
     --shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
     --shadow-strong: 0 14px 40px rgba(0, 0, 0, 0.5);
     color-scheme: dark;
@@ -754,6 +758,212 @@ main {
   flex-direction: column;
   gap: 4px;
   font-size: 0.75rem;
+}
+
+/* ───────────── Schritte ───────────── */
+.bar.steps .bar-fill {
+  background: linear-gradient(90deg, var(--steps), var(--steps-2));
+}
+
+.ring.steps .ring-bar {
+  stroke: var(--steps);
+}
+
+.ring.steps.over .ring-bar {
+  stroke: var(--steps-2);
+}
+
+.person-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+  text-align: left;
+  width: 100%;
+  border-radius: 10px;
+}
+
+button.person-steps:active {
+  transform: scale(0.97);
+}
+
+.steps-live {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: var(--steps);
+  vertical-align: middle;
+  animation: live-pulse 1.2s ease-in-out infinite;
+}
+
+.steps-card .duo-grid {
+  margin-bottom: 4px;
+}
+
+.steps-person {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 6px 10px;
+  border-radius: 18px;
+  background: var(--surface-2);
+  min-width: 0;
+  text-align: center;
+}
+
+.steps-person.me {
+  background: var(--steps-soft);
+}
+
+.steps-person .ring-center b {
+  font-size: 1.05rem;
+}
+
+.steps-person .ring-track {
+  stroke: color-mix(in srgb, var(--muted) 22%, transparent);
+}
+
+/* Partner-Ring in Pink – passend zu den Wochenbalken */
+.steps-person:not(.me) .ring-bar {
+  stroke: var(--love);
+}
+
+.steps-person:not(.me) .ring.over .ring-bar {
+  stroke: var(--love-2);
+}
+
+.steps-name {
+  font-weight: 800;
+  font-size: 0.88rem;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.steps-duel {
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.88rem;
+  margin: 10px 0 !important;
+}
+
+.steps-card .btn-row,
+.steps-card > .btn.block {
+  margin-top: 4px;
+}
+
+.steps-week {
+  margin-top: 14px;
+}
+
+.steps-bars {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  height: 92px;
+}
+
+.steps-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  border-radius: 10px;
+  padding: 4px 0 2px;
+  min-width: 0;
+}
+
+.steps-day.active {
+  background: var(--surface-2);
+}
+
+.steps-pair {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  width: 100%;
+  justify-content: center;
+}
+
+.steps-bar {
+  width: 9px;
+  min-height: 3px;
+  border-radius: 5px 5px 2px 2px;
+  transition: height 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+}
+
+.steps-bar.me,
+.steps-legend .dot.me {
+  background: linear-gradient(180deg, var(--steps-2), var(--steps));
+}
+
+.steps-bar.partner,
+.steps-legend .dot.partner {
+  background: linear-gradient(180deg, var(--love-2), var(--love));
+}
+
+.steps-wd {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.steps-day.today .steps-wd {
+  color: var(--text);
+}
+
+.steps-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 12px;
+  margin-top: 8px !important;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.steps-legend .dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  margin-right: 3px;
+}
+
+.steps-big {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 4px;
+}
+
+.steps-big .ring-center b {
+  font-size: 1.7rem;
+}
+
+.steps-why {
+  margin: 4px 2px 8px;
+}
+
+.steps-why summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .steps-live {
+    animation: none;
+  }
 }
 
 .avatar {

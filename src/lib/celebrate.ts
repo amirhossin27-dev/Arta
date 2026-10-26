@@ -1,8 +1,9 @@
 import { EXERCISE_BY_ID } from '../data/exercises';
-import { ALL_DONE, MEAL_LOGGED, TOGETHER_DONE, WORKOUT_DONE } from '../data/messages';
+import { ALL_DONE, MEAL_LOGGED, STEP_GOAL, STEP_MILESTONE, TOGETHER_DONE, WORKOUT_DONE } from '../data/messages';
 import { showLove } from './love';
 import { pickRandom } from './random';
 import { groupComplete, planFor } from './stats';
+import { formatSteps, goalReached } from './steps';
 import { getData, getDevice } from './store';
 import { fill } from './text';
 import { other } from './types';
@@ -34,4 +35,21 @@ export function celebrateDone(planId: string) {
 
 export function celebrateMeal(name: string) {
   showLove({ emoji: '🍽️', title: `${name} eingetragen`, text: pickRandom(MEAL_LOGGED), tone: 'food' });
+}
+
+/** Schrittziel erreicht (große Einblendung) oder – beim Mitzählen – wieder ein Tausender voll. */
+export function celebrateSteps(before: number, after: number, goal: number, today: boolean, milestone?: number) {
+  if (goalReached(before, after, goal)) {
+    showLove({
+      emoji: '🏆',
+      title: today ? `${formatSteps(goal)} Schritte geschafft!` : 'Schrittziel erreicht!',
+      text: fill(pickRandom(STEP_GOAL), names()),
+      big: today,
+      tone: 'party',
+    });
+    return;
+  }
+  if (milestone && Math.floor(after / milestone) > Math.floor(before / milestone)) {
+    showLove({ emoji: '👣', title: `${formatSteps(Math.floor(after / milestone) * milestone)} Schritte`, text: fill(pickRandom(STEP_MILESTONE), names()), tone: 'sport' });
+  }
 }

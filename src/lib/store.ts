@@ -20,6 +20,7 @@ import {
 import { uid } from './random';
 import { MERGE_DAYS } from './cycle';
 import { diffDays, todayKey } from './date';
+import { DEFAULT_STEP_GOAL, MAX_STEPS } from './steps';
 
 const DATA_KEY = 'arta.data.v1';
 const DEVICE_KEY = 'arta.device.v1';
@@ -32,6 +33,7 @@ export function defaultPerson(id: PersonId): Person {
     emoji: id === 'a' ? '🦁' : '🦋',
     weightKg: 70,
     kcalGoal: 2000,
+    stepGoal: DEFAULT_STEP_GOAL,
     favorites: [],
     updatedAt: 0,
   };
@@ -52,6 +54,7 @@ export function emptyData(): AppData {
     games: {},
     periods: {},
     cycleDays: {},
+    steps: {},
   };
 }
 
@@ -420,6 +423,31 @@ export const actions = {
     const cur = data.cycleDays[id];
     const base: CycleDay = cur && !cur.deleted ? cur : { id, date, personId, symptoms: [], updatedAt: 0 };
     commitData(withRec(data, 'cycleDays', { ...base, ...changes, deleted: undefined }));
+  },
+
+  // ───── Schritte ─────
+  /** Schritte des eigenen Tages setzen (z. B. aus der Health-App übernommen). */
+  setSteps(date: string, count: number) {
+    const me = device.me;
+    const id = `${date}-${me}`;
+    const cur = data.steps[id];
+    const goal = cur && !cur.deleted ? cur.goal : data.persons[me].stepGoal;
+    const clean = Math.max(0, Math.min(MAX_STEPS, Math.round(count)));
+    commitData(withRec(data, 'steps', { id, date, personId: me, count: clean, goal, updatedAt: 0 }));
+  },
+
+  /** Schritte dazuzählen (Schrittzähler oder „+1.000“ für einen Gang ohne Handy). */
+  addSteps(date: string, n: number) {
+    const cur = data.steps[`${date}-${device.me}`];
+    actions.setSteps(date, (cur && !cur.deleted ? cur.count : 0) + n);
+  },
+
+  /** Neues Schrittziel – gilt ab heute, vergangene Tage behalten ihr Ziel. */
+  setStepGoal(goal: number) {
+    const me = device.me;
+    actions.updatePerson(me, { stepGoal: goal });
+    const today = data.steps[`${todayKey()}-${me}`];
+    if (today && !today.deleted) commitData(withRec(data, 'steps', { ...today, goal }));
   },
 
   // ───── Spiele ─────

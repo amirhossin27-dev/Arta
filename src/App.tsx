@@ -7,6 +7,7 @@ import { GameScreen } from './games/GameScreen';
 import { ArcadeInvite } from './games/Invite';
 import { LoveLayer } from './components/LoveLayer';
 import { CheerSheet, CoupleSheet, SettingsSheet, SyncSheet } from './components/sheets';
+import { StepsSheet, useStepMoments } from './components/steps';
 import { dailyLove } from './lib/daily';
 import { todayKey } from './lib/date';
 import { cls, usePeople } from './lib/hooks';
@@ -134,6 +135,7 @@ export default function App() {
   const live = useLive();
   const liveStatus = useLiveStatus();
   useLoveMoments(device.onboarded);
+  useStepMoments(device.onboarded);
 
   useEffect(() => {
     if (linkCode && device.onboarded) nav.open({ type: 'sync', code: linkCode });
@@ -212,6 +214,7 @@ export default function App() {
       {sheet?.type === 'settings' && <SettingsSheet onClose={close} />}
       {sheet?.type === 'cheer' && <CheerSheet onClose={close} />}
       {sheet?.type === 'couple' && <CoupleSheet onClose={close} />}
+      {sheet?.type === 'steps' && <StepsSheet date={sheet.date} onClose={close} />}
       {sheet?.type === 'game' && <GameScreen key={`${sheet.id}-${sheet.join ?? ''}`} id={sheet.id} join={sheet.join} onClose={close} />}
       {live && <ArcadeInvite />}
 
