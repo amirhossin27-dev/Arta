@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { toKey } from '../date';
-import { applyHealthNode, clearHealth, HEALTH_BODY, parseHealthNode, parseStepText, withHealth } from '../health';
+import { applyHealthNode, clearHealth, parseHealthNode, parseStepText, withHealth } from '../health';
 import { stepsOn } from '../steps';
 import { getData, getDevice } from '../store';
 
@@ -20,11 +20,19 @@ describe('Apple Health', () => {
     expect(parseStepText('')).toBeUndefined();
   });
 
+  it('zählt mehrere Messungen zusammen, wenn eine Liste ankommt', () => {
+    // „Fehlende ausfüllen“ an oder nicht nach Tag gruppiert: eine Zahl pro Zeile
+    expect(parseStepText('5123\n0')).toBe(5123);
+    expect(parseStepText('1.200\n830\r\n2.010 Schritte')).toBe(4040);
+    expect(parseStepText('5123\n')).toBe(5123);
+    expect(parseStepText('26.10.2026\n4321')).toBe(4321);
+    expect(parseStepText('150000\n90000')).toBeUndefined();
+  });
+
   it('versteht den Eintrag, den der Kurzbefehl schickt', () => {
-    // So landet die Vorlage nach dem Einsetzen in der Datenbank (Serverzeit statt .sv).
-    const sent = JSON.parse(HEALTH_BODY.replace('SCHRITTE', '8.432'));
-    expect(Object.keys(sent).sort()).toEqual(['at', 'ct', 'iv', 'v']);
-    expect(sent.at).toEqual({ '.sv': 'timestamp' });
+    // So baut „Haupttext anfordern: JSON“ die Nachricht (Zahl v, Wörterbuch at, Text iv/ct) …
+    const sent = { v: 1, at: { '.sv': 'timestamp' }, iv: 'health', ct: '8.432' };
+    // … und so liegt sie danach in der Datenbank (Serverzeit statt .sv).
     const at = new Date(2026, 9, 26, 14, 32).getTime();
     expect(parseHealthNode({ ...sent, at })).toEqual({ date: '2026-10-26', count: 8432, at });
     expect(parseHealthNode({ ...sent, at: { '.sv': 'timestamp' } })).toBeUndefined();

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { formatTime, relativeDay } from '../lib/date';
-import { HEALTH_BODY, HEALTH_PREFIX, useHealth } from '../lib/health';
+import { HEALTH_PREFIX, useHealth } from '../lib/health';
 import { usePeople } from '../lib/hooks';
 import { deriveRoom, liveAvailable } from '../lib/live';
 import { LIVE_DB_URL } from '../lib/liveConfig';
@@ -49,6 +49,15 @@ function CopyBox({ label, text }: { label: string; text: string }) {
   );
 }
 
+/** Felder für „Haupttext anfordern: JSON“ – ergibt {"v":1,"at":{".sv":"timestamp"},"iv":"health","ct":"8432"}. */
+const JSON_FIELDS = [
+  { type: 'Zahl', key: 'v', value: '1' },
+  { type: 'Wörterbuch', key: 'at', value: 'darin ein Feld:' },
+  { type: 'Text', key: '.sv', value: 'timestamp', inner: true },
+  { type: 'Text', key: 'iv', value: 'health' },
+  { type: 'Text', key: 'ct', value: 'Variable „Health-Messungen“ → Wert' },
+];
+
 /** Schritt-für-Schritt: iPhone-Kurzbefehl, der Apple-Health-Schritte an Arta schickt. */
 export function HealthSheet({ onClose }: { onClose: () => void }) {
   const device = useDevice();
@@ -65,7 +74,8 @@ export function HealthSheet({ onClose }: { onClose: () => void }) {
       <div className={health && !health.broken ? 'inset health-status ok' : 'inset health-status'}>
         {health?.broken ? (
           <p>
-            ⚠️ Dein Kurzbefehl kommt an, aber ohne Schrittzahl. Ist in Schritt 3 statt des Worts SCHRITTE die Variable <b>„Health-Samples“</b> eingesetzt?
+            ⚠️ Dein Kurzbefehl kommt an, aber ohne Schrittzahl. Steht in Schritt 4 bei <code>ct</code> die Variable <b>„Health-Messungen“</b> mit{' '}
+            <b>„Wert“</b>?
           </p>
         ) : health ? (
           <p>
@@ -91,24 +101,51 @@ export function HealthSheet({ onClose }: { onClose: () => void }) {
               Öffne die App <b>Kurzbefehle</b>, tippe oben rechts auf <b>+</b> und nenne den Kurzbefehl <b>„Arta Schritte“</b>.
             </li>
             <li>
-              Füge die Aktion <b>„Health-Samples suchen“</b> hinzu. Typ: <b>Schritte</b> · Filter: <b>Startdatum ist heute</b> · <b>Gruppieren nach: Tag</b>.
+              Füge die Aktion <b>„Health-Messungen suchen“</b> hinzu (heißt manchmal auch „Health-Samples suchen“). Typ: <b>Schritte</b> · Filter:{' '}
+              <b>Startdatum ist heute</b> · <b>Gruppieren nach: Tag</b> · <b>Fehlende ausfüllen: aus</b>.
             </li>
             <li>
-              Füge die Aktion <b>„Text“</b> hinzu und kopiere diesen Text hinein:
-              <CopyBox label="Text" text={HEALTH_BODY} />
-              Lösche dann das Wort <b>SCHRITTE</b> und setze an genau der Stelle die Variable <b>„Health-Samples“</b> ein (Leiste über der Tastatur). Die
-              Anführungszeichen drumherum bleiben stehen.
-            </li>
-            <li>
-              Füge die Aktion <b>„Inhalte von URL abrufen“</b> hinzu und ersetze die Adresse durch deine:
+              Füge direkt darunter <b>„Inhalte von URL abrufen“</b> hinzu und ersetze die Adresse durch deine:
               <CopyBox label="Adresse" text={url} />
-              Tippe auf den Pfeil in der Aktion: <b>Methode: PUT</b> · <b>Anfragetext: Datei</b> · als Datei die Variable <b>„Text“</b>.
+              Tippe auf den Pfeil in der Aktion: <b>Methode: PUT</b> · <b>Haupttext anfordern: JSON</b>. Eine Aktion „Text“ brauchst du nicht.
+            </li>
+            <li>
+              Lege unter JSON mit <b>„Neues Feld hinzufügen“</b> diese vier Felder an – Schlüssel genau so, klein geschrieben:
+              <ul className="json-fields">
+                {JSON_FIELDS.map((f) => (
+                  <li key={f.key} className={f.inner ? 'inner' : undefined}>
+                    <span className="json-type">{f.inner ? `↳ ${f.type}` : f.type}</span>
+                    <span>
+                      <code>{f.key}</code> → {f.value}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              Bei <code>ct</code>: ins Wertfeld tippen, oben über der Tastatur die Variable <b>„Health-Messungen“</b> wählen, dann auf die blaue Variable tippen und{' '}
+              <b>„Wert“</b> auswählen.
             </li>
             <li>
               Tippe unten auf <b>▶︎</b>. Beim ersten Mal fragt das iPhone, ob der Kurzbefehl Health lesen und die Adresse aufrufen darf – beide Male{' '}
-              <b>Erlauben</b>. Oben in diesem Fenster erscheint dann ✅.
+              <b>Erlauben</b>. Als Antwort steht dann z. B. <code>"ct" : "5123"</code> da, und oben in diesem Fenster erscheint ✅.
             </li>
           </ol>
+
+          <details className="steps-why">
+            <summary>Es klappt nicht?</summary>
+            <ul className="how small">
+              <li>
+                <b>„Invalid data; couldn't parse JSON“</b>: Bei „Haupttext anfordern“ steht noch <b>Datei</b> oder <b>Formular</b>. Stell auf <b>JSON</b> um und
+                lösch eine eventuelle Aktion „Text“ – dann baut das iPhone die Nachricht selbst, ohne Tippfehler.
+              </li>
+              <li>
+                <b>„Permission denied“</b>: Prüf die Feldtypen – <code>v</code> muss <b>Zahl</b> sein, <code>ct</code> <b>Text</b>, <code>at</code>{' '}
+                <b>Wörterbuch</b> – und die Schlüssel ohne Leerzeichen. Habt ihr den Live-Sync neu verbunden, kopier die Adresse neu.
+              </li>
+              <li>
+                <b>⚠️ oben trotz Antwort</b>: Bei <code>ct</code> fehlt die Variable, oder es ist nicht „Wert“ ausgewählt.
+              </li>
+            </ul>
+          </details>
 
           <h3>2 · Automatisch laufen lassen</h3>
           <ol className="how" start={6}>
@@ -128,7 +165,7 @@ export function HealthSheet({ onClose }: { onClose: () => void }) {
             <summary>Was wird dabei verschickt?</summary>
             <p className="muted small">
               Nur deine heutige Schrittzahl, an eure geheime Raum-Adresse in eurer Datenbank. Anders als eure übrigen Daten ist sie nicht verschlüsselt, weil
-              Kurzbefehle das nicht können. Verbindet ihr den Live-Sync einmal neu, ändert sich die Adresse – dann kopiere sie hier neu in Schritt 4.
+              Kurzbefehle das nicht können. Verbindet ihr den Live-Sync einmal neu, ändert sich die Adresse – dann kopiere sie hier neu in Schritt 3.
             </p>
           </details>
           <p className="hint">Android hat keine Kurzbefehle – dort bleibt „Mitzählen“ oder Eintragen aus Google Fit / Samsung Health.</p>
