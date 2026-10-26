@@ -36,7 +36,7 @@ import {
   type NetKart,
   type Rival,
 } from './kart';
-import { drawOverlay, makeGround, prepareGfx, stepParticles, type Cam, type DrawKart, type Ground, type Particle } from './kartGfx';
+import { drawOverlay, makeGround, markSkid, prepareGfx, stepParticles, type Cam, type DrawKart, type Ground, type Mood, type Particle } from './kartGfx';
 import { otherSide, type Side } from './logic';
 import type { GameProps, Player } from './types';
 
@@ -57,10 +57,17 @@ const FOCAL_BOOST = 0.74;
 
 const SETTINGS = 'arta.kart.v1';
 
-function loadSettings(): { assist: boolean; gl: boolean } {
+interface Settings {
+  assist: boolean;
+  gl: boolean;
+  /** Feste Tageszeit statt Wechsel (zum Ausprobieren) */
+  mood?: Mood;
+}
+
+function loadSettings(): Settings {
   try {
-    const v = JSON.parse(localStorage.getItem(SETTINGS) ?? '{}') as { assist?: boolean; gl?: boolean };
-    return { assist: v.assist !== false, gl: v.gl !== false };
+    const v = JSON.parse(localStorage.getItem(SETTINGS) ?? '{}') as Partial<Settings>;
+    return { assist: v.assist !== false, gl: v.gl !== false, mood: v.mood === 'tag' || v.mood === 'abend' ? v.mood : undefined };
   } catch {
     return { assist: true, gl: true };
   }
@@ -81,6 +88,13 @@ const TIPS_FREE = ['◀ ▶ lenken – in Kurven halten = Drift, loslassen = Min
 
 const SPARK = ['#ffffff', '#6fd0ff', '#ff9a2e'];
 const CONFETTI = ['#ff4f81', '#ffd84a', '#5fd4ff', '#b47bff', '#7be07b', '#ffffff'];
+
+/** Wo die Hinterräder gerade sind – daraus werden die Bremsspuren */
+function rearWheels(x: number, y: number, a: number): [number, number, number, number] {
+  const fx = Math.cos(a);
+  const fy = Math.sin(a);
+  return [x - fx * 8 + fy * 6, y - fy * 8 - fx * 6, x - fx * 8 - fy * 6, y - fy * 8 + fx * 6];
+}
 
 /** Wie viele Teilchen in diesem Bild entstehen, bei `perSec` pro Sekunde */
 const howMany = (perSec: number, dt: number) => Math.floor(perSec * dt + Math.random());
@@ -249,6 +263,8 @@ interface Race {
   msgs: Partial<Record<Side, Msg>>;
   shake: Partial<Record<Side, number>>;
   parts: Particle[];
+  /** Letzte Radpositionen der Karts, die gerade Spuren ziehen */
+  skids: Map<string, [number, number, number, number]>;
   hudT: number;
   beeped: number;
 }
@@ -314,6 +330,7 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
       msgs: {},
       shake: {},
       parts: [],
+      skids: new Map(),
       hudT: 0,
       beeped: 0,
     };
@@ -325,6 +342,8 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
   endRef.current = onEnd;
 
   const settings = useRef(loadSettings());
+  /** Jedes zweite Rennen bei Abendrot */
+  const mood: Mood = settings.current.mood ?? (starter === 'p1' ? 'tag' : 'abend');
   const [assist, setAssist] = useState<Record<Side, boolean>>(() => ({ p1: settings.current.assist, p2: settings.current.assist }));
   const assistRef = useRef(assist);
   assistRef.current = assist;
@@ -381,6 +400,41 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
       gfx.current = {};
     };
   }, [duo]);
+
+  // Kein Markieren, keine Lupe, kein Kopieren-Menü: Ein langer Finger auf dem Bildschirm heißt hier Lenken.
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const html = document.documentElement;
+    html.classList.add('kart-lock');
+    const block = (e: Event) => {
+      if (e.target instanceof Element && e.target.closest('button')) return;
+      if (e.cancelable) e.preventDefault();
+    };
+    const unselect = () => {
+      const sel = document.getSelection();
+      if (sel && !sel.isCollapsed) sel.removeAllRanges();
+    };
+    const opts = { passive: false } as const;
+    el.addEventListener('touchstart', block, opts);
+    el.addEventListener('touchmove', block, opts);
+    el.addEventListener('contextmenu', block);
+    el.addEventListener('selectstart', block);
+    el.addEventListener('dragstart', block);
+    document.addEventListener('gesturestart', block, opts);
+    document.addEventListener('selectionchange', unselect);
+    return () => {
+      html.classList.remove('kart-lock');
+      el.removeEventListener('touchstart', block);
+      el.removeEventListener('touchmove', block);
+      el.removeEventListener('contextmenu', block);
+      el.removeEventListener('selectstart', block);
+      el.removeEventListener('dragstart', block);
+      document.removeEventListener('gesturestart', block);
+      document.removeEventListener('selectionchange', unselect);
+    };
+  }, []);
 
   // Tastatur: ←/→ lenken, ↑ oder Leertaste für das Item – zu zweit oben mit A/D und W.
   useEffect(() => {
@@ -704,14 +758,15 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
       }
     }
 
-    // Ruckelt es über zwei Sekunden, wird das Bild etwas gröber gerechnet.
-    if (R.ph === 'race') {
+    // Ruckelt es (schon beim Countdown gemessen), wird das Bild etwas gröber gerechnet.
+    if (R.ph === 'count' || R.ph === 'race') {
       const q = quality.current;
       q.acc += dt;
       q.n++;
-      if (q.acc >= 2) {
-        if (q.acc / q.n > 1 / 40 && q.scale > 0.5) {
-          q.scale = Math.max(0.5, q.scale * 0.7);
+      if (q.acc >= 1.2) {
+        const avg = q.acc / q.n;
+        if (avg > 1 / 40 && q.scale > 0.5) {
+          q.scale = Math.max(0.5, q.scale * (avg > 1 / 25 ? 0.6 : 0.75));
           for (const side of views) gfx.current[side]?.fit();
         }
         q.acc = 0;
@@ -726,19 +781,42 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
       engine.current.set(48 + v * 0.42, 0.022);
     }
 
-    // Spuren hinter den Karts
+    // Spuren hinter den Karts: Partikel und Reifenspuren auf dem Asphalt
+    const racing = R.ph === 'race' || R.ph === 'end';
+    const skid = (key: string, x: number, y: number, a: number, on: boolean, dark: boolean) => {
+      if (!on || !racing) {
+        R.skids.delete(key);
+        return;
+      }
+      const now4 = rearWheels(x, y, a);
+      const last = R.skids.get(key);
+      if (!last) R.skids.set(key, now4);
+      else if (Math.hypot(now4[0] - last[0], now4[1] - last[1]) > 2) {
+        markSkid(
+          track,
+          [
+            [last[0], last[1], now4[0], now4[1]],
+            [last[2], last[3], now4[2], now4[3]],
+          ],
+          dark ? 0.26 : 0.18,
+        );
+        R.skids.set(key, now4);
+      }
+    };
     const dk: (DrawKart & { side: Side | null })[] = [];
     for (const side of Object.keys(R.karts).filter(isSide)) {
       const k = R.karts[side]!;
       const level = driftLevel(k);
       const off = !onRoad(k);
-      if (R.ph === 'race' || R.ph === 'end') trail(R.parts, k.x, k.y, k.a, k.v, k.boost > 0, k.driftDir, level, off, dt);
+      if (racing) trail(R.parts, k.x, k.y, k.a, k.v, k.boost > 0, k.driftDir, level, off, dt);
+      skid(side, k.x, k.y, k.a, !off && ((k.driftDir !== 0 && k.v > 60) || (k.spin > 0 && k.v > 10)), level > 0 || k.spin > 0);
       dk.push({
         x: k.x,
         y: k.y,
         a: k.a,
         yaw: k.spin > 0 ? (1.1 - k.spin) * Math.PI * 3.6 : k.driftDir * 0.34 + k.st * 0.07,
         bob: off && k.v > 30 ? Math.abs(Math.sin(time * 24)) * 0.9 : 0,
+        roll: Math.max(-0.16, Math.min(0.16, -k.st * 0.09 - k.driftDir * 0.07)) * Math.min(1, k.v / 80),
         color: players[side].color,
         emoji: players[side].emoji,
         own: false,
@@ -749,13 +827,15 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
       const o = otherSide(me);
       const nk = R.remote.pkt;
       const dir = Math.sign(nk.d);
-      if (R.ph === 'race' || R.ph === 'end') trail(R.parts, R.remote.x, R.remote.y, R.remote.a, nk.v, !!nk.b, dir, Math.abs(nk.d), false, dt);
+      if (racing) trail(R.parts, R.remote.x, R.remote.y, R.remote.a, nk.v, !!nk.b, dir, Math.abs(nk.d), false, dt);
+      skid('remote', R.remote.x, R.remote.y, R.remote.a, (dir !== 0 && nk.v > 60) || !!nk.sp, Math.abs(nk.d) > 0);
       dk.push({
         x: R.remote.x,
         y: R.remote.y,
         a: R.remote.a,
         yaw: nk.sp ? (time * 11) % (Math.PI * 2) : dir * 0.34,
         bob: 0,
+        roll: -dir * 0.07,
         color: players[o].color,
         emoji: players[o].emoji,
         own: false,
@@ -788,7 +868,7 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
       }
 
       if (!v?.ready) continue;
-      v.ground.draw(cam);
+      v.ground.draw(cam, mood);
       drawOverlay(v.fx, track, cam, {
         karts: dk.map((d) => ({ ...d, own: d.side === side })),
         haz,
@@ -796,6 +876,7 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
         parts: R.parts,
         time,
         streaks: boosting ? Math.min(1, k.boost * 2) : 0,
+        mood,
       });
     }
 
@@ -892,7 +973,7 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
   });
 
   return (
-    <div className={cls('kart', duo ? 'duo' : 'single')}>
+    <div ref={root} className={cls('kart', duo ? 'duo' : 'single')}>
       {views.map((side) => {
         const h = hud[side];
         const flipped = duo && side === 'p2';
