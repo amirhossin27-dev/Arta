@@ -204,6 +204,8 @@ export interface DeviceState {
   lastSyncAt?: number;
   /** Retro-Sounds in den Spielen (Standard: an). */
   sound?: boolean;
+  /** Mitteilungen aufs Handy, wenn der Schatz etwas schickt (`undefined` = noch nicht gefragt). */
+  notify?: boolean;
   /** Gemeinsamer Live-Sync-Raum (Echtzeit über das Internet). */
   live?: LiveRoom;
 }

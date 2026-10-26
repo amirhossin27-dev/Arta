@@ -7905,3 +7905,28 @@ input[type='checkbox'] {
     opacity: 0.55;
   }
 }
+
+/* ───── Mitteilungen ───── */
+
+.notify-prompt {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: linear-gradient(135deg, var(--surface), var(--love-soft));
+}
+
+.notify-prompt-emoji {
+  flex: none;
+  font-size: 2rem;
+  animation: beat 1.6s ease-in-out infinite;
+}
+
+.notify-prompt .grow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.notify-prompt p {
+  margin: 0;
+}

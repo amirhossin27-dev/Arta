@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { inviteMessage, notifyIfHidden } from '../lib/notify';
 import { useData, useDevice } from '../lib/store';
 import { other } from '../lib/types';
 import { nav, useUI } from '../lib/ui';
@@ -28,6 +29,8 @@ export function ArcadeInvite() {
 
   useEffect(() => {
     if (!inv) return;
+    // Im Hintergrund hört keiner den Gong – dann lieber eine Mitteilung.
+    if (document.visibilityState === 'hidden') return notifyIfHidden(inviteMessage(GAME_BY_ID[inv.game], partner.name, inv.id));
     [0, 140, 280].forEach((d, k) => window.setTimeout(() => tone([660, 880, 1100][k], 110, 'triangle', 0.06), d));
     buzz([60, 60, 60]);
   }, [inv?.id]);

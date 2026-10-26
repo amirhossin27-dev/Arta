@@ -5,10 +5,12 @@ import {
   type AppData,
   type CollectionKey,
   type Couple,
+  type Coupon,
   type CycleDay,
   type CycleSettings,
   type DeviceState,
   type LiveRoom,
+  type LoveNote,
   type MealEntry,
   type Person,
   type PersonId,
@@ -142,6 +144,18 @@ export function useData(): AppData {
 export function useDevice(): DeviceState {
   return useSyncExternalStore(subscribe, getDevice, getDevice);
 }
+
+/** Etwas wurde gerade auf diesem Handy an den Schatz verschickt (für die Push-Mitteilungen). */
+export type Sent = { type: 'note'; note: LoveNote } | { type: 'coupon'; coupon: Coupon } | { type: 'heart'; date: string };
+
+const sentListeners = new Set<(s: Sent) => void>();
+export const onSent = (fn: (s: Sent) => void) => {
+  sentListeners.add(fn);
+  return () => {
+    sentListeners.delete(fn);
+  };
+};
+const emitSent = (s: Sent) => sentListeners.forEach((l) => l(s));
 
 let lastStamp = 0;
 /** Streng monoton steigende Zeitstempel für last-writer-wins. */
@@ -317,9 +331,10 @@ export const actions = {
   // ───── Liebe ─────
   sendNote(text: string, opts: { kind?: 'note' | 'cheer'; surprise?: boolean } = {}) {
     const me = device.me;
+    const id = uid();
     commitData(
       withRec(data, 'notes', {
-        id: uid(),
+        id,
         from: me,
         to: other(me),
         text: text.trim(),
@@ -330,6 +345,7 @@ export const actions = {
         updatedAt: 0,
       }),
     );
+    emitSent({ type: 'note', note: data.notes[id] });
   },
 
   markNotesSeen(ids: string[]) {
@@ -351,14 +367,15 @@ export const actions = {
     const cur = data.hearts[id];
     const count = (cur && !cur.deleted ? cur.count : 0) + 1;
     commitData(withRec(data, 'hearts', { id, date, from: device.me, count, updatedAt: 0 }));
+    emitSent({ type: 'heart', date });
     return count;
   },
 
   /** Standardmäßig schenkst du; nach einem Spiel-Einsatz schenkt der Verlierer (`from`). */
   addCoupon(title: string, emoji: string, from: PersonId = device.me) {
-    commitData(
-      withRec(data, 'coupons', { id: uid(), from, to: other(from), title, emoji, createdAt: Date.now(), updatedAt: 0 }),
-    );
+    const id = uid();
+    commitData(withRec(data, 'coupons', { id, from, to: other(from), title, emoji, createdAt: Date.now(), updatedAt: 0 }));
+    if (from === device.me) emitSent({ type: 'coupon', coupon: data.coupons[id] });
   },
 
   redeemCoupon(id: string) {
@@ -479,6 +496,10 @@ export const actions = {
 
   setSound(sound: boolean) {
     commitDevice({ sound });
+  },
+
+  setNotify(notify: boolean) {
+    commitDevice({ notify });
   },
 
   markDailyPopup(date: string) {

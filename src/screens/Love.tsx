@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { COMPLIMENTS, COUPON_TEMPLATES, DATE_IDEAS, type DateCategory } from '../data/messages';
+import { NotifyPrompt } from '../components/notify';
 import { Chips, Empty, Segmented } from '../components/ui';
 import { dailyQuestion } from '../lib/daily';
 import { diffDays, formatDate, formatDateTime, nextAnniversary } from '../lib/date';
@@ -333,6 +334,7 @@ function Us() {
   return (
     <>
       <Together />
+      <NotifyPrompt />
 
       <div className="card heart-card">
         <button className="big-heart" onClick={(e) => sendHeartWithLove(e, partner.name)} aria-label={`Herz an ${partner.name} senden`}>
