@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { PARTNER_STEP_GOAL } from '../data/messages';
-import { diffDays, relativeDay, todayKey, weekdayShort } from '../lib/date';
+import { diffDays, formatTime, relativeDay, todayKey, weekdayShort } from '../lib/date';
+import { useHealth, withHealth } from '../lib/health';
 import { cls, usePeople } from '../lib/hooks';
 import { useLive } from '../lib/live';
 import { showLove } from '../lib/love';
@@ -13,14 +14,19 @@ import { other, type Person } from '../lib/types';
 import { nav } from '../lib/ui';
 import { Bar, Chips, ProgressRing, Sheet } from './ui';
 
-/** Schritte eines Tages – bei dir selbst inklusive der gerade gezählten, noch nicht gespeicherten. */
-function useSteps(date: string, person: Person): DaySteps & { counting: boolean } {
+/**
+ * Schritte eines Tages – bei dir selbst inklusive der gerade gezählten, noch nicht gespeicherten,
+ * und bei beiden inklusive dessen, was Apple Health schon gemeldet hat.
+ */
+function useSteps(date: string, person: Person): DaySteps & { counting: boolean; healthAt?: number } {
   const data = useData();
   const device = useDevice();
   const pedo = usePedometer();
+  const health = useHealth()[person.id];
   const s = stepsOn(data, date, person.id);
   const counting = person.id === device.me && pedo.running && pedo.date === date;
-  return { ...s, count: s.count + (counting ? pedo.pending : 0), counting };
+  const own = { ...s, count: s.count + (counting ? pedo.pending : 0) };
+  return { ...withHealth(own, person.id), counting, healthAt: health?.date === date && health.count > 0 ? health.at : undefined };
 }
 
 /** Kompakte Schritte-Zeile für „Unser Tag“. */
@@ -65,6 +71,7 @@ function StepsRing({ person, isMe, date }: { person: Person; isMe: boolean; date
         {s.counting && <span className="steps-live" aria-label="zählt gerade mit" />}
       </span>
       <span className="muted small">{s.count ? `≈ ${stepsKm(s.count)}` : 'noch keine'}</span>
+      {s.healthAt && <span className="steps-source">🍎 Health · {formatTime(s.healthAt)}</span>}
     </div>
   );
 }
@@ -72,8 +79,9 @@ function StepsRing({ person, isMe, date }: { person: Person; isMe: boolean; date
 function WeekBars({ date }: { date: string }) {
   const data = useData();
   const { me, partner } = usePeople();
-  const mine = weekSteps(data, date, me.id);
-  const theirs = weekSteps(data, date, partner.id);
+  useHealth();
+  const mine = weekSteps(data, date, me.id).map((d) => withHealth(d, me.id));
+  const theirs = weekSteps(data, date, partner.id).map((d) => withHealth(d, partner.id));
   const top = Math.max(me.stepGoal, partner.stepGoal, ...mine.map((d) => d.count), ...theirs.map((d) => d.count));
   const sum = (days: DaySteps[]) => formatSteps(days.reduce((acc, d) => acc + d.count, 0));
   const today = todayKey();
@@ -105,7 +113,6 @@ function WeekBars({ date }: { date: string }) {
 
 /** Schritte-Karte im Sport-Tab: beide nebeneinander, Mitzählen, Eintragen und die Woche. */
 export function StepsCard({ date }: { date: string }) {
-  const data = useData();
   const { me, partner } = usePeople();
   const live = useLive();
   const pedo = usePedometer();
@@ -113,7 +120,7 @@ export function StepsCard({ date }: { date: string }) {
   const isToday = date === today;
   const future = diffDays(today, date) > 0;
   const mine = useSteps(date, me).count;
-  const theirs = stepsOn(data, date, partner.id).count;
+  const theirs = useSteps(date, partner).count;
   return (
     <div className="card steps-card">
       <div className="card-head">
@@ -233,12 +240,13 @@ export function StepsSheet({ date, onClose }: { date: string; onClose: () => voi
         <p className="muted small">Jeder Tag mit erreichtem Ziel bringt euch 5 Herzpunkte. 💗</p>
       </div>
 
+      <HealthLink date={date} />
+
       <details className="steps-why">
-        <summary>Warum zählt Arta nicht von selbst im Hintergrund?</summary>
+        <summary>Warum kann Arta nicht selbst in Apple Health schauen?</summary>
         <p className="muted small">
           Arta ist eine Web-App. Browser lassen Web-Apps weder an Apple Health noch an Google Fit, und den Bewegungssensor gibt es nur, solange die App offen und
-          das Display an ist. Deshalb zählt Arta beim Spaziergang mit, wenn du es startest – und den Rest des Tages trägst du am besten abends aus der Health-App
-          ein.
+          das Display an ist. Deshalb der Umweg über einen Kurzbefehl: Der darf Apple Health lesen und schickt die Zahl an Arta, auch wenn Arta zu ist.
         </p>
       </details>
     </Sheet>
@@ -249,12 +257,13 @@ export function StepsSheet({ date, onClose }: { date: string; onClose: () => voi
 export function useStepMoments(onboarded: boolean) {
   const data = useData();
   const device = useDevice();
+  const health = useHealth();
   const seen = useRef<{ key: string; count: number } | null>(null);
   useEffect(() => {
     if (!onboarded) return;
     const partnerId = other(device.me);
     const today = todayKey();
-    const s = stepsOn(data, today, partnerId);
+    const s = withHealth(stepsOn(data, today, partnerId), partnerId);
     const key = `${today}-${partnerId}`;
     const prev = seen.current;
     seen.current = { key, count: s.count };
@@ -268,5 +277,29 @@ export function useStepMoments(onboarded: boolean) {
       text: fill(pickRandom(PARTNER_STEP_GOAL), names),
       tone: 'party',
     });
-  }, [onboarded, data.steps, device.me, data]);
+  }, [onboarded, data.steps, device.me, data, health]);
+}
+
+/** Hinweis im Schritte-Fenster: Apple Health verbunden – oder wie man es verbindet. */
+function HealthLink({ date }: { date: string }) {
+  const device = useDevice();
+  const health = useHealth()[device.me];
+  return (
+    <div className="inset">
+      <h3>🍎 Automatisch aus Apple Health</h3>
+      {health?.broken ? (
+        <p className="muted small">⚠️ Dein Kurzbefehl schickt keine Schrittzahl mit – schau in die Anleitung, Schritt 3.</p>
+      ) : health ? (
+        <p className="muted small">
+          ✅ Verbunden – zuletzt {formatSteps(health.count)} Schritte ({relativeDay(health.date)}, {formatTime(health.at)} Uhr).
+          {health.date !== date && ' Für diesen Tag kam noch nichts an.'}
+        </p>
+      ) : (
+        <p className="muted small">iPhone: Ein Kurzbefehl schickt deine Schritte aus Apple Health an Arta – auch wenn Arta zu ist. Einmal 5 Minuten einrichten, danach läuft es von allein.</p>
+      )}
+      <button className="btn soft block" onClick={() => nav.open({ type: 'health' })}>
+        {health ? 'Anleitung ansehen' : '🍎 Apple Health verbinden'}
+      </button>
+    </div>
+  );
 }
