@@ -4,6 +4,7 @@ export type GameId =
   | 'romme'
   | 'kniffel'
   | 'ludo'
+  | 'solitaire'
   | 'fitdice'
   | 'chess'
   | 'checkers'
@@ -25,6 +26,9 @@ export type GameId =
   | 'minesweeper'
   | 'snake'
   | 'breakout'
+  | 'ballz'
+  | 'muncher'
+  | 'hopper'
   | 'simon';
 
 /** duo: zu zweit an einem Handy · cpu: gegen die KI 🤖 · online: jeder am eigenen Handy · solo: allein auf Highscore-Jagd */
@@ -110,6 +114,20 @@ export const GAMES: GameMeta[] = [
     category: 'karten',
     minutes: '10 Min',
     colors: ['#e63946', '#f4c430'],
+  },
+  {
+    id: 'solitaire',
+    name: 'Solitär',
+    emoji: '♦️',
+    tagline: 'Die Patience zum Entspannen – alle Karten nach Farbe ablegen',
+    rules:
+      'Leg Karten absteigend und abwechselnd rot/schwarz aufeinander, auf freie Plätze dürfen nur Könige. Oben sammelst du jede Farbe vom Ass bis zum König. Tippe den Stapel an, um eine Karte zu ziehen. Eine Karte antippen legt sie automatisch an den besten Platz, du kannst sie aber auch ziehen. Liegt alles offen, legt „Automatisch fertig“ den Rest ab. Es zählt die Zeit – je schneller, desto besser.',
+    modes: ['solo'],
+    category: 'karten',
+    minutes: '6 Min',
+    colors: ['#16804a', '#e0245e'],
+    scoreLabel: 'Sek.',
+    lowerIsBetter: true,
   },
   {
     id: 'fitdice',
@@ -366,6 +384,45 @@ export const GAMES: GameMeta[] = [
     minutes: '3 Min',
     colors: ['#7c5cff', '#ff5dc8'],
     scoreLabel: 'Punkte',
+  },
+  {
+    id: 'muncher',
+    name: 'Herz-Mampfer',
+    emoji: '👻',
+    tagline: 'Herzchen futtern, Grummelgeistern ausweichen – wie Pac-Man',
+    rules:
+      'Wische in eine Richtung (oder nutz die Pfeile) – Mampfi läuft weiter, bis eine Wand kommt, und biegt an der nächsten Abzweigung ab. Futtere alle Herzchen im Labyrinth. Die vier Grummelgeister jagen dich, jeder auf seine Art. Ein großes ❤️ ist ein Liebestrank: Kurz werden die Geister blau und du kannst sie verputzen. Ab und zu taucht unter dem Geisterhaus ein Naschi auf. Durch den Tunnel an der Seite kommst du auf der anderen Seite raus. Du hast 3 Leben.',
+    modes: ['solo'],
+    category: 'arcade',
+    minutes: '4 Min',
+    colors: ['#ff2f78', '#4057ff'],
+    scoreLabel: 'Punkte',
+  },
+  {
+    id: 'hopper',
+    name: 'Herz-Hüpfer',
+    emoji: '🦘',
+    tagline: 'Hüpf von Wolke zu Wolke immer höher – wie Doodle Jump',
+    rules:
+      'Hüpfi springt von selbst. Halte die linke oder rechte Bildschirmhälfte gedrückt (oder schalte „Neigen“ ein und kipp das Handy), um zu lenken – wer an einer Seite rausläuft, kommt auf der anderen wieder rein. Rosa Wolken tragen dich, blaue wandern hin und her, weiße lösen sich nach einem Sprung auf und Waffelkekse zerbröseln. Federn und Herzballons schießen dich nach oben. Spring den Grummelwolken auf den Kopf – nur nicht seitlich berühren! Fällst du unten raus, ist Schluss.',
+    modes: ['solo'],
+    category: 'arcade',
+    minutes: '3 Min',
+    colors: ['#ff6fa5', '#ffb36b'],
+    scoreLabel: 'Meter',
+  },
+  {
+    id: 'ballz',
+    name: 'Ball-Blitz',
+    emoji: '☄️',
+    tagline: 'Zielen, abfeuern, Blöcke zerschmettern – jede Runde ein Ball mehr',
+    rules:
+      'Leg den Finger aufs Feld und ziel – die gepunktete Linie zeigt den Weg. Beim Loslassen fliegen alle Bälle hintereinander los und prallen an Wänden und Blöcken ab. Jeder Treffer zieht dem Block einen Punkt ab, bei 0 zerplatzt er. Fang die 💗-Ringe für einen Ball mehr, ⚡-Ringe treffen eine ganze Reihe oder Spalte. Nach jeder Runde rutschen die Blöcke eine Reihe tiefer – kommt einer unten an, ist Schluss.',
+    modes: ['solo'],
+    category: 'arcade',
+    minutes: '5 Min',
+    colors: ['#ff4f9a', '#6b5cff'],
+    scoreLabel: 'Runden',
   },
   {
     id: 'simon',

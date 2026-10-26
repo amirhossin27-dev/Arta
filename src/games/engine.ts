@@ -242,6 +242,52 @@ export function useFitCanvas(w: number, h: number, draw: (ctx: CanvasRenderingCo
   return { wrapRef, canvasRef, paint, toLogical };
 }
 
+/**
+ * Canvas, das den ganzen Container ausfüllt (für Spiele, die sich jeder Bildschirmform anpassen).
+ * `draw` bekommt die Größe in CSS-Pixeln; die Retina-Schärfe ist schon eingerechnet.
+ */
+export function useFillCanvas(draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void, maxDpr = 2) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const size = useRef({ w: 0, h: 0, dpr: 1 });
+  const drawRef = useRef(draw);
+  drawRef.current = draw;
+
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    const canvas = canvasRef.current;
+    if (!wrap || !canvas) return;
+    const fit = () => {
+      const r = wrap.getBoundingClientRect();
+      if (r.width < 4 || r.height < 4) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
+      size.current = { w: r.width, h: r.height, dpr };
+      canvas.style.width = `${r.width}px`;
+      canvas.style.height = `${r.height}px`;
+      canvas.width = Math.round(r.width * dpr);
+      canvas.height = Math.round(r.height * dpr);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawRef.current(ctx, r.width, r.height);
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(wrap);
+    return () => ro.disconnect();
+  }, [maxDpr]);
+
+  const paint = () => {
+    const ctx = canvasRef.current?.getContext('2d');
+    const { w, h, dpr } = size.current;
+    if (!ctx || !w) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawRef.current(ctx, w, h);
+  };
+
+  return { wrapRef, canvasRef, paint, size };
+}
+
 export function clamp(v: number, min: number, max: number) {
   return Math.min(Math.max(v, min), max);
 }
@@ -250,4 +296,78 @@ export function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, r);
   ctx.fill();
+}
+
+/** Herzform als Pfad (Mitte x/y, Größe r) – füllen oder umranden macht der Aufrufer. */
+export function heartPath(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x, y + r * 0.9);
+  ctx.bezierCurveTo(x - r * 1.6, y - r * 0.2, x - r * 0.8, y - r * 1.3, x, y - r * 0.45);
+  ctx.bezierCurveTo(x + r * 0.8, y - r * 1.3, x + r * 1.6, y - r * 0.2, x, y + r * 0.9);
+  ctx.closePath();
+}
+
+/** Kleine Partikel für Treffer, Funken und Konfetti – in Spiel-Koordinaten. */
+export interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  max: number;
+  size: number;
+  color: string;
+  /** Schwerkraft (px/s²) */
+  g?: number;
+  heart?: boolean;
+}
+
+export function burst(list: Particle[], x: number, y: number, color: string, n = 12, speed = 120, opts: Partial<Particle> = {}) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const v = speed * (0.35 + Math.random() * 0.75);
+    const life = 0.35 + Math.random() * 0.45;
+    list.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life, max: life, size: 1.5 + Math.random() * 2.5, color, g: 0, ...opts });
+  }
+}
+
+export function stepParticles(list: Particle[], dt: number) {
+  for (const p of list) {
+    p.life -= dt;
+    p.vy += (p.g ?? 0) * dt;
+    p.vx *= 1 - dt * 1.8;
+    p.vy *= 1 - dt * 1.2;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+  }
+  let w = 0;
+  for (const p of list) if (p.life > 0) list[w++] = p;
+  list.length = w;
+}
+
+export function drawParticles(ctx: CanvasRenderingContext2D, list: Particle[]) {
+  for (const p of list) {
+    const k = Math.max(0, p.life / p.max);
+    ctx.globalAlpha = Math.min(1, k * 1.6);
+    ctx.fillStyle = p.color;
+    if (p.heart) {
+      heartPath(ctx, p.x, p.y, p.size * (0.6 + k * 0.4));
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (0.4 + k * 0.6), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/** Text mit dunklem Rand – für Punktzahlen mitten im Spielfeld. */
+export function outlinedText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, fill = '#fff', stroke = 'rgba(40,10,40,0.55)', width = 4) {
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = width;
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle = fill;
+  ctx.fillText(text, x, y);
 }
