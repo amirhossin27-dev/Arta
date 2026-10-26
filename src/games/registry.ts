@@ -27,6 +27,7 @@ export type GameId =
   | 'snake'
   | 'breakout'
   | 'ballz'
+  | 'runner'
   | 'amor'
   | 'muncher'
   | 'hopper'
@@ -384,6 +385,19 @@ export const GAMES: GameMeta[] = [
     category: 'arcade',
     minutes: '3 Min',
     colors: ['#7c5cff', '#ff5dc8'],
+    scoreLabel: 'Punkte',
+  },
+  {
+    id: 'runner',
+    name: 'Tempel-Lauf',
+    emoji: '🏃',
+    tagline: 'Endlos-Lauf durch den Dschungeltempel – wie Temple Run',
+    rules:
+      'Du rennst über einen alten Tempelpfad, das Knuddelmonster immer hinter dir. Wische nach links oder rechts, um die Spur zu wechseln, nach oben zum Springen und nach unten zum Rutschen. Über Baumstämme und Lücken springst du, unter Steintoren rutschst du durch, um Steinblöcke läufst du herum. An jeder Kreuzung musst du in Pfeilrichtung wischen – sonst geht es in den Abgrund. Stolperst du, holt dich das Monster ein – beim zweiten Mal wirst du geknuddelt. Jeder Meter zählt, jedes Herz 5 Punkte extra.',
+    modes: ['solo'],
+    category: 'arcade',
+    minutes: '3 Min',
+    colors: ['#e2557f', '#f2a14e'],
     scoreLabel: 'Punkte',
   },
   {
