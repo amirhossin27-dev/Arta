@@ -15,6 +15,7 @@ import { Checkers } from './Checkers';
 import { Chess } from './Chess';
 import { ConnectFour } from './ConnectFour';
 import { sfx, unlockAudio } from './engine';
+import { Fight } from './Fight';
 import { FitDice } from './FitDice';
 import { Flappy } from './Flappy';
 import { Game2048 } from './Game2048';
@@ -58,6 +59,7 @@ const COMPONENTS: Record<GameId, ComponentType<GameProps>> = {
   guesswho: GuessWho,
   memory: Memory,
   kart: Kart,
+  fight: Fight,
   pong: Pong,
   reaction: Reaction,
   snake: Snake,

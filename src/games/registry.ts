@@ -15,6 +15,7 @@ export type GameId =
   | 'guesswho'
   | 'memory'
   | 'kart'
+  | 'fight'
   | 'pong'
   | 'reaction'
   | 'tetris'
@@ -231,6 +232,18 @@ export const GAMES: GameMeta[] = [
     lowerIsBetter: true,
   },
   {
+    id: 'fight',
+    name: 'Herz-Fighter',
+    emoji: '🥊',
+    tagline: 'Prügeln mit Liebe – Kampfspiel wie Street Fighter, mit Spezialattacken',
+    rules:
+      'Zwei Gewinnrunden, jede dauert 60 Sekunden. Mit dem Stick läufst du, nach oben gedrückt springst du. 👊 Schlag mehrmals tippen ergibt eine Kombo, 🦶 Tritt trifft weiter und härter. Wer vom Gegner weg hält, blockt. Treffer laden den Powerbalken – ist er voll, leuchtet ⚡ Spezial: Kai schickt die Phönix-Flamme, Mila stürmt als Donnersturm los. Wer zuerst K.O. geht oder nach Ablauf der Zeit weniger Energie hat, verliert die Runde.',
+    modes: ['duo', 'online', 'cpu'],
+    category: 'arcade',
+    minutes: '3 Min',
+    colors: ['#ff3d6e', '#7a3cff'],
+  },
+  {
     id: 'kart',
     name: 'Herz-Kart',
     emoji: '🏎️',
@@ -381,5 +394,5 @@ export const CATEGORY_INFO: Record<GameCategory, { emoji: string; title: string;
   karten: { emoji: '🃏', title: 'Karten & Würfel', text: 'Die Klassiker vom Spieleabend – online, an einem Handy oder gegen die KI' },
   brett: { emoji: '♟️', title: 'Brett & Strategie', text: 'Schach, Dame, Mühle und Co. – Köpfchen ist gefragt' },
   raten: { emoji: '🧠', title: 'Rätseln & Raten', text: 'Wer weiß mehr, wer merkt sich mehr?' },
-  arcade: { emoji: '🕹️', title: 'Arcade', text: 'Schnelle Retro-Runden – Kart-Rennen, gegenüber am Handy oder allein auf Rekordjagd' },
+  arcade: { emoji: '🕹️', title: 'Arcade', text: 'Schnelle Runden – Kampfspiel, Kart-Rennen, gegenüber am Handy oder allein auf Rekordjagd' },
 };

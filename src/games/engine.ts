@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
 import { getDevice } from '../lib/store';
 
 // ───────────────────────── Retro-Sound ─────────────────────────
@@ -75,6 +75,34 @@ export function hum(): { set(freq: number, vol: number): void; stop(): void } | 
   }
 }
 
+/** Kurzes Rauschen – für Schläge, Wusch und Aufprall. `freq`: Mitte des Klangs, `to`: dahin gleitet er. */
+export function noise(ms = 80, vol = 0.08, freq = 1200, to?: number) {
+  if (getDevice().sound === false) return;
+  try {
+    const c = audioCtx();
+    if (!c) return;
+    const t = c.currentTime;
+    const len = Math.max(1, Math.round((c.sampleRate * ms) / 1000));
+    const buf = c.createBuffer(1, len, c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 0.9;
+    bp.frequency.setValueAtTime(freq, t);
+    if (to) bp.frequency.exponentialRampToValueAtTime(to, t + ms / 1000);
+    const g = c.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+    src.connect(bp).connect(g).connect(c.destination);
+    src.start(t);
+  } catch {
+    // Kein Ton – das Spiel läuft trotzdem.
+  }
+}
+
 function melody(notes: number[], step = 110, ms = 140, type: OscillatorType = 'square') {
   notes.forEach((f, i) => window.setTimeout(() => tone(f, ms, type), i * step));
 }
@@ -102,6 +130,48 @@ export function buzz(ms: number | number[] = 18) {
   } catch {
     // Vibration nicht verfügbar
   }
+}
+
+// ───────────────────────── Touch ─────────────────────────
+
+/**
+ * Kein Markieren, keine Lupe, kein Kopieren-Menü: In Echtzeitspielen heißt ein langer Finger auf dem
+ * Bildschirm Lenken oder Kämpfen. Knöpfe bleiben antippbar.
+ */
+export function useTouchLock(ref: RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const html = document.documentElement;
+    html.classList.add('touch-lock');
+    const block = (e: Event) => {
+      // Knöpfe und Listen zum Scrollen (data-free) bleiben bedienbar.
+      if (e.target instanceof Element && e.target.closest('button, [data-free]')) return;
+      if (e.cancelable) e.preventDefault();
+    };
+    const unselect = () => {
+      const sel = document.getSelection();
+      if (sel && !sel.isCollapsed) sel.removeAllRanges();
+    };
+    const opts = { passive: false } as const;
+    el.addEventListener('touchstart', block, opts);
+    el.addEventListener('touchmove', block, opts);
+    el.addEventListener('contextmenu', block);
+    el.addEventListener('selectstart', block);
+    el.addEventListener('dragstart', block);
+    document.addEventListener('gesturestart', block, opts);
+    document.addEventListener('selectionchange', unselect);
+    return () => {
+      html.classList.remove('touch-lock');
+      el.removeEventListener('touchstart', block);
+      el.removeEventListener('touchmove', block);
+      el.removeEventListener('contextmenu', block);
+      el.removeEventListener('selectstart', block);
+      el.removeEventListener('dragstart', block);
+      document.removeEventListener('gesturestart', block);
+      document.removeEventListener('selectionchange', unselect);
+    };
+  }, []);
 }
 
 // ───────────────────────── Spielschleife ─────────────────────────

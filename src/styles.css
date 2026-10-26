@@ -7629,9 +7629,9 @@ input::-webkit-date-and-time-value {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Während des Rennens: nichts auf der Seite lässt sich markieren oder kopieren (auch nicht die App dahinter) */
-.kart-lock,
-.kart-lock *:not(input):not(textarea) {
+/* In Echtzeitspielen (Herz-Kart, Herz-Fighter): nichts auf der Seite lässt sich markieren oder kopieren (auch nicht die App dahinter) */
+.touch-lock,
+.touch-lock *:not(input):not(textarea) {
   -webkit-user-select: none !important;
   user-select: none !important;
   -webkit-touch-callout: none !important;
@@ -7988,6 +7988,612 @@ input::-webkit-date-and-time-value {
 @keyframes kart-blink {
   50% {
     opacity: 0.55;
+  }
+}
+
+/* ───── Herz-Fighter ───── */
+
+.game-fight .game-stage {
+  max-width: 980px;
+  padding: 0 0 6px;
+}
+
+.fg {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.fg-arena {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 180px;
+  margin: 0 8px;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #1d0b3b;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 18px 46px rgba(0, 0, 0, 0.5);
+}
+
+.fg.select .fg-arena {
+  flex: 0 0 auto;
+  height: min(34vh, 300px);
+  min-height: 170px;
+}
+
+/* Hochkant: Arena oben (nicht höher als breit), darunter der Controller */
+.fg.fight .fg-arena {
+  flex: 0 1 auto;
+  height: min(100%, calc(min(100vw, 980px) * 1.08));
+}
+
+.fg-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.fg-vs-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: #fff;
+}
+
+.fg-vs {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  font-size: 46px;
+  font-weight: 900;
+  font-style: italic;
+  line-height: 1;
+  background: linear-gradient(#fff27a, #ff4f2b);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 3px 0 #2a0636) drop-shadow(0 0 14px rgba(255, 120, 60, 0.65));
+  transform: translate(-50%, -50%);
+  animation: fg-vs 1.3s ease-in-out infinite;
+}
+
+.fg-vs-name {
+  position: absolute;
+  top: 10px;
+  max-width: 45%;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.fg-vs-name.left {
+  left: 12px;
+  align-items: flex-start;
+}
+
+.fg-vs-name.right {
+  right: 12px;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.fg-vs-name b {
+  font-size: 24px;
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  text-shadow: 0 2px 0 #2a0636, 0 0 14px rgba(0, 0, 0, 0.5);
+}
+
+.fg-vs-name small {
+  font-size: 12px;
+  font-weight: 750;
+  text-shadow: 0 1px 0 #2a0636, 0 0 8px rgba(0, 0, 0, 0.6);
+}
+
+.fg-stage-name {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(20, 6, 30, 0.55);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.fg-tip {
+  position: absolute;
+  left: 50%;
+  top: 62px;
+  width: min(88%, 360px);
+  padding: 7px 12px;
+  border-radius: 14px;
+  background: rgba(20, 6, 30, 0.7);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.3;
+  text-align: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: kart-fade 0.35s ease-out;
+}
+
+/* Kämpferwahl */
+.fg-select {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  touch-action: pan-y;
+}
+
+.fg-row {
+  --pc: #ff4f81;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fg-row-label {
+  color: var(--gmuted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.fg-portraits {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 3px 2px 4px;
+}
+
+.fg-portrait {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 5px 6px;
+  border: 2px solid var(--gline);
+  border-radius: 16px;
+  background: var(--gsurf);
+  color: var(--gtext);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.15s;
+}
+
+.fg-portrait:active {
+  transform: scale(0.95);
+}
+
+.fg-portrait.on {
+  border-color: var(--pc);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--pc) 40%, transparent), 0 0 18px color-mix(in srgb, var(--pc) 55%, transparent);
+}
+
+.fg-row.locked .fg-portrait {
+  cursor: default;
+}
+
+.fg-row.locked .fg-portrait:not(.on) {
+  opacity: 0.4;
+}
+
+.fg-portrait-cv {
+  width: 66px;
+  height: 66px;
+  display: block;
+  border-radius: 12px;
+}
+
+.fg-more {
+  align-self: center;
+  max-width: 84px;
+  padding: 0 4px;
+  color: var(--gmuted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.fg-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.fg-card {
+  --fc: #ff7a2e;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--fc) 45%, var(--gline));
+  border-radius: 16px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--fc) 24%, var(--gsurf)), var(--gsurf) 70%);
+}
+
+.fg-card-head b {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.fg-card-head span {
+  display: block;
+  color: var(--gmuted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.fg-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--gmuted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.fg-stars {
+  display: flex;
+  gap: 2px;
+}
+
+.fg-stars i {
+  width: 11px;
+  height: 6px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.fg-stars i.on {
+  background: var(--fc);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--fc) 60%, transparent);
+}
+
+.fg-special {
+  color: var(--gmuted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.fg-special b {
+  display: block;
+  color: var(--gtext);
+  font-size: 12px;
+}
+
+.fg-card-player {
+  margin-top: auto;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.fg-card.wait {
+  --fc: #6b5a7a;
+  align-items: center;
+  justify-content: center;
+  color: var(--gmuted);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.fg-howto {
+  list-style: none;
+  margin: 0;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--gline);
+  border-radius: 16px;
+  background: var(--gsurf);
+  color: var(--gmuted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.fg-ready-note {
+  color: #ffd27a;
+  font-weight: 800;
+  text-align: center;
+}
+
+/* Steuerung */
+.fg-pads {
+  flex: 1 0 auto;
+  min-height: 160px;
+  display: flex;
+  gap: 10px;
+  padding: 0 10px;
+}
+
+.fg.duo .fg-pads {
+  min-height: 140px;
+  gap: 8px;
+  padding: 0 6px;
+}
+
+.fg-pad {
+  --pc: #ff4f81;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.fg.duo .fg-pad {
+  /* Zu zweit hochkant: jede Person hat eine Hälfte – oben Name, dann Knöpfe, unten der Stick */
+  flex-direction: column-reverse;
+  justify-content: center;
+  gap: 8px;
+}
+
+.fg-pad-name {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--pc);
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fg-stick {
+  position: relative;
+  flex: none;
+  width: min(140px, 36vw);
+  aspect-ratio: 1;
+  border: 2px solid var(--gline);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02) 62%, rgba(255, 255, 255, 0.09));
+  touch-action: none;
+}
+
+.fg.duo .fg-stick {
+  width: min(124px, 31vw);
+}
+
+.fg-stick > span {
+  position: absolute;
+  color: var(--gmuted);
+  font-size: 12px;
+  font-weight: 900;
+  pointer-events: none;
+}
+
+.fg-stick-up {
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.fg-stick-l {
+  top: 50%;
+  left: 8px;
+  transform: translateY(-50%);
+}
+
+.fg-stick-r {
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+}
+
+.fg-knob {
+  position: absolute;
+  left: 27%;
+  top: 27%;
+  width: 46%;
+  height: 46%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, color-mix(in srgb, var(--pc) 55%, #fff), var(--pc));
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45), inset 0 -3px 0 rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  transition: transform 0.08s ease-out;
+}
+
+.fg-knob.on {
+  transition: none;
+}
+
+.fg-btns {
+  flex: 1;
+  max-width: 230px;
+  height: min(100%, 230px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.fg.duo .fg-btns {
+  flex: none;
+  width: 100%;
+  max-width: 210px;
+  height: 140px;
+  gap: 6px;
+  padding: 0;
+}
+
+.fg-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 2px solid var(--gline);
+  border-radius: 22px;
+  background: var(--gsurf);
+  color: var(--gtext);
+  touch-action: none;
+  transition: transform 0.06s, background 0.06s;
+}
+
+.fg-btn span {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.fg.duo .fg-btn span {
+  font-size: 24px;
+}
+
+.fg-btn small {
+  color: var(--gmuted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.fg-btn.on {
+  border-color: var(--pc);
+  background: color-mix(in srgb, var(--pc) 40%, var(--gsurf));
+  transform: scale(0.94);
+}
+
+.fg-btn.sp {
+  --pw: 0;
+  grid-column: 1 / -1;
+  flex-direction: row;
+  gap: 8px;
+  min-height: 44px;
+  background: linear-gradient(90deg, color-mix(in srgb, #ffcf3a 34%, var(--gsurf)) calc(var(--pw) * 100%), var(--gsurf) calc(var(--pw) * 100%));
+}
+
+.fg-btn.sp span {
+  font-size: 22px;
+}
+
+.fg-btn.sp small {
+  color: var(--gtext);
+  font-size: 13px;
+}
+
+.fg-btn.sp.full {
+  border-color: #ffe14a;
+  background: linear-gradient(135deg, #ffcf3a, #ff5a8a);
+  box-shadow: 0 0 0 3px rgba(255, 216, 74, 0.35), 0 0 22px rgba(255, 180, 60, 0.8);
+  animation: kart-glow 0.9s ease-in-out infinite alternate;
+}
+
+.fg-btn.sp.full small {
+  color: #fff;
+}
+
+@keyframes fg-vs {
+  50% {
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+}
+
+/* Handy quer: Arena in der Mitte, Steuerung links und rechts */
+@media (orientation: landscape) and (max-height: 560px) {
+  .game-fight .game-head {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .fg.fight {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr);
+    gap: 10px;
+    padding: 0 10px;
+  }
+
+  .fg.fight .fg-arena {
+    grid-column: 2;
+    grid-row: 1;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+  }
+
+  .fg.fight .fg-pads {
+    display: contents;
+  }
+
+  .fg.fight.single .fg-pad {
+    display: contents;
+  }
+
+  .fg.fight.single .fg-stick {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: end;
+    width: 128px;
+    margin-bottom: 8px;
+  }
+
+  .fg.fight.single .fg-btns {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: end;
+    width: 150px;
+    height: min(210px, 100%);
+  }
+
+  .fg.fight.duo .fg-pad {
+    grid-row: 1;
+    width: 118px;
+    justify-content: flex-start;
+  }
+
+  .fg.fight.duo .fg-pad.p1 {
+    grid-column: 1;
+  }
+
+  .fg.fight.duo .fg-pad.p2 {
+    grid-column: 3;
+  }
+
+  .fg.fight.duo .fg-stick {
+    width: 104px;
+  }
+
+  .fg.fight.duo .fg-btns {
+    height: 150px;
+  }
+
+  .fg.select {
+    flex-direction: row;
+    padding: 0 8px;
+  }
+
+  .fg.select .fg-arena {
+    flex: 1 1 0;
+    height: auto;
+    margin: 0;
+  }
+
+  .fg.select .fg-select {
+    flex: 1 1 0;
+    padding: 0 4px 12px;
   }
 }
 
