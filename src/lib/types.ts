@@ -43,7 +43,10 @@ export interface CycleSettings {
 export interface Couple extends Rec {
   id: 'couple';
   anniversary?: string;
+  /** Gemeinsames Wochenziel: so viele Sport-Einheiten wollt ihr zusammen pro Woche (Mo–So) abhaken. */
   weeklyGoal: number;
+  /** Paar-Serie: zählt ein Tag mit erreichtem Schrittziel auch als aktiver Tag? */
+  streakSteps?: boolean;
   cycle?: CycleSettings;
 }
 

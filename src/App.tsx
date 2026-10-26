@@ -7,6 +7,7 @@ import { GameScreen } from './games/GameScreen';
 import { ArcadeInvite } from './games/Invite';
 import { LoveLayer } from './components/LoveLayer';
 import { CheerSheet, CoupleSheet, SettingsSheet, SyncSheet } from './components/sheets';
+import { StreakSheet, WeekGoalSheet } from './components/goals';
 import { HealthSheet } from './components/healthSetup';
 import { StepsSheet, useStepMoments } from './components/steps';
 import { dailyLove } from './lib/daily';
@@ -239,6 +240,8 @@ export default function App() {
       {sheet?.type === 'settings' && <SettingsSheet onClose={close} />}
       {sheet?.type === 'cheer' && <CheerSheet onClose={close} />}
       {sheet?.type === 'couple' && <CoupleSheet onClose={close} />}
+      {sheet?.type === 'weekGoal' && <WeekGoalSheet onClose={close} />}
+      {sheet?.type === 'streak' && <StreakSheet onClose={close} />}
       {sheet?.type === 'steps' && <StepsSheet date={sheet.date} onClose={close} />}
       {sheet?.type === 'health' && <HealthSheet onClose={close} />}
       {sheet?.type === 'game' && <GameScreen key={`${sheet.id}-${sheet.join ?? ''}`} id={sheet.id} join={sheet.join} onClose={close} />}

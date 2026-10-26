@@ -56,8 +56,19 @@ export function activeMinutes(d: AppData, date: string, person: PersonId): numbe
     .reduce((sum, p) => sum + EXERCISE_BY_ID[p.exerciseId].minutes, 0);
 }
 
-function doneDates(d: AppData, person: PersonId): Set<string> {
-  return new Set(alive(d.plan).filter((p) => p.personId === person && p.done).map((p) => p.date));
+/**
+ * Tage, an denen jemand aktiv war: mindestens eine Sport-Einheit abgehakt. Habt ihr es in der
+ * Paar-Serie eingestellt, zählt auch ein Tag mit erreichtem Schrittziel.
+ */
+export function activeDates(d: AppData, person: PersonId): Set<string> {
+  const dates = new Set(alive(d.plan).filter((p) => p.personId === person && p.done).map((p) => p.date));
+  if (d.couple.streakSteps) {
+    for (const s of alive(d.steps)) {
+      const goal = s.goal || d.persons[person].stepGoal;
+      if (s.personId === person && goal > 0 && s.count >= goal) dates.add(s.date);
+    }
+  }
+  return dates;
 }
 
 function countStreak(has: (date: string) => boolean, today: string): number {
@@ -72,14 +83,28 @@ function countStreak(has: (date: string) => boolean, today: string): number {
 }
 
 export function streak(d: AppData, person: PersonId, today: string): number {
-  const dates = doneDates(d, person);
+  const dates = activeDates(d, person);
   return countStreak((x) => dates.has(x), today);
 }
 
 export function coupleStreak(d: AppData, today: string): number {
-  const a = doneDates(d, 'a');
-  const b = doneDates(d, 'b');
+  const a = activeDates(d, 'a');
+  const b = activeDates(d, 'b');
   return countStreak((x) => a.has(x) && b.has(x), today);
+}
+
+/** Längste Paar-Serie, die ihr je hattet. */
+export function bestCoupleStreak(d: AppData): number {
+  const a = activeDates(d, 'a');
+  const b = activeDates(d, 'b');
+  const both = [...a].filter((x) => b.has(x)).sort();
+  let best = 0;
+  let run = 0;
+  both.forEach((day, i) => {
+    run = i > 0 && addDays(both[i - 1], 1) === day ? run + 1 : 1;
+    best = Math.max(best, run);
+  });
+  return best;
 }
 
 export function weekDone(d: AppData, today: string): { a: number; b: number; total: number } {
@@ -88,6 +113,17 @@ export function weekDone(d: AppData, today: string): { a: number; b: number; tot
   const done = alive(d.plan).filter((p) => p.done && p.date >= start && p.date <= end);
   const a = done.filter((p) => p.personId === 'a').length;
   return { a, b: done.length - a, total: done.length };
+}
+
+/** Erledigte Einheiten je Tag (Mo–So) der Woche, in der `date` liegt. */
+export function weekByDay(d: AppData, date: string): { date: string; a: number; b: number }[] {
+  const start = startOfWeek(date);
+  const days = Array.from({ length: 7 }, (_, i) => ({ date: addDays(start, i), a: 0, b: 0 }));
+  for (const p of alive(d.plan)) {
+    const day = days.find((x) => x.date === p.date);
+    if (p.done && day) day[p.personId]++;
+  }
+  return days;
 }
 
 export function groupComplete(d: AppData, groupId: string): boolean {

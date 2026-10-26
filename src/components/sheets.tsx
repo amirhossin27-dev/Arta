@@ -10,6 +10,7 @@ import { mergeData } from '../lib/sync';
 import { applySync, createShareText, joinWith, summarize, type ApplyResult } from '../lib/syncFlow';
 import { other, type Person, type PopupFreq } from '../lib/types';
 import { nav } from '../lib/ui';
+import { WeekGoalPicker } from './goals';
 import { NotifySettings } from './notify';
 import { Segmented, Sheet } from './ui';
 
@@ -468,6 +469,10 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [importMsg, setImportMsg] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  const go = (sheet: 'weekGoal' | 'streak') => {
+    onClose();
+    nav.open({ type: sheet });
+  };
 
   const exportBackup = () => {
     const blob = new Blob([JSON.stringify({ app: 'arta-backup', v: 1, at: Date.now(), data: getData() }, null, 2)], { type: 'application/json' });
@@ -504,10 +509,24 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
           <span className="field-label">Zusammen seit</span>
           <input type="date" value={data.couple.anniversary ?? ''} max={todayKey()} onChange={(e) => actions.updateCouple({ anniversary: e.target.value || undefined })} />
         </label>
-        <label className="field">
-          <span className="field-label">Gemeinsames Wochenziel: {data.couple.weeklyGoal} Einheiten</span>
-          <input type="range" min={2} max={30} value={data.couple.weeklyGoal} onChange={(e) => actions.updateCouple({ weeklyGoal: Number(e.target.value) })} />
-        </label>
+      </div>
+
+      <h3>🎯 Wochenziel & Paar-Serie</h3>
+      <div className="inset">
+        <span className="field-label">Gemeinsames Wochenziel</span>
+        <WeekGoalPicker />
+        <p className="muted small">
+          🔥 Die <b>Paar-Serie</b> müsst ihr nicht einstellen: Sie zählt von selbst die Tage in Folge, an denen ihr beide aktiv wart.
+        </p>
+        <div className="btn-row">
+          <button className="btn soft small" onClick={() => go('weekGoal')}>
+            🎯 Wochenziel im Detail
+          </button>
+          <button className="btn soft small" onClick={() => go('streak')}>
+            🔥 Paar-Serie im Detail
+          </button>
+        </div>
+        <p className="hint">Tipp: Auf „Heute“ einfach die 🔥- oder 🎯-Kachel antippen.</p>
       </div>
 
       <h3>💗 Liebes-Einblendungen</h3>
