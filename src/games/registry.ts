@@ -27,6 +27,7 @@ export type GameId =
   | 'snake'
   | 'breakout'
   | 'ballz'
+  | 'amor'
   | 'muncher'
   | 'hopper'
   | 'simon';
@@ -383,6 +384,19 @@ export const GAMES: GameMeta[] = [
     category: 'arcade',
     minutes: '3 Min',
     colors: ['#7c5cff', '#ff5dc8'],
+    scoreLabel: 'Punkte',
+  },
+  {
+    id: 'amor',
+    name: 'Amors Pfeile',
+    emoji: '🏹',
+    tagline: 'Schießbude wie Moorhuhn – mit Liebespfeilen statt Schrot',
+    rules:
+      'Du bist Amor: Tippe auf die Vögel, und dein Pfeil macht sie unsterblich verliebt – mit Herzaugen flattern sie davon. Kleine Vögel weit hinten bringen 25 Punkte, die mittleren 10, die großen vorn 5. Goldvögel geben 50, Herzballons 15. Im Köcher sind 8 Pfeile – tippe auf 🏹, um nachzuladen. Halte den linken oder rechten Rand gedrückt, um die Landschaft zu schwenken. In der Landschaft verstecken sich noch ein paar Überraschungen. Du hast 90 Sekunden.',
+    modes: ['solo'],
+    category: 'arcade',
+    minutes: '2 Min',
+    colors: ['#ff6f91', '#845ec2'],
     scoreLabel: 'Punkte',
   },
   {

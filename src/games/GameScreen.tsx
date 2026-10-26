@@ -9,6 +9,7 @@ import { pickRandom } from '../lib/random';
 import { actions, useData, useDevice } from '../lib/store';
 import { other, type PersonId } from '../lib/types';
 import { nav } from '../lib/ui';
+import { Amor } from './Amor';
 import { Ballz } from './Ballz';
 import { Battleship } from './Battleship';
 import { Breakout } from './Breakout';
@@ -70,6 +71,7 @@ const COMPONENTS: Record<GameId, ComponentType<GameProps>> = {
   snake: Snake,
   breakout: Breakout,
   ballz: Ballz,
+  amor: Amor,
   hopper: Hopper,
   muncher: Muncher,
   simon: Simon,

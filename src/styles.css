@@ -8925,3 +8925,80 @@ button.sol-slot {
   justify-content: center;
   gap: 10px;
 }
+
+/* ───── Amors Pfeile ───── */
+
+.game-amor .game-stage {
+  max-width: 1100px;
+  padding: 4px 8px 10px;
+}
+
+.amor-wrap {
+  border-radius: 16px;
+  overflow: hidden;
+  touch-action: none;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+.amor-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  touch-action: none;
+}
+
+.amor-start {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 290px;
+}
+
+.amor-start small {
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
+
+.amor-hurry {
+  color: #ffd43b;
+  animation: beat 0.9s ease-in-out infinite;
+}
+
+.amor-quiver {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  width: 62px;
+  height: 62px;
+  justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  background: rgba(40, 12, 50, 0.55);
+  color: #fff;
+  font: inherit;
+  backdrop-filter: blur(4px);
+  touch-action: none;
+}
+
+.amor-quiver span {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.amor-quiver small {
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.amor-quiver.empty {
+  background: rgba(255, 47, 109, 0.75);
+  animation: beat 0.8s ease-in-out infinite;
+}
+
+.amor-quiver.busy {
+  opacity: 0.6;
+}

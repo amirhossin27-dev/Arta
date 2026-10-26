@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
-import { burst, buzz, drawParticles, heartPath, stepParticles, tone, useFitCanvas, useLoop, useTouchLock, type Particle } from './engine';
+import { burst, buzz, drawParticles, heartPath, oval, stepParticles, tone, useFitCanvas, useLoop, useTouchLock, type Particle } from './engine';
 import {
   canGo,
   chooseDir,
@@ -241,7 +241,7 @@ function drawGhost(ctx: CanvasRenderingContext2D, g: Ghost, t: number, frightEnd
     // Glanz
     ctx.fillStyle = 'rgba(255,255,255,0.28)';
     ctx.beginPath();
-    ctx.ellipse(x - r * 0.45, y - r * 0.5, r * 0.18, r * 0.28, -0.5, 0, Math.PI * 2);
+    oval(ctx, x - r * 0.45, y - r * 0.5, r * 0.18, r * 0.28, -0.5);
     ctx.fill();
     if (scared) {
       ctx.fillStyle = blink ? '#ff4d6d' : '#ffe0f0';
@@ -260,8 +260,8 @@ function drawGhost(ctx: CanvasRenderingContext2D, g: Ghost, t: number, frightEnd
   const ey = DY[g.dir] * 1.5;
   ctx.fillStyle = '#fff';
   ctx.beginPath();
-  ctx.ellipse(x - 3, y - 2, 2.6, 3.2, 0, 0, Math.PI * 2);
-  ctx.ellipse(x + 3, y - 2, 2.6, 3.2, 0, 0, Math.PI * 2);
+  oval(ctx, x - 3, y - 2, 2.6, 3.2);
+  oval(ctx, x + 3, y - 2, 2.6, 3.2);
   ctx.fill();
   ctx.fillStyle = '#241038';
   ctx.beginPath();
@@ -329,8 +329,8 @@ function drawMe(ctx: CanvasRenderingContext2D, st: MState) {
   ctx.fill();
   ctx.fillStyle = '#ffd43b';
   ctx.beginPath();
-  ctx.ellipse(x - 2.6 * flip, y - r + 0.5, 2.6, 1.6, -0.4, 0, Math.PI * 2);
-  ctx.ellipse(x + 1.6 * flip - 0.5, y - r + 0.2, 2.6, 1.6, 0.4, 0, Math.PI * 2);
+  oval(ctx, x - 2.6 * flip, y - r + 0.5, 2.6, 1.6, -0.4);
+  oval(ctx, x + 1.6 * flip - 0.5, y - r + 0.2, 2.6, 1.6, 0.4);
   ctx.fill();
   ctx.fillStyle = '#f59f00';
   ctx.beginPath();

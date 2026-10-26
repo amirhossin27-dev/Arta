@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
-import { burst, buzz, clamp, drawParticles, heartPath, outlinedText, stepParticles, tone, useFitCanvas, useLoop, useTouchLock, type Particle } from './engine';
+import { burst, buzz, clamp, drawParticles, heartPath, oval, outlinedText, stepParticles, tone, useFitCanvas, useLoop, useTouchLock, type Particle } from './engine';
 import type { GameProps } from './types';
 
 const W = 320;
@@ -143,9 +143,9 @@ function skyAt(h: number): [string, string, number] {
 
 function cloud(ctx: CanvasRenderingContext2D, x: number, y: number, s: number) {
   ctx.beginPath();
-  ctx.ellipse(x, y, 26 * s, 10 * s, 0, 0, Math.PI * 2);
-  ctx.ellipse(x - 14 * s, y + 2 * s, 14 * s, 8 * s, 0, 0, Math.PI * 2);
-  ctx.ellipse(x + 10 * s, y - 7 * s, 15 * s, 11 * s, 0, 0, Math.PI * 2);
+  oval(ctx, x, y, 26 * s, 10 * s);
+  oval(ctx, x - 14 * s, y + 2 * s, 14 * s, 8 * s);
+  oval(ctx, x + 10 * s, y - 7 * s, 15 * s, 11 * s);
   ctx.fill();
 }
 
@@ -259,7 +259,7 @@ function drawPlat(ctx: CanvasRenderingContext2D, p: HopPlat, y: number, t: numbe
     ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.beginPath();
-    ctx.ellipse(bx - 6, by - 6, 3, 4, -0.5, 0, Math.PI * 2);
+    oval(ctx, bx - 6, by - 6, 3, 4, -0.5);
     ctx.fill();
   }
   ctx.restore();
@@ -280,8 +280,8 @@ function drawFoe(ctx: CanvasRenderingContext2D, f: Foe, y: number) {
   cloud(ctx, -2, -3, 0.95);
   ctx.fillStyle = '#fff';
   ctx.beginPath();
-  ctx.ellipse(-8, -2, 5, 5.5, 0, 0, Math.PI * 2);
-  ctx.ellipse(8, -2, 5, 5.5, 0, 0, Math.PI * 2);
+  oval(ctx, -8, -2, 5, 5.5);
+  oval(ctx, 8, -2, 5, 5.5);
   ctx.fill();
   ctx.fillStyle = '#2b1a3a';
   ctx.beginPath();
@@ -328,8 +328,8 @@ function drawHero(ctx: CanvasRenderingContext2D, st: HopState, y: number) {
   const tuck = st.vy < 0 ? 4 : 0;
   ctx.fillStyle = '#b81e5c';
   ctx.beginPath();
-  ctx.ellipse(-6, BODY - 1 - tuck, 5, 3.4, 0, 0, Math.PI * 2);
-  ctx.ellipse(7, BODY - 1 - tuck, 5, 3.4, 0, 0, Math.PI * 2);
+  oval(ctx, -6, BODY - 1 - tuck, 5, 3.4);
+  oval(ctx, 7, BODY - 1 - tuck, 5, 3.4);
   ctx.fill();
   // Körper
   const g = ctx.createLinearGradient(0, -BODY, 0, BODY);
@@ -343,13 +343,13 @@ function drawHero(ctx: CanvasRenderingContext2D, st: HopState, y: number) {
   ctx.stroke();
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.beginPath();
-  ctx.ellipse(-9, -7, 3.5, 5, -0.6, 0, Math.PI * 2);
+  oval(ctx, -9, -7, 3.5, 5, -0.6);
   ctx.fill();
   // Augen schauen in Laufrichtung
   ctx.fillStyle = '#fff';
   ctx.beginPath();
-  ctx.ellipse(1, -2, 4.2, 5, 0, 0, Math.PI * 2);
-  ctx.ellipse(10, -2, 4.2, 5, 0, 0, Math.PI * 2);
+  oval(ctx, 1, -2, 4.2, 5);
+  oval(ctx, 10, -2, 4.2, 5);
   ctx.fill();
   ctx.fillStyle = '#2a0f22';
   const look = st.vy > 300 ? 1.5 : -0.5;
@@ -377,13 +377,13 @@ function drawHero(ctx: CanvasRenderingContext2D, st: HopState, y: number) {
   // Bäckchen + Mund
   ctx.fillStyle = 'rgba(255,190,210,0.85)';
   ctx.beginPath();
-  ctx.ellipse(-4, 5, 3, 2, 0, 0, Math.PI * 2);
-  ctx.ellipse(14, 5, 2.5, 1.8, 0, 0, Math.PI * 2);
+  oval(ctx, -4, 5, 3, 2);
+  oval(ctx, 14, 5, 2.5, 1.8);
   ctx.fill();
   ctx.strokeStyle = '#6d0d34';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  if (st.vy < -200 || !st.alive) ctx.ellipse(6, 7, 2.4, st.alive ? 2.6 : 1.4, 0, 0, Math.PI * 2);
+  if (st.vy < -200 || !st.alive) oval(ctx, 6, 7, 2.4, st.alive ? 2.6 : 1.4);
   else ctx.arc(6, 5, 3, 0.2, Math.PI - 0.2);
   ctx.stroke();
   ctx.restore();
@@ -473,8 +473,8 @@ export function Hopper({ best, onEnd }: GameProps) {
     if (groundY < H + 80) {
       ctx.fillStyle = '#9fe0a8';
       ctx.beginPath();
-      ctx.ellipse(W * 0.25, groundY + 40, 160, 50, 0, 0, Math.PI * 2);
-      ctx.ellipse(W * 0.85, groundY + 50, 150, 55, 0, 0, Math.PI * 2);
+      oval(ctx, W * 0.25, groundY + 40, 160, 50);
+      oval(ctx, W * 0.85, groundY + 50, 150, 55);
       ctx.fill();
       ctx.fillStyle = '#7ccf8a';
       ctx.fillRect(0, groundY + 30, W, 200);
@@ -509,7 +509,7 @@ export function Hopper({ best, onEnd }: GameProps) {
       ctx.fill();
       ctx.fillStyle = 'rgba(255,255,255,0.6)';
       ctx.beginPath();
-      ctx.ellipse(st.x - 6, by - 6, 3, 4, -0.5, 0, Math.PI * 2);
+      oval(ctx, st.x - 6, by - 6, 3, 4, -0.5);
       ctx.fill();
     }
     drawHero(ctx, st, st.y - st.cam);

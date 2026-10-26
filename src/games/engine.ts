@@ -298,6 +298,12 @@ export function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w
   ctx.fill();
 }
 
+/** Ganze Ellipse als eigener Teilpfad – mehrere hintereinander verbinden sich so nicht zu Keilen. */
+export function oval(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number, rot = 0) {
+  ctx.moveTo(x + rx * Math.cos(rot), y + rx * Math.sin(rot));
+  ctx.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2);
+}
+
 /** Herzform als Pfad (Mitte x/y, Größe r) – füllen oder umranden macht der Aufrufer. */
 export function heartPath(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
   ctx.beginPath();
