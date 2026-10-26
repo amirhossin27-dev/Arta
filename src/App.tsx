@@ -8,6 +8,7 @@ import { ArcadeInvite } from './games/Invite';
 import { LoveLayer } from './components/LoveLayer';
 import { CheerSheet, CoupleSheet, SettingsSheet, SyncSheet } from './components/sheets';
 import { HealthSheet } from './components/healthSetup';
+import { GesundSheet, useRoutineReminders } from './components/routines';
 import { StepsSheet, useStepMoments } from './components/steps';
 import { dailyLove } from './lib/daily';
 import { todayKey } from './lib/date';
@@ -160,6 +161,7 @@ export default function App() {
   const liveStatus = useLiveStatus();
   useLoveMoments(device.onboarded);
   useStepMoments(device.onboarded);
+  useRoutineReminders(device.onboarded);
   useOpenFromNotification();
 
   useEffect(() => {
@@ -241,6 +243,7 @@ export default function App() {
       {sheet?.type === 'couple' && <CoupleSheet onClose={close} />}
       {sheet?.type === 'steps' && <StepsSheet date={sheet.date} onClose={close} />}
       {sheet?.type === 'health' && <HealthSheet onClose={close} />}
+      {sheet?.type === 'gesund' && <GesundSheet view={sheet.view} onClose={close} />}
       {sheet?.type === 'game' && <GameScreen key={`${sheet.id}-${sheet.join ?? ''}`} id={sheet.id} join={sheet.join} onClose={close} />}
       {live && <ArcadeInvite />}
 

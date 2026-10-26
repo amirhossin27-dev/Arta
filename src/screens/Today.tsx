@@ -2,6 +2,7 @@ import type { MouseEvent } from 'react';
 import { MEAL_LABEL } from '../data/recipes';
 import { MOODS } from '../data/messages';
 import { PlanRow } from '../components/exercise';
+import { HealthCard } from '../components/routines';
 import { PersonSteps } from '../components/steps';
 import { Bar, ProgressRing } from '../components/ui';
 import { dailyLove, dailyQuestion } from '../lib/daily';
@@ -237,6 +238,8 @@ export function Today() {
           })
         )}
       </div>
+
+      <HealthCard />
 
       <div className="card">
         <h2>Wie fühlst du dich heute?</h2>

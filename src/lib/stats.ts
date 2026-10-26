@@ -2,6 +2,7 @@ import { EXERCISE_BY_ID } from '../data/exercises';
 import { LEVELS } from '../data/messages';
 import { addDays, startOfWeek } from './date';
 import { exerciseKcal, ZERO, type Nutrition } from './nutrition';
+import { ROUTINE_DAY_POINTS } from './routines';
 import { STEP_GOAL_POINTS } from './steps';
 import type { AppData, LoveNote, MealEntry, PersonId, PlanItem, Rec, Slot } from './types';
 
@@ -117,6 +118,7 @@ export function points(d: AppData): number {
   }
   for (const count of mealDays.values()) if (count >= 3) pts += 5;
   for (const s of alive(d.steps)) if (s.goal > 0 && s.count >= s.goal) pts += STEP_GOAL_POINTS;
+  for (const r of alive(d.routineDays)) if (r.total > 0 && r.done.length >= r.total) pts += ROUTINE_DAY_POINTS;
   return pts;
 }
 
