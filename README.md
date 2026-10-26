@@ -75,7 +75,7 @@ Ein grüner Punkt am 🔄 zeigt, dass die Live-Verbindung steht. Wer offline ist
 
 > 📱 **iPhone-Tipp:** Ist Arta auf dem Home-Bildschirm installiert, öffnet iOS Links in Safari statt in der App. Dann einfach die ganze Nachricht kopieren und in Arta unter 🔄 → „Stand übernehmen“ einfügen.
 
-Ihr habt nur ein gemeinsames Gerät? Tippt oben auf eure beiden Symbole, um zu wechseln, wer gerade dran ist.
+**Jeder steuert nur sich selbst:** Jedes Handy gehört fest einer Person – wer man ist, legt Arta beim Einrichten bzw. beim Öffnen des Einladungslinks fest. Einen Wechsel zwischen euch gibt es nicht, und das Profil des anderen (Name, Symbol, Gewicht, kcal-Ziel) könnt ihr nur ansehen. Tippt ihr oben auf eure beiden Symbole, zeigt Arta, wer auf diesem Handy angemeldet ist.
 
 ### Live-Datenbank einrichten (einmalig, schon erledigt)
 

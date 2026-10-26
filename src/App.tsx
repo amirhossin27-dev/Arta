@@ -6,7 +6,7 @@ import { ExerciseSheet } from './components/exercise';
 import { GameScreen } from './games/GameScreen';
 import { ArcadeInvite } from './games/Invite';
 import { LoveLayer } from './components/LoveLayer';
-import { CheerSheet, SettingsSheet, SyncSheet, WhoSheet } from './components/sheets';
+import { CheerSheet, CoupleSheet, SettingsSheet, SyncSheet } from './components/sheets';
 import { dailyLove } from './lib/daily';
 import { todayKey } from './lib/date';
 import { cls, usePeople } from './lib/hooks';
@@ -170,7 +170,7 @@ export default function App() {
           <span className="brand-heart">❤</span> Arta
         </button>
         <div className="topbar-actions">
-          <button className="couple-chip" onClick={() => nav.open({ type: 'who' })} aria-label="Wer nutzt Arta gerade?">
+          <button className="couple-chip" onClick={() => nav.open({ type: 'couple' })} aria-label={`Wir zwei: du bist ${me.name}`}>
             <span className="avatar sm active">{me.emoji}</span>
             <span className="couple-chip-heart">♥</span>
             <span className="avatar sm">{partner.emoji}</span>
@@ -211,7 +211,7 @@ export default function App() {
       {sheet?.type === 'sync' && <SyncSheet code={sheet.code} onClose={close} />}
       {sheet?.type === 'settings' && <SettingsSheet onClose={close} />}
       {sheet?.type === 'cheer' && <CheerSheet onClose={close} />}
-      {sheet?.type === 'who' && <WhoSheet onClose={close} />}
+      {sheet?.type === 'couple' && <CoupleSheet onClose={close} />}
       {sheet?.type === 'game' && <GameScreen key={`${sheet.id}-${sheet.join ?? ''}`} id={sheet.id} join={sheet.join} onClose={close} />}
       {live && <ArcadeInvite />}
 

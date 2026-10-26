@@ -14,7 +14,7 @@ export type SheetState =
   | { type: 'sync'; code?: string }
   | { type: 'settings' }
   | { type: 'cheer' }
-  | { type: 'who' }
+  | { type: 'couple' }
   | { type: 'game'; id: GameId; join?: string };
 
 interface UIState {

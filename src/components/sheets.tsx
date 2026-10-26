@@ -8,7 +8,7 @@ import { ACTIVITY_LABEL, suggestKcalGoal, type Activity, type Sex } from '../lib
 import { actions, getData, normalizeData, useData, useDevice, commitData } from '../lib/store';
 import { mergeData } from '../lib/sync';
 import { applySync, createShareText, joinWith, summarize, type ApplyResult } from '../lib/syncFlow';
-import { other, type Person, type PersonId, type PopupFreq } from '../lib/types';
+import { other, type Person, type PopupFreq } from '../lib/types';
 import { nav } from '../lib/ui';
 import { Segmented, Sheet } from './ui';
 
@@ -271,30 +271,43 @@ export function CheerSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ───────────────────────── Wer bist du? ─────────────────────────
+// ───────────────────────── Wir zwei ─────────────────────────
 
-export function WhoSheet({ onClose }: { onClose: () => void }) {
-  const data = useData();
+/** Wer ist wer? Jedes Handy gehört fest einer Person – hier wird nur angezeigt, nicht gewechselt. */
+export function CoupleSheet({ onClose }: { onClose: () => void }) {
   const device = useDevice();
-  const choose = (id: PersonId) => {
-    if (id !== device.me) {
-      actions.setMe(id);
-      showLove({ emoji: data.persons[id].emoji, title: `Hallo ${data.persons[id].name}!`, text: 'Jetzt bist du dran. 💞', tone: 'love' });
-    }
+  const { me, partner } = usePeople();
+  const linked = !!device.live?.linkedAt || !!device.lastSyncAt;
+  const go = (sheet: 'settings' | 'sync') => {
     onClose();
+    nav.open({ type: sheet });
   };
   return (
-    <Sheet title="Wer nutzt Arta gerade?" onClose={onClose}>
+    <Sheet title="💑 Wir zwei" onClose={onClose}>
       <div className="who-grid">
-        {(['a', 'b'] as const).map((id) => (
-          <button key={id} className={cls('who-btn', device.me === id && 'active')} onClick={() => choose(id)}>
-            <span className="avatar huge">{data.persons[id].emoji}</span>
-            <b>{data.persons[id].name}</b>
-            {device.me === id && <span className="muted small">aktiv</span>}
-          </button>
-        ))}
+        <div className="who-btn active">
+          <span className="avatar huge">{me.emoji}</span>
+          <b>{me.name}</b>
+          <span className="muted small">Das bist du</span>
+        </div>
+        <div className="who-btn">
+          <span className="avatar huge">{partner.emoji}</span>
+          <b>{partner.name}</b>
+          <span className="muted small">auf dem eigenen Handy</span>
+        </div>
       </div>
-      <p className="hint">Nutzt ihr ein gemeinsames Gerät, könnt ihr hier wechseln. Habt ihr zwei Handys, bleibt jeder einfach bei sich und ihr synchronisiert über 🔄.</p>
+      <p className="hint">
+        Dieses Handy gehört dir. Jeder steuert in Arta nur sich selbst – {partner.name} plant und trägt auf dem eigenen Handy ein, und du siehst es hier über den Paar-Sync.
+        {!linked && ` Schick ${partner.name} dafür über 🔄 einmal einen Link.`}
+      </p>
+      <div className="btn-row">
+        <button className="btn soft" onClick={() => go('settings')}>
+          ⚙️ Mein Profil
+        </button>
+        <button className="btn soft" onClick={() => go('sync')}>
+          🔄 Paar-Sync
+        </button>
+      </div>
     </Sheet>
   );
 }
@@ -429,9 +442,28 @@ function PersonSettings({ person }: { person: Person }) {
   );
 }
 
+/** Das Profil des Partners nur ansehen – ändern kann es jeder nur auf dem eigenen Handy. */
+function PartnerProfile({ person }: { person: Person }) {
+  return (
+    <div className="inset person-settings partner-profile">
+      <div className="person-settings-head">
+        <span className="avatar huge">{person.emoji}</span>
+        <div className="grow">
+          <b>{person.name}</b>
+          <p className="muted small">
+            {String(person.weightKg).replace('.', ',')} kg · {person.kcalGoal} kcal-Ziel / Tag
+          </p>
+        </div>
+      </div>
+      <p className="hint">🔒 Name, Symbol und Ziele ändert {person.name} selbst auf dem eigenen Handy.</p>
+    </div>
+  );
+}
+
 export function SettingsSheet({ onClose }: { onClose: () => void }) {
   const data = useData();
   const device = useDevice();
+  const { me, partner } = usePeople();
   const [confirmReset, setConfirmReset] = useState(false);
   const [importMsg, setImportMsg] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -460,9 +492,10 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <Sheet title="⚙️ Einstellungen" onClose={onClose}>
-      <h3>💑 Wir zwei</h3>
-      <PersonSettings person={data.persons[device.me]} />
-      <PersonSettings person={data.persons[other(device.me)]} />
+      <h3>🙋 Mein Profil</h3>
+      <PersonSettings person={me} />
+      <h3>💞 {partner.name}</h3>
+      <PartnerProfile person={partner} />
 
       <h3>📅 Unser Paar</h3>
       <div className="inset">
@@ -494,13 +527,9 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
 
       <h3>📱 Dieses Handy</h3>
       <div className="inset">
-        <p className="muted small">Wer nutzt dieses Gerät?</p>
-        <Segmented
-          value={device.me}
-          onChange={(v: PersonId) => actions.setMe(v)}
-          small
-          options={(['a', 'b'] as const).map((id) => [id, `${data.persons[id].emoji} ${data.persons[id].name}`])}
-        />
+        <p className="muted small">
+          Dieses Handy gehört <b>{me.emoji} {me.name}</b>. Jeder steuert nur sich selbst – {partner.name} nutzt Arta auf dem eigenen Handy, der Paar-Sync bringt euch zusammen.
+        </p>
         <button
           className="btn soft block"
           onClick={() => {
