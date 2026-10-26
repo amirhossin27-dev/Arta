@@ -12,6 +12,6 @@ export const LIVE_DB_URL: string = ((import.meta.env.VITE_ARTA_DB_URL as string 
  * Mitteilungen auch an, wenn Arta auf dem anderen Handy ganz geschlossen ist.
  * Leer = Mitteilungen nur, solange die App läuft. Überschreibbar mit VITE_ARTA_PUSH_URL.
  */
-const DEFAULT_PUSH_URL = '';
+const DEFAULT_PUSH_URL = 'https://arta-push.pk5g9j9v7s.workers.dev/';
 
 export const PUSH_RELAY_URL: string = ((import.meta.env.VITE_ARTA_PUSH_URL as string | undefined) ?? DEFAULT_PUSH_URL).replace(/\/+$/, '');
