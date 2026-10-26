@@ -288,7 +288,7 @@ function HealthLink({ date }: { date: string }) {
     <div className="inset">
       <h3>🍎 Automatisch aus Apple Health</h3>
       {health?.broken ? (
-        <p className="muted small">⚠️ Dein Kurzbefehl schickt keine Schrittzahl mit – schau in die Anleitung, Schritt 3.</p>
+        <p className="muted small">⚠️ Dein Kurzbefehl schickt keine Schrittzahl mit – schau in die Anleitung, Schritt 4.</p>
       ) : health ? (
         <p className="muted small">
           ✅ Verbunden – zuletzt {formatSteps(health.count)} Schritte ({relativeDay(health.date)}, {formatTime(health.at)} Uhr).

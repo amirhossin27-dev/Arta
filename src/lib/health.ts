@@ -13,6 +13,8 @@ import type { PersonId } from './types';
  *
  *   { "v": 1, "at": {".sv": "timestamp"}, "iv": "health", "ct": "8432" }
  *
+ * Der Kurzbefehl baut das mit „Haupttext anfordern: JSON“ selbst zusammen (Anleitung in
+ * components/healthSetup.tsx) – eine von Hand getippte Text-Vorlage scheitert an Kleinigkeiten.
  * `at` setzt die Datenbank selbst (Serverzeit) – daraus ergibt sich der Tag.
  */
 export const HEALTH_PREFIX = 'health-';
@@ -28,17 +30,11 @@ export interface HealthSteps {
 
 export const isHealth = (name: string) => name.startsWith(HEALTH_PREFIX);
 
-/** Vorlage für den Anfragetext im Kurzbefehl; SCHRITTE wird durch die Health-Variable ersetzt. */
-export const HEALTH_BODY = '{"v":1,"at":{".sv":"timestamp"},"iv":"health","ct":"SCHRITTE"}';
-
-/**
- * Liest die Schrittzahl aus dem, was der Kurzbefehl in den Text setzt –
- * je nach iPhone-Sprache z. B. „8432“, „8.432“, „8,432“, „8432 Schritte“ oder „8432,0“.
- */
-export function parseStepText(text: string): number | undefined {
-  const m = text.match(/\d[\d.,'   ]*/);
+/** Liest eine Zahl wie „8432“, „8.432“, „8,432“, „8432 Schritte“ oder „8432,0“. */
+function parseNumber(text: string): number | undefined {
+  const m = text.match(/\d[\d.,'\u00a0\u202f ]*/);
   if (!m) return undefined;
-  let token = m[0].replace(/[\s'  ]/g, '').replace(/[.,]+$/, '');
+  let token = m[0].replace(/[\s'\u00a0\u202f]/g, '').replace(/[.,]+$/, '');
   if (token.includes('.') && token.includes(',')) {
     // „1.234,5“ oder „1,234.5“: Das letzte Trennzeichen steht vor den Nachkommastellen.
     const dec = token.lastIndexOf(',') > token.lastIndexOf('.') ? ',' : '.';
@@ -49,7 +45,22 @@ export function parseStepText(text: string): number | undefined {
     token = token.replace(',', '.');
   }
   const n = Number(token);
-  return Number.isFinite(n) && n >= 0 && n <= 200_000 ? Math.round(n) : undefined;
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
+
+/**
+ * Liest die Schrittzahl aus dem, was der Kurzbefehl schickt – je nach iPhone-Sprache z. B.
+ * „8432“, „8.432“ oder „8432 Schritte“. Kommen mehrere Messungen (eine pro Zeile, wenn im
+ * Kurzbefehl nicht nach Tag gruppiert ist), werden sie zusammengezählt.
+ */
+export function parseStepText(text: string): number | undefined {
+  const values = text
+    .split(/[\r\n]+/)
+    .map(parseNumber)
+    .filter((n): n is number => n !== undefined);
+  if (!values.length) return undefined;
+  const sum = Math.round(values.reduce((a, b) => a + b, 0));
+  return sum <= 200_000 ? sum : undefined;
 }
 
 export function parseHealthNode(node: unknown): HealthSteps | undefined {
