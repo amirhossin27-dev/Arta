@@ -29,6 +29,19 @@ export interface Person extends Rec {
   /** Tägliches Schrittziel. */
   stepGoal: number;
   favorites: string[];
+  /** Tägliche Gesundheits-Routinen (z. B. Vitamin D, Schwarzkümmelöl) – pflegt nur das eigene Handy. */
+  routines?: Routine[];
+}
+
+/** Eine tägliche Gesundheits-Routine. Die ID ist die der Vorlage oder eine zufällige. */
+export interface Routine {
+  id: string;
+  emoji: string;
+  name: string;
+  /** Uhrzeit (HH:MM) – ordnet die Routine dem Tag zu und ist der Zeitpunkt der Erinnerung. */
+  time: string;
+  /** Zur Uhrzeit erinnern (Einblendung bzw. Mitteilung). */
+  remind: boolean;
 }
 
 /** Grundeinstellungen für den Periodenkalender: wessen Zyklus und die üblichen Längen. */
@@ -162,6 +175,17 @@ export interface StepDay extends Rec {
   goal: number;
 }
 
+/**
+ * Abgehakte Routinen einer Person an einem Tag (ID `${date}-${personId}`), nur das eigene Handy
+ * schreibt sie. `total` hält fest, wie viele Routinen es an dem Tag gab.
+ */
+export interface RoutineDay extends Rec {
+  date: string;
+  personId: PersonId;
+  done: string[];
+  total: number;
+}
+
 export interface AppData {
   v: 1;
   persons: Record<PersonId, Person>;
@@ -177,6 +201,7 @@ export interface AppData {
   periods: Record<string, Period>;
   cycleDays: Record<string, CycleDay>;
   steps: Record<string, StepDay>;
+  routineDays: Record<string, RoutineDay>;
 }
 
 export type CollectionKey =
@@ -190,10 +215,11 @@ export type CollectionKey =
   | 'games'
   | 'periods'
   | 'cycleDays'
-  | 'steps';
+  | 'steps'
+  | 'routineDays';
 export type RecOf<K extends CollectionKey> = AppData[K][string];
 
-export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts', 'games', 'periods', 'cycleDays', 'steps'];
+export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts', 'games', 'periods', 'cycleDays', 'steps', 'routineDays'];
 
 export type PopupFreq = 'oft' | 'normal' | 'selten' | 'aus';
 
