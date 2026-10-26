@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as RMouseEvent, type PointerEvent as RPointerEvent } from 'react';
 import { cls } from '../lib/hooks';
-import { buzz, hum, sfx, tone, useLoop } from './engine';
+import { buzz, hum, sfx, tone, useLoop, useTouchLock } from './engine';
 import {
   COUNTDOWN,
   ITEM_EMOJI,
@@ -403,38 +403,7 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
 
   // Kein Markieren, keine Lupe, kein Kopieren-Menü: Ein langer Finger auf dem Bildschirm heißt hier Lenken.
   const root = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = root.current;
-    if (!el) return;
-    const html = document.documentElement;
-    html.classList.add('kart-lock');
-    const block = (e: Event) => {
-      if (e.target instanceof Element && e.target.closest('button')) return;
-      if (e.cancelable) e.preventDefault();
-    };
-    const unselect = () => {
-      const sel = document.getSelection();
-      if (sel && !sel.isCollapsed) sel.removeAllRanges();
-    };
-    const opts = { passive: false } as const;
-    el.addEventListener('touchstart', block, opts);
-    el.addEventListener('touchmove', block, opts);
-    el.addEventListener('contextmenu', block);
-    el.addEventListener('selectstart', block);
-    el.addEventListener('dragstart', block);
-    document.addEventListener('gesturestart', block, opts);
-    document.addEventListener('selectionchange', unselect);
-    return () => {
-      html.classList.remove('kart-lock');
-      el.removeEventListener('touchstart', block);
-      el.removeEventListener('touchmove', block);
-      el.removeEventListener('contextmenu', block);
-      el.removeEventListener('selectstart', block);
-      el.removeEventListener('dragstart', block);
-      document.removeEventListener('gesturestart', block);
-      document.removeEventListener('selectionchange', unselect);
-    };
-  }, []);
+  useTouchLock(root);
 
   // Tastatur: ←/→ lenken, ↑ oder Leertaste für das Item – zu zweit oben mit A/D und W.
   useEffect(() => {
