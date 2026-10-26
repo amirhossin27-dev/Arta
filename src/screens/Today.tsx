@@ -2,6 +2,7 @@ import type { MouseEvent } from 'react';
 import { MEAL_LABEL } from '../data/recipes';
 import { MOODS } from '../data/messages';
 import { PlanRow } from '../components/exercise';
+import { PersonSteps } from '../components/steps';
 import { Bar, ProgressRing } from '../components/ui';
 import { dailyLove, dailyQuestion } from '../lib/daily';
 import { diffDays, formatLong, greeting } from '../lib/date';
@@ -78,6 +79,7 @@ function PersonDay({ person, isMe, date }: { person: Person; isMe: boolean; date
         </div>
         <Bar value={eaten} max={person.kcalGoal + burned} className="food" />
       </div>
+      <PersonSteps person={person} isMe={isMe} date={date} />
       {!isMe && (
         <div className="btn-row tight">
           <button className="btn soft small" onClick={() => nav.open({ type: 'cheer' })}>

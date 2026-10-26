@@ -26,6 +26,8 @@ export interface Person extends Rec {
   emoji: string;
   weightKg: number;
   kcalGoal: number;
+  /** Tägliches Schrittziel. */
+  stepGoal: number;
   favorites: string[];
 }
 
@@ -145,6 +147,18 @@ export interface CycleDay extends Rec {
   note?: string;
 }
 
+/**
+ * Schritte einer Person an einem Tag (ID `${date}-${personId}`). Nur das eigene Handy schreibt
+ * diese Zeile – gezählt mit dem Bewegungssensor oder von Hand aus der Health-App übernommen.
+ */
+export interface StepDay extends Rec {
+  date: string;
+  personId: PersonId;
+  count: number;
+  /** Schrittziel an diesem Tag – spätere Zieländerungen schreiben die Vergangenheit nicht um. */
+  goal: number;
+}
+
 export interface AppData {
   v: 1;
   persons: Record<PersonId, Person>;
@@ -159,12 +173,24 @@ export interface AppData {
   games: Record<string, GameStat>;
   periods: Record<string, Period>;
   cycleDays: Record<string, CycleDay>;
+  steps: Record<string, StepDay>;
 }
 
-export type CollectionKey = 'plan' | 'meals' | 'shopping' | 'notes' | 'coupons' | 'moods' | 'hearts' | 'games' | 'periods' | 'cycleDays';
+export type CollectionKey =
+  | 'plan'
+  | 'meals'
+  | 'shopping'
+  | 'notes'
+  | 'coupons'
+  | 'moods'
+  | 'hearts'
+  | 'games'
+  | 'periods'
+  | 'cycleDays'
+  | 'steps';
 export type RecOf<K extends CollectionKey> = AppData[K][string];
 
-export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts', 'games', 'periods', 'cycleDays'];
+export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts', 'games', 'periods', 'cycleDays', 'steps'];
 
 export type PopupFreq = 'oft' | 'normal' | 'selten' | 'aus';
 
