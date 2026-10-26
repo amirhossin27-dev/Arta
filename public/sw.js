@@ -1,4 +1,4 @@
-// Arta Service Worker: App-Shell offline verfügbar machen.
+// Arta Service Worker: App-Shell offline verfügbar machen und Mitteilungen anzeigen.
 const CACHE = 'arta-v1';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png'];
 
@@ -47,5 +47,54 @@ self.addEventListener('fetch', (event) => {
         .catch(() => cached);
       return cached || network;
     }),
+  );
+});
+
+// ───── Mitteilungen ─────
+
+// Safari zeigt Push-Nachrichten nur zuverlässig, wenn jede auch als Mitteilung erscheint.
+const APPLE = /iPhone|iPad|iPod|Macintosh/.test(self.navigator.userAgent) && !/Chrome|Chromium|Android|Firefox/.test(self.navigator.userAgent);
+
+// Eine Mitteilung vom Handy des Schatzes (verschlüsselt verschickt, der Browser hat sie schon entschlüsselt).
+self.addEventListener('push', (event) => {
+  let msg = {};
+  try {
+    msg = event.data ? event.data.json() : {};
+  } catch {
+    msg = { body: event.data ? event.data.text() : '' };
+  }
+  event.waitUntil(showMessage(msg));
+});
+
+async function showMessage(msg) {
+  const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  // Ist Arta gerade offen, erscheint die Nachricht dort als Einblendung – keine doppelte Meldung.
+  if (!APPLE && windows.some((w) => w.visibilityState === 'visible')) return;
+  await self.registration.showNotification(msg.title || 'Arta 💞', {
+    body: msg.body || 'Es gibt etwas Neues von deinem Schatz.',
+    tag: msg.tag || 'arta',
+    renotify: true,
+    icon: 'icons/icon-192.png',
+    badge: 'icons/badge-96.png',
+    vibrate: [80, 50, 80],
+    data: { tab: msg.tab },
+  });
+}
+
+// Antippen: Arta öffnen (oder nach vorne holen) und gleich den passenden Bereich zeigen.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const tab = event.notification.data && event.notification.data.tab;
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const win = windows.find((w) => w.visibilityState === 'visible') || windows[0];
+      if (win) {
+        await win.focus();
+        if (tab) win.postMessage({ arta: 'open', tab });
+        return;
+      }
+      await self.clients.openWindow(tab ? `./#tab=${tab}` : './');
+    })(),
   );
 });

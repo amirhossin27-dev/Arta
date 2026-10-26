@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { todayKey } from './date';
 import { useData, useDevice } from './store';
 import { other } from './types';
@@ -24,6 +24,16 @@ export function useToday(): string {
     };
   }, []);
   return today;
+}
+
+const subscribeVisibility = (fn: () => void) => {
+  document.addEventListener('visibilitychange', fn);
+  return () => document.removeEventListener('visibilitychange', fn);
+};
+
+/** Ist die App gerade zu sehen (nicht im Hintergrund)? */
+export function useVisible(): boolean {
+  return useSyncExternalStore(subscribeVisibility, () => document.visibilityState !== 'hidden');
 }
 
 export function cls(...parts: (string | false | null | undefined)[]): string {

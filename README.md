@@ -59,6 +59,13 @@ Sie läuft als **Web-App im Browser** und lässt sich wie eine normale App auf d
 **✨ Liebes-Einblendungen**
 Kleine Pop-ups, Herzchen und Konfetti: beim Öffnen, nach jedem Workout, wenn der Tagesplan geschafft ist und zwischendurch. Wie oft das passiert, stellt ihr in den Einstellungen ein.
 
+**🔔 Mitteilungen aufs Handy**
+- Schickt dir dein Schatz eine Botschaft, eine Anfeuerung, Herzen, einen Gutschein oder eine Spiel-Einladung, meldet sich dein Handy mit einer Mitteilung – Antippen öffnet gleich den passenden Bereich
+- Überraschungs-Botschaften werden nicht verraten, die tauchen weiter zufällig in der App auf
+- Arta fragt einmal unter „Liebe“, ob sie Bescheid geben darf; ein- und ausschalten in den ⚙️ Einstellungen unter „🔔 Mitteilungen“ (pro Handy), dort gibt es auch eine Probe-Mitteilung
+- Ohne weitere Einrichtung kommen Mitteilungen, solange Arta läuft – auch im Hintergrund, bis das Handy die App schlafen legt. Damit sie auch bei **ganz geschlossener App** ankommen, braucht es einmalig den kostenlosen Push-Relay (siehe unten)
+- iPhone: Mitteilungen gehen nur, wenn Arta auf dem Home-Bildschirm liegt (ab iOS 16.4)
+
 ## So verbindet ihr eure zwei Handys
 
 Einmal per Link verbinden, danach synchronisiert Arta **automatisch in Echtzeit** (Live-Sync ⚡):
@@ -84,6 +91,10 @@ Arta nutzt die kostenlose [Firebase Realtime Database](https://firebase.google.c
 1. In der [Firebase-Konsole](https://console.firebase.google.com) ein Projekt anlegen, dann **Realtime Database → Datenbank erstellen** (Standort z. B. Belgien, „gesperrter Modus“).
 2. Im Reiter **Regeln** den Inhalt von [`database.rules.json`](database.rules.json) einfügen und veröffentlichen. Die Regeln erlauben nur das Lesen und Schreiben einzelner Räume mit gültiger Raum-ID, keine Übersicht über alle Räume.
 3. Die Adresse der Datenbank in `src/lib/liveConfig.ts` eintragen (oder beim Bauen per `VITE_ARTA_DB_URL` setzen). Ohne Adresse fällt Arta automatisch auf den Link-Sync zurück.
+
+### Mitteilungen bei geschlossener App (Push-Relay)
+
+Google, Apple & Co. nehmen Push-Nachrichten nicht direkt aus dem Browser an. Deshalb gibt es in [`push-relay/`](push-relay/) einen winzigen **Cloudflare Worker** (kostenlos, keine Kreditkarte), der die Mitteilungen nur weiterreicht. Die Nachricht ist dabei schon auf dem sendenden Handy für das Empfänger-Handy verschlüsselt – der Worker speichert nichts und kann nichts lesen. Die Anleitung (ca. 5 Minuten) steht in [`push-relay/README.md`](push-relay/README.md); danach die Adresse des Workers in `src/lib/liveConfig.ts` bei `DEFAULT_PUSH_URL` eintragen (oder beim Bauen per `VITE_ARTA_PUSH_URL` setzen).
 
 ## Starten
 
@@ -121,7 +132,8 @@ Weitere Befehle:
 - Speicherung im Browser (`localStorage`), Offline-Unterstützung über einen Service Worker
 - Sync: Datenstand wird komprimiert (`deflate`) und per „last-writer-wins“ zusammengeführt – live über Firebase (REST + Server-Sent Events, AES-GCM-verschlüsselt, `src/lib/live.ts`) oder als Link
 - Online-Spiele: Jedes Handy schreibt einen eigenen verschlüsselten Kanal (`arcade-a` / `arcade-b`) in denselben Live-Raum, der Gastgeber führt den Spielstand (`src/games/online.ts`, Zug-Engine in `src/games/turn.ts`) – dafür sind keine neuen Datenbank-Regeln nötig. Herz-Kart läuft in Echtzeit: Jedes Handy rechnet nur das eigene Kart und schickt es etwa neunmal pro Sekunde mit, das andere wird dazwischen weitergerechnet (`src/games/kart.ts`). Die Grafik (`src/games/kartGfx.ts`) rechnet den Boden im Mode-7-Verfahren auf der Grafikkarte (WebGL, mit Software-Ersatz) und malt Karts, Bäume und Item-Boxen als übereinandergelegte Schichten; ruckelt ein Handy, wird das Bild automatisch etwas gröber gerechnet
-- Keine Tracker, kein Firebase-SDK; außer der verschlüsselten Live-Datenbank keine externen Dienste
+- Mitteilungen (`src/lib/notify.ts`): Jedes Handy legt sein Push-Abo verschlüsselt als `push-<Geräte-ID>` in den Live-Raum. Das sendende Handy verschlüsselt die Mitteilung selbst nach RFC 8291 und unterschreibt per VAPID (`src/lib/webpush.ts`, nur WebCrypto), der Service Worker zeigt sie an. Ohne Push-Relay zeigt die laufende App die Mitteilung selbst, die Live-Verbindung bleibt dafür im Hintergrund offen
+- Keine Tracker, kein Firebase-SDK; außer der verschlüsselten Live-Datenbank und dem optionalen Push-Relay keine externen Dienste
 
 ```
 src/

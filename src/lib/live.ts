@@ -121,7 +121,8 @@ export async function leaveRoom() {
   actions.setLive(undefined);
   try {
     const { id } = await deriveRoom(room.secret);
-    await fetch(nodeUrl(id, getDevice().deviceId), { method: 'DELETE' });
+    const device = getDevice().deviceId;
+    await Promise.all([fetch(nodeUrl(id, device), { method: 'DELETE' }), fetch(nodeUrl(id, `${PUSH_PREFIX}${device}`), { method: 'DELETE' })]);
   } catch {
     // offline – der alte Stand bleibt einfach liegen
   }
@@ -165,6 +166,9 @@ const subscribeStatus = (fn: () => void) => {
 };
 
 export const getLiveStatus = () => status;
+
+/** Für Module außerhalb von React (z. B. die Mitteilungen). */
+export const onLiveStatus = subscribeStatus;
 
 export function useLiveStatus(): LiveStatus {
   return useSyncExternalStore(subscribeStatus, getLiveStatus, getLiveStatus);
@@ -226,6 +230,8 @@ interface Session {
   pushRetries: number;
   pushing: boolean;
   pushAgain: boolean;
+  /** Seit wann die App im Hintergrund ist (nur wenn die Verbindung dabei offen bleibt). */
+  hiddenAt?: number;
   /** Erster Upload nach dem Start: immer senden, damit der Partner sieht, dass wir da sind. */
   greeted: boolean;
   lastPushed?: string;
@@ -351,6 +357,8 @@ let announced: { name: string; stats: MergeStats; hearts: number } | null = null
 let announceTimer: number | undefined;
 
 function announce(name: string, stats: MergeStats, hearts: number) {
+  // Im Hintergrund sieht niemand die Einblendung – also bis zur Rückkehr in die App aufheben.
+  if (document.visibilityState === 'hidden') return whenVisible(() => announce(name, stats, hearts));
   if (hearts) heartBurst(undefined, '❤️', Math.min(hearts * 4, 20));
   const acc = announced ?? { name, hearts: 0, stats: { changed: 0, newNotes: 0, newSurprises: 0, newCoupons: 0, newShopping: 0, newPlan: 0 } };
   for (const k of Object.keys(acc.stats) as (keyof MergeStats)[]) acc.stats[k] += stats[k];
@@ -363,6 +371,15 @@ function announce(name: string, stats: MergeStats, hearts: number) {
     const text = liveSummary(acc.stats);
     if (text) showLove({ emoji: '⚡', title: `Neu von ${acc.name}`, text, tone: 'love' });
   }, 2500);
+}
+
+function whenVisible(fn: () => void) {
+  const on = () => {
+    if (document.visibilityState === 'hidden') return;
+    document.removeEventListener('visibilitychange', on);
+    fn();
+  };
+  document.addEventListener('visibilitychange', on);
 }
 
 /** Wie `summarize`, aber ohne Botschaften – die erscheinen ohnehin als eigene Einblendung. */
@@ -383,7 +400,9 @@ export function liveSummary(stats: MergeStats): string {
  * Jeder Kanal hat genau einen Schreiber, deshalb reicht „neuester Zeitstempel gewinnt“.
  */
 export const CHANNEL_PREFIX = 'arcade-';
-const isChannel = (name: string) => name.startsWith(CHANNEL_PREFIX);
+/** Push-Abo eines Handys (`push-<Geräte-ID>`), damit das andere Handy ihm Mitteilungen schicken kann. */
+export const PUSH_PREFIX = 'push-';
+const isChannel = (name: string) => name.startsWith(CHANNEL_PREFIX) || name.startsWith(PUSH_PREFIX);
 
 const channels = new Map<string, { value: unknown; at: number }>();
 const channelListeners = new Set<() => void>();
@@ -439,6 +458,11 @@ export function channelValue(name: string): unknown {
   return channels.get(name)?.value;
 }
 
+/** Alle Kanäle, deren Name mit `prefix` beginnt. */
+export function listChannels(prefix: string): [string, unknown][] {
+  return [...channels].filter(([name]) => name.startsWith(prefix)).map(([name, c]) => [name, c.value]);
+}
+
 /** Hat der Raum schon geantwortet? Vorher wissen wir nicht, was in den Kanälen steht. */
 export const channelsLoaded = () => status.state === 'online';
 
@@ -455,6 +479,20 @@ export function sendChannel(name: string, value: unknown): boolean {
   channelRetry.delete(name);
   void uploadChannel(s, name, value, at, 0);
   return true;
+}
+
+/** Eigenen Kanal aus dem Raum entfernen (z. B. wenn Mitteilungen ausgeschaltet werden). */
+export function deleteChannel(name: string) {
+  const s = session;
+  if (!s || s.closed || !isChannel(name)) return;
+  window.clearTimeout(channelRetry.get(name));
+  channelRetry.delete(name);
+  if (channels.has(name)) setChannel(name, undefined, 0);
+  void s.keysReady
+    .then((keys) => fetch(nodeUrl(keys.id, name), { method: 'DELETE' }))
+    .catch(() => {
+      // offline – der alte Eintrag bleibt liegen und wird beim nächsten Mal überschrieben
+    });
 }
 
 async function uploadChannel(s: Session, name: string, value: unknown, at: number, tries: number) {
@@ -590,6 +628,18 @@ function onStoreChange() {
 }
 
 let started = false;
+let keepAliveHidden: () => boolean = () => false;
+
+/**
+ * Soll die Verbindung offen bleiben, wenn die App in den Hintergrund geht? So kommen Botschaften
+ * als Mitteilung an, solange das Handy die App noch nicht schlafen gelegt hat.
+ */
+export function setKeepAliveHidden(fn: () => boolean) {
+  keepAliveHidden = fn;
+}
+
+/** Nach so langer Zeit im Hintergrund trauen wir einer offen gebliebenen Verbindung nicht mehr. */
+const STALE_AFTER = 20_000;
 
 /** Einmal beim App-Start aufrufen. */
 export function startLive() {
@@ -601,10 +651,14 @@ export function startLive() {
     const s = session;
     if (!s) return;
     if (document.visibilityState === 'hidden') {
-      // Im Hintergrund schläft die Verbindung ohnehin – offene Änderungen sofort losschicken.
+      // Im Hintergrund schläft die Verbindung bald – offene Änderungen sofort losschicken.
       if (s.pushTimer !== undefined) void push(s, true);
-      dropStream(s);
+      if (keepAliveHidden()) s.hiddenAt = Date.now();
+      else dropStream(s);
     } else {
+      // Hat das Handy die App zwischendurch eingefroren, ist die alte Verbindung oft stumm tot.
+      if (s.hiddenAt !== undefined && Date.now() - s.hiddenAt > STALE_AFTER) dropStream(s);
+      s.hiddenAt = undefined;
       s.streamRetries = 0;
       connect(s);
     }

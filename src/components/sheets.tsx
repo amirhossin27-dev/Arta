@@ -10,6 +10,7 @@ import { mergeData } from '../lib/sync';
 import { applySync, createShareText, joinWith, summarize, type ApplyResult } from '../lib/syncFlow';
 import { other, type Person, type PersonId, type PopupFreq } from '../lib/types';
 import { nav } from '../lib/ui';
+import { NotifySettings } from './notify';
 import { Segmented, Sheet } from './ui';
 
 // ───────────────────────── Sync ─────────────────────────
@@ -491,6 +492,9 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
           ]}
         />
       </div>
+
+      <h3>🔔 Mitteilungen</h3>
+      <NotifySettings />
 
       <h3>📱 Dieses Handy</h3>
       <div className="inset">

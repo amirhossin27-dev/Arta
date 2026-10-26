@@ -9,7 +9,7 @@ import { LoveLayer } from './components/LoveLayer';
 import { CheerSheet, SettingsSheet, SyncSheet, WhoSheet } from './components/sheets';
 import { dailyLove } from './lib/daily';
 import { todayKey } from './lib/date';
-import { cls, usePeople } from './lib/hooks';
+import { cls, usePeople, useVisible } from './lib/hooks';
 import { useLive, useLiveStatus } from './lib/live';
 import { showLove } from './lib/love';
 import { pickRandom } from './lib/random';
@@ -50,6 +50,7 @@ function currentNames() {
 function useLoveMoments(onboarded: boolean) {
   const data = useData();
   const device = useDevice();
+  const visible = useVisible();
   const shown = useRef(new Set<string>());
 
   // Liebe des Tages – einmal pro Tag beim Öffnen
@@ -64,9 +65,10 @@ function useLoveMoments(onboarded: boolean) {
     return () => window.clearTimeout(t);
   }, [onboarded, device.me]);
 
-  // Neue Botschaften & Anfeuerungen vom Partner sofort zeigen
+  // Neue Botschaften & Anfeuerungen vom Partner sofort zeigen – im Hintergrund erst bei der Rückkehr
+  // (dort meldet sich solange das Handy mit einer Mitteilung).
   useEffect(() => {
-    if (!onboarded) return;
+    if (!onboarded || !visible) return;
     const fresh = unreadNotes(data, device.me).filter((n) => !shown.current.has(n.id));
     if (!fresh.length) return;
     const partner = data.persons[other(device.me)].name;
@@ -79,7 +81,7 @@ function useLoveMoments(onboarded: boolean) {
       );
     }
     actions.markNotesSeen(fresh.map((n) => n.id));
-  }, [onboarded, data.notes, device.me, data]);
+  }, [onboarded, data.notes, device.me, data, visible]);
 
   // Überraschungen & zufällige Liebesgrüße
   useEffect(() => {
@@ -96,7 +98,7 @@ function useLoveMoments(onboarded: boolean) {
     // Erste Überraschung kommt nach einer kleinen Weile – nicht sofort (und nicht mitten im Spiel).
     let first: number | undefined;
     const tryFirst = () => {
-      if (busy()) first = window.setTimeout(tryFirst, 15_000);
+      if (busy() || document.visibilityState === 'hidden') first = window.setTimeout(tryFirst, 15_000);
       else revealSurprise();
     };
     first = window.setTimeout(tryFirst, 20_000 + Math.random() * 40_000);
@@ -113,6 +115,27 @@ function useLoveMoments(onboarded: boolean) {
       window.clearInterval(interval);
     };
   }, [onboarded, device.popupFreq, device.me]);
+}
+
+/** Antippen einer Mitteilung öffnet den passenden Bereich (`#tab=liebe` oder Nachricht vom Service Worker). */
+function useOpenFromNotification() {
+  useEffect(() => {
+    const go = (tab: unknown) => {
+      if (!TABS.some((t) => t.id === tab)) return;
+      if (tab === 'liebe') nav.setLoveView('wir');
+      nav.setTab(tab as Tab);
+    };
+    const m = window.location.hash.match(/tab=([a-z]+)/);
+    if (m) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      go(m[1]);
+    }
+    const onMessage = (e: MessageEvent) => {
+      if (e.data?.arta === 'open') go(e.data.tab);
+    };
+    navigator.serviceWorker?.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker?.removeEventListener('message', onMessage);
+  }, []);
 }
 
 /** Wurde die App über einen Sync-Link geöffnet? */
@@ -134,6 +157,7 @@ export default function App() {
   const live = useLive();
   const liveStatus = useLiveStatus();
   useLoveMoments(device.onboarded);
+  useOpenFromNotification();
 
   useEffect(() => {
     if (linkCode && device.onboarded) nav.open({ type: 'sync', code: linkCode });

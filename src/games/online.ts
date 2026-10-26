@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { CHANNEL_PREFIX, channelValue, channelsVersion, getLiveStatus, sendChannel, subscribeChannels } from '../lib/live';
-import { getDevice } from '../lib/store';
+import { inviteMessage, sendToPartner } from '../lib/notify';
+import { getData, getDevice } from '../lib/store';
 import { other, type PersonId } from '../lib/types';
 import type { Side } from './logic';
 import { GAME_BY_ID, type GameId } from './registry';
@@ -165,7 +166,10 @@ export const arcadeOnline = () => getLiveStatus().state === 'online';
 export function hostMatch(game: GameId, stake: number | null): string | null {
   const id = randomId();
   const me = getDevice().me;
-  return writeMine(() => ({ id, game, host: me, stake, since: Date.now(), ready: 0 })) ? id : null;
+  if (!writeMine(() => ({ id, game, host: me, stake, since: Date.now(), ready: 0 }))) return null;
+  // Ist Arta beim Schatz gerade zu, klopft eine Mitteilung an.
+  void sendToPartner(inviteMessage(GAME_BY_ID[game], getData().persons[me].name, id), INVITE_TTL);
+  return id;
 }
 
 export function joinMatch(m: MatchDoc): boolean {
