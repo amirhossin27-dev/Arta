@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { HORIZON, KART_Y, project, projection } from '../kartGfx';
 import {
   BOOST,
+  HALF,
+  LANE_MAX,
+  assistInput,
   LAPS,
   VMAX,
   WALL,
@@ -183,7 +187,7 @@ describe('Herz-Kart: Fahren', () => {
       k.a = Math.atan2(track.dy[k.seg], track.dx[k.seg]);
       k.lat = 60;
     }
-    expect(k.v).toBeLessThan(VMAX * 0.6);
+    expect(k.v).toBeLessThan(VMAX * 0.7);
   });
 
   it('Abkürzen übers Gras zählt nicht als Fortschritt, und an der Hecke ist Schluss', () => {
@@ -235,6 +239,84 @@ describe('Herz-Kart: Fahren', () => {
     expect(ev).toContain('turbo');
     expect(k.driftDir).toBe(0);
     expect(k.boost).toBeGreaterThan(0.4);
+  });
+});
+
+describe('Herz-Kart: Lenkhilfe', () => {
+  /** Mit Lenkhilfe: Der Mensch drückt nur ◀ ▶ (oder gar nichts). */
+  const assisted = (press: (k: KartState, t: number) => number) => {
+    let t = 0;
+    return (k: KartState): Input => {
+      t += DT;
+      const p = press(k, t);
+      return assistInput(k, track, p, DT);
+    };
+  };
+
+  it('ohne zu drücken fährt das Kart alle drei Runden sauber auf der Straße', () => {
+    let maxLat = 0;
+    const drive = assisted((k) => {
+      maxLat = Math.max(maxLat, Math.abs(k.lat));
+      return 0;
+    });
+    const { ks, events } = race([drive], 2);
+    expect(ks[0].fin).not.toBeNull();
+    expect(ks[0].fin!).toBeLessThan(55);
+    expect(maxLat).toBeLessThan(HALF);
+    expect(events[0]).not.toContain('wall');
+  });
+
+  it('wildes Drücken bringt einen nie von der Straße', () => {
+    const rnd = seeded(11);
+    let maxLat = 0;
+    let p = 0;
+    const drive = assisted((k) => {
+      maxLat = Math.max(maxLat, Math.abs(k.lat));
+      if (rnd() < 0.05) p = [-1, 0, 1][Math.floor(rnd() * 3)];
+      return p;
+    });
+    const { ks, events } = race([drive], 4);
+    expect(ks[0].fin).not.toBeNull();
+    expect(maxLat).toBeLessThan(HALF);
+    expect(events[0]).not.toContain('wall');
+  });
+
+  it('◀ ▶ wechseln die Spur, ohne Drücken bleibt sie', () => {
+    const rnd = seeded(1);
+    const course = newCourse(track);
+    const k = newKart(track, 0);
+    const step = (p: number, frames: number) => {
+      for (let i = 0; i < frames; i++) stepKart(k, assistInput(k, track, p, DT), DT, track, 0, [], { rnd, course, leading: true });
+    };
+    step(0, 90);
+    expect(Math.abs(k.lat)).toBeLessThan(4);
+    step(1, 40);
+    expect(k.lane).toBe(LANE_MAX);
+    step(0, 60);
+    expect(k.lat).toBeGreaterThan(LANE_MAX - 6);
+    step(-1, 70);
+    step(0, 100);
+    expect(k.lat).toBeLessThan(-LANE_MAX + 6);
+  });
+
+  it('Drift-Turbos gibt es nur in Kurven, nicht durch Dauerdrücken auf der Geraden', () => {
+    const rnd = seeded(1);
+    const course = newCourse(track);
+    // Gerade: ein Stück der rechten Herzseite
+    const k = newKart(track, 0);
+    k.v = VMAX;
+    const ev: KartEvent[] = [];
+    for (let i = 0; i < 80; i++) stepKart(k, assistInput(k, track, 1, DT), DT, track, 0, ev, { rnd, course, leading: true });
+    expect(k.drift).toBeLessThan(0.5);
+    // Ganze Runde mit Drift in jeder langen Rechtskurve
+    const drive = assisted((kk) => {
+      const ahead = trackPoint(track, kk.s + 60);
+      const turnAhead = Math.sin(ahead.a - Math.atan2(track.dy[kk.seg], track.dx[kk.seg]));
+      return turnAhead > 0.25 ? 1 : 0;
+    });
+    const r = race([drive], 5);
+    expect(r.events[0].filter((e) => e === 'turbo').length).toBeGreaterThan(2);
+    expect(r.ks[0].fin!).toBeLessThan(50);
   });
 });
 
@@ -355,5 +437,34 @@ describe('Herz-Kart: online', () => {
   it('formatiert Rennzeiten', () => {
     expect(fmtTime(0)).toBe('0:00.0');
     expect(fmtTime(65.37)).toBe('1:05.4');
+  });
+});
+
+describe('Herz-Kart: Kamera', () => {
+  const cam = { x: 500, y: 400, a: 0.7, dist: 50, focal: 0.86 };
+
+  it('zeigt das eigene Kart unten in der Mitte – egal wie groß das Bild ist', () => {
+    for (const [W, H] of [
+      [390, 480],
+      [780, 960],
+      [600, 260],
+    ]) {
+      const q = project(projection(W, H, cam), cam.x, cam.y)!;
+      expect(q.sx).toBeCloseTo(W / 2, 6);
+      expect(q.sy).toBeCloseTo(H * KART_Y, 6);
+    }
+  });
+
+  it('Weiter vorne liegt höher im Bild, Höhe hebt an, hinter der Kamera ist nichts', () => {
+    const p = projection(390, 480, cam);
+    const near = project(p, cam.x + Math.cos(cam.a) * 30, cam.y + Math.sin(cam.a) * 30)!;
+    const far = project(p, cam.x + Math.cos(cam.a) * 600, cam.y + Math.sin(cam.a) * 600)!;
+    expect(far.sy).toBeLessThan(near.sy);
+    expect(far.sy).toBeGreaterThan(480 * HORIZON);
+    expect(project(p, cam.x, cam.y, 10)!.sy).toBeLessThan(480 * KART_Y);
+    expect(project(p, cam.x - Math.cos(cam.a) * 80, cam.y - Math.sin(cam.a) * 80)).toBeNull();
+    // rechts vom Kart landet rechts im Bild
+    const right = project(p, cam.x - Math.sin(cam.a) * 10, cam.y + Math.cos(cam.a) * 10)!;
+    expect(right.sx).toBeGreaterThan(195);
   });
 });

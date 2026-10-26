@@ -4,12 +4,12 @@ import { buzz, hum, sfx, tone, useLoop } from './engine';
 import {
   COUNTDOWN,
   ITEM_EMOJI,
+  LANE_MAX,
   LAPS,
-  WALL,
-  WORLD,
-  ROAD,
+  VMAX,
   ahead,
   applyZap,
+  assistInput,
   bump,
   decideOnline,
   driftLevel,
@@ -20,12 +20,11 @@ import {
   kiVmax,
   newCourse,
   newKart,
+  onRoad,
   packKart,
-  seeded,
   stepKart,
   sweepBananas,
   tickCourse,
-  trackPoint,
   unpackHazards,
   wrapAngle,
   type Course,
@@ -36,542 +35,160 @@ import {
   type KartState,
   type NetKart,
   type Rival,
-  type Track,
 } from './kart';
+import { drawOverlay, makeGround, prepareGfx, stepParticles, type Cam, type DrawKart, type Ground, type Particle } from './kartGfx';
 import { otherSide, type Side } from './logic';
 import type { GameProps, Player } from './types';
 
 /** Nur im Test-Build: Die Karts der Menschen fahren von selbst. */
 const AUTOPILOT = import.meta.env.VITE_KART_AUTOPILOT === '1';
 
-/** Breite des Bildes in echten Retro-Pixeln – die Höhe richtet sich nach dem Platz. */
-const VIEW_W = 256;
-const HORIZON = 0.34;
-const CAM_DIST = 52;
-const KART_Y = 0.84;
 /** So oft geht der eigene Stand online raus (Sekunden) */
 const NET_EVERY = 0.11;
 /** Meldet sich das andere Handy so lange nicht, ist das Rennen entschieden. */
 const NET_TIMEOUT = 8;
 const ITEMS: ItemKind[] = ['pilz', 'banane', 'pfeil'];
 
-// ───────────────────────── Grafik ─────────────────────────
+/** Kamera: Abstand hinter dem Kart und Brennweite – beim Turbo etwas weiter weg und weitwinkliger. */
+const CAM_DIST = 50;
+const CAM_DIST_BOOST = 57;
+const FOCAL = 0.86;
+const FOCAL_BOOST = 0.74;
 
-const rgba = (r: number, g: number, b: number) => ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0;
-const G1 = rgba(98, 178, 84);
-const G2 = rgba(86, 164, 74);
+const SETTINGS = 'arta.kart.v1';
 
-interface Assets {
-  tex: Uint32Array;
-  hills: HTMLCanvasElement;
-  trees: HTMLCanvasElement[];
-  box: HTMLCanvasElement;
-  banana: HTMLCanvasElement;
-  arrow: HTMLCanvasElement;
-  map: HTMLCanvasElement;
-  karts: Map<string, HTMLCanvasElement>;
-}
-
-let assets: Assets | undefined;
-
-function canvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  return [c, c.getContext('2d')!];
-}
-
-function heartPath(g: CanvasRenderingContext2D, x: number, y: number, s: number) {
-  g.beginPath();
-  g.moveTo(x, y + s * 0.35);
-  g.bezierCurveTo(x - s * 0.05, y + s * 0.1, x - s * 0.5, y + s * 0.05, x - s * 0.5, y - s * 0.2);
-  g.bezierCurveTo(x - s * 0.5, y - s * 0.5, x - s * 0.1, y - s * 0.55, x, y - s * 0.28);
-  g.bezierCurveTo(x + s * 0.1, y - s * 0.55, x + s * 0.5, y - s * 0.5, x + s * 0.5, y - s * 0.2);
-  g.bezierCurveTo(x + s * 0.5, y + s * 0.05, x + s * 0.05, y + s * 0.1, x, y + s * 0.35);
-  g.closePath();
-}
-
-function makeTexture(t: Track): Uint32Array {
-  const [, g] = canvas(WORLD, WORLD);
-  for (let y = 0; y < WORLD; y += 32) {
-    for (let x = 0; x < WORLD; x += 32) {
-      g.fillStyle = (x ^ y) & 32 ? '#56a44a' : '#62b254';
-      g.fillRect(x, y, 32, 32);
-    }
+function loadSettings(): { assist: boolean; gl: boolean } {
+  try {
+    const v = JSON.parse(localStorage.getItem(SETTINGS) ?? '{}') as { assist?: boolean; gl?: boolean };
+    return { assist: v.assist !== false, gl: v.gl !== false };
+  } catch {
+    return { assist: true, gl: true };
   }
-  const rnd = seeded(7);
-  for (let i = 0; i < 700; i++) {
-    g.fillStyle = ['#ffd1e6', '#ffffff', '#ffe27a', '#ff8fb8'][i % 4];
-    g.fillRect(rnd() * WORLD, rnd() * WORLD, 3, 3);
+}
+
+function saveAssist(assist: boolean) {
+  try {
+    localStorage.setItem(SETTINGS, JSON.stringify({ ...loadSettings(), assist }));
+  } catch {
+    // ohne Speicher gilt die Einstellung eben nur für dieses Rennen
   }
-  // Großes Blumenherz in der Mitte
-  g.fillStyle = '#ff7aa8';
-  heartPath(g, 640, 700, 230);
-  g.fill();
-  g.lineWidth = 8;
-  g.strokeStyle = '#fff0f6';
-  g.stroke();
-  g.fillStyle = '#ffb3cf';
-  heartPath(g, 640, 700, 120);
-  g.fill();
-
-  const line = () => {
-    g.beginPath();
-    for (let i = 0; i <= t.n; i++) {
-      const k = i % t.n;
-      if (i === 0) g.moveTo(t.px[k], t.py[k]);
-      else g.lineTo(t.px[k], t.py[k]);
-    }
-    g.closePath();
-  };
-  g.lineJoin = 'round';
-  g.lineCap = 'round';
-  const stroke = (w: number, color: string, dash: number[] = []) => {
-    line();
-    g.setLineDash(dash);
-    g.lineWidth = w;
-    g.strokeStyle = color;
-    g.stroke();
-    g.setLineDash([]);
-  };
-  // Hecke, Wiese daneben, Randsteine, Asphalt, Mittelstreifen
-  stroke((WALL + 7) * 2, '#2c6e37');
-  stroke((WALL + 3) * 2, '#3f9447');
-  stroke(WALL * 2, '#74c25e');
-  stroke(ROAD + 12, '#ffffff');
-  stroke(ROAD + 12, '#e8364f', [12, 12]);
-  stroke(ROAD, '#6d6878');
-  for (let i = 0; i < 2200; i++) {
-    const p = trackPoint(t, rnd() * t.len, (rnd() - 0.5) * ROAD * 0.95);
-    g.fillStyle = rnd() < 0.5 ? '#635e6e' : '#77727f';
-    g.fillRect(p.x, p.y, 2, 2);
-  }
-  stroke(2, 'rgba(255,255,255,0.6)', [16, 16]);
-
-  // Ziellinie im Schachbrettmuster
-  for (let r = 0; r < 2; r++) {
-    for (let c = 0; c < 12; c++) {
-      const p = trackPoint(t, -6 + r * 6 + 3, -ROAD / 2 + c * 6 + 3);
-      g.save();
-      g.translate(p.x, p.y);
-      g.rotate(p.a);
-      g.fillStyle = (r + c) % 2 ? '#ffffff' : '#1c1622';
-      g.fillRect(-3.2, -3.2, 6.4, 6.4);
-      g.restore();
-    }
-  }
-  // Turbo-Felder mit Pfeilen
-  for (const p of t.pads) {
-    g.save();
-    g.translate(p.x, p.y);
-    g.rotate(p.a);
-    g.fillStyle = '#ff9a1f';
-    g.beginPath();
-    g.roundRect(-13, -10, 26, 20, 4);
-    g.fill();
-    g.strokeStyle = '#fff36b';
-    g.lineWidth = 3;
-    for (const dx of [-7, 0, 7]) {
-      g.beginPath();
-      g.moveTo(dx - 3, -6);
-      g.lineTo(dx + 3, 0);
-      g.lineTo(dx - 3, 6);
-      g.stroke();
-    }
-    g.restore();
-  }
-  const data = g.getImageData(0, 0, WORLD, WORLD).data;
-  return new Uint32Array(data.buffer.slice(0));
 }
 
-function makeHills(): HTMLCanvasElement {
-  const [c, g] = canvas(512, 44);
-  g.fillStyle = 'rgba(255,255,255,0.85)';
-  for (const [x, y, s] of [
-    [40, 10, 1],
-    [170, 6, 0.8],
-    [300, 12, 1.1],
-    [430, 7, 0.9],
-  ]) {
-    g.beginPath();
-    g.ellipse(x, y, 18 * s, 5 * s, 0, 0, Math.PI * 2);
-    g.ellipse(x + 12 * s, y - 3 * s, 11 * s, 5 * s, 0, 0, Math.PI * 2);
-    g.fill();
-  }
-  const ridge = (base: number, amp: number, color: string, freq: number[]) => {
-    g.fillStyle = color;
-    g.beginPath();
-    g.moveTo(0, 44);
-    for (let x = 0; x <= 512; x += 4) {
-      const y = base - amp * (0.5 + 0.25 * Math.sin((x / 512) * Math.PI * 2 * freq[0]) + 0.25 * Math.sin((x / 512) * Math.PI * 2 * freq[1] + 1.3));
-      g.lineTo(x, y);
-    }
-    g.lineTo(512, 44);
-    g.closePath();
-    g.fill();
-  };
-  ridge(40, 26, '#c79be8', [3, 7]);
-  ridge(44, 16, '#7fc77a', [5, 11]);
-  return c;
+const TIPS_ASSIST = ['🛟 Lenkhilfe an: Das Kart fährt von selbst der Strecke nach.', '◀ ▶ antippen wechselt die Spur – in Kurven halten = Drift 🔥', 'Mitte tippen = Item einsetzen 🍄 🍌 💘'];
+const TIPS_FREE = ['◀ ▶ lenken – in Kurven halten = Drift, loslassen = Mini-Turbo 🔥', 'Mitte tippen = Item einsetzen 🍄 🍌 💘', 'Zu schwer? Oben auf „Lenkhilfe“ tippen 🛟'];
+
+// ───────────────────────── Effekte ─────────────────────────
+
+const SPARK = ['#ffffff', '#6fd0ff', '#ff9a2e'];
+const CONFETTI = ['#ff4f81', '#ffd84a', '#5fd4ff', '#b47bff', '#7be07b', '#ffffff'];
+
+/** Wie viele Teilchen in diesem Bild entstehen, bei `perSec` pro Sekunde */
+const howMany = (perSec: number, dt: number) => Math.floor(perSec * dt + Math.random());
+
+function puff(parts: Particle[], p: Omit<Particle, 'max'>) {
+  parts.push({ ...p, max: p.life });
 }
 
-function makeTree(k: number): HTMLCanvasElement {
-  const [c, g] = canvas(30, 38);
-  g.fillStyle = 'rgba(0,0,0,0.22)';
-  g.beginPath();
-  g.ellipse(15, 36, 10, 2.5, 0, 0, Math.PI * 2);
-  g.fill();
-  g.fillStyle = '#7a4a2a';
-  g.fillRect(13, 24, 4, 12);
-  if (k === 2) {
-    g.fillStyle = '#2f7d45';
-    for (const [y, w] of [
-      [4, 7],
-      [12, 10],
-      [20, 13],
-    ]) {
-      g.beginPath();
-      g.moveTo(15, y - 4);
-      g.lineTo(15 + w, y + 8);
-      g.lineTo(15 - w, y + 8);
-      g.closePath();
-      g.fill();
-    }
-  } else {
-    const [dark, light] = k === 1 ? ['#ff8fbf', '#ffc4dc'] : ['#3d9a4a', '#6cc366'];
-    g.fillStyle = dark;
-    g.beginPath();
-    g.arc(15, 16, 12, 0, Math.PI * 2);
-    g.arc(8, 20, 7, 0, Math.PI * 2);
-    g.arc(22, 20, 7, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = light;
-    g.beginPath();
-    g.arc(11, 11, 5, 0, Math.PI * 2);
-    g.fill();
-  }
-  return c;
-}
-
-function makeBox(): HTMLCanvasElement {
-  const [c, g] = canvas(24, 24);
-  const grad = g.createLinearGradient(0, 0, 24, 24);
-  grad.addColorStop(0, '#ff6fa8');
-  grad.addColorStop(0.5, '#b47bff');
-  grad.addColorStop(1, '#5fd4ff');
-  g.fillStyle = grad;
-  g.beginPath();
-  g.roundRect(1, 1, 22, 22, 5);
-  g.fill();
-  g.lineWidth = 2;
-  g.strokeStyle = 'rgba(255,255,255,0.9)';
-  g.stroke();
-  g.fillStyle = '#fff';
-  g.font = '900 16px system-ui, sans-serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.fillText('?', 12, 13);
-  return c;
-}
-
-function makeBanana(): HTMLCanvasElement {
-  const [c, g] = canvas(24, 20);
-  g.fillStyle = 'rgba(0,0,0,0.25)';
-  g.beginPath();
-  g.ellipse(12, 18, 9, 2, 0, 0, Math.PI * 2);
-  g.fill();
-  g.strokeStyle = '#ffd93b';
-  g.lineWidth = 6;
-  g.lineCap = 'round';
-  g.beginPath();
-  g.arc(12, 2, 12, Math.PI * 0.2, Math.PI * 0.8);
-  g.stroke();
-  g.strokeStyle = '#6b4a1e';
-  g.lineWidth = 2;
-  g.beginPath();
-  g.moveTo(21, 10);
-  g.lineTo(23, 8);
-  g.moveTo(3, 10);
-  g.lineTo(1, 8);
-  g.stroke();
-  return c;
-}
-
-function makeArrow(): HTMLCanvasElement {
-  const [c, g] = canvas(26, 22);
-  g.strokeStyle = '#ffe6a1';
-  g.lineWidth = 2;
-  g.beginPath();
-  g.moveTo(1, 20);
-  g.lineTo(25, 2);
-  g.stroke();
-  g.fillStyle = '#ff3d77';
-  heartPath(g, 13, 11, 18);
-  g.fill();
-  g.fillStyle = 'rgba(255,255,255,0.7)';
-  g.beginPath();
-  g.arc(9, 7, 2, 0, Math.PI * 2);
-  g.fill();
-  return c;
-}
-
-function makeMap(t: Track): HTMLCanvasElement {
-  const [c, g] = canvas(64, 64);
-  const s = 64 / WORLD;
-  g.lineJoin = 'round';
-  g.beginPath();
-  for (let i = 0; i <= t.n; i++) {
-    const k = i % t.n;
-    if (i === 0) g.moveTo(t.px[k] * s, t.py[k] * s);
-    else g.lineTo(t.px[k] * s, t.py[k] * s);
-  }
-  g.closePath();
-  g.strokeStyle = 'rgba(30,15,40,0.55)';
-  g.lineWidth = 7;
-  g.stroke();
-  g.strokeStyle = 'rgba(255,255,255,0.9)';
-  g.lineWidth = 3.5;
-  g.stroke();
-  return c;
-}
-
-/** Kart von hinten: Reifen, Karosserie in der Spielerfarbe, Helm und das eigene Emoji als Aufkleber. */
-function kartSprite(color: string, emoji: string): HTMLCanvasElement {
-  const key = color + emoji;
-  const cached = assets?.karts.get(key);
-  if (cached) return cached;
-  const S = 1.6;
-  const [c, g] = canvas(40 * S, 34 * S);
-  g.scale(S, S);
-  g.fillStyle = 'rgba(0,0,0,0.28)';
-  g.beginPath();
-  g.ellipse(20, 32, 18, 3, 0, 0, Math.PI * 2);
-  g.fill();
-  g.fillStyle = '#1d1a22';
-  g.beginPath();
-  g.roundRect(1, 19, 9, 13, 3);
-  g.roundRect(30, 19, 9, 13, 3);
-  g.fill();
-  g.fillStyle = '#3a3542';
-  g.fillRect(2, 23, 7, 2);
-  g.fillRect(31, 23, 7, 2);
-  // Helm
-  g.fillStyle = '#ffffff';
-  g.beginPath();
-  g.arc(20, 10, 8, 0, Math.PI * 2);
-  g.fill();
-  g.fillStyle = color;
-  g.fillRect(12, 8, 16, 3);
-  // Karosserie
-  g.fillStyle = color;
-  g.beginPath();
-  g.roundRect(7, 15, 26, 14, 5);
-  g.fill();
-  g.fillStyle = 'rgba(0,0,0,0.22)';
-  g.fillRect(7, 25, 26, 4);
-  g.fillStyle = 'rgba(255,255,255,0.35)';
-  g.fillRect(10, 16, 20, 2);
-  // Spoiler
-  g.fillStyle = '#2a2430';
-  g.fillRect(5, 13, 30, 3);
-  // Auspuff
-  g.fillStyle = '#9a96a3';
-  g.beginPath();
-  g.arc(15, 29.5, 1.8, 0, Math.PI * 2);
-  g.arc(25, 29.5, 1.8, 0, Math.PI * 2);
-  g.fill();
-  g.font = '9px serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.fillText(emoji, 20, 22);
-  assets?.karts.set(key, c);
-  return c;
-}
-
-function getAssets(t: Track): Assets {
-  if (!assets) {
-    assets = {
-      tex: makeTexture(t),
-      hills: makeHills(),
-      trees: [0, 1, 2].map(makeTree),
-      box: makeBox(),
-      banana: makeBanana(),
-      arrow: makeArrow(),
-      map: makeMap(t),
-      karts: new Map(),
-    };
-  }
-  return assets;
-}
-
-interface DrawKart {
-  x: number;
-  y: number;
-  a: number;
-  spinA: number;
-  boost: boolean;
-  drift: number;
-  color: string;
-  emoji: string;
-  /** Lokales Kart dieser Seite (online: das eigene) */
-  side: Side | null;
-  own: boolean;
-  lean: number;
-}
-
-interface Scene {
-  karts: DrawKart[];
-  haz: Hazard[];
-  boxes: number[];
-  time: number;
-}
-
-interface ViewGfx {
-  ctx: CanvasRenderingContext2D;
-  w: number;
-  h: number;
-  img: ImageData;
-  buf: Uint32Array;
-  sky: CanvasGradient;
-  fog: CanvasGradient;
-}
-
-function drawView(v: ViewGfx, t: Track, A: Assets, cam: { x: number; y: number; a: number }, scene: Scene, boostFx: boolean) {
-  const { ctx, w: W, h: H, buf } = v;
-  const hz = Math.round(H * HORIZON);
-  const f = W * 0.82;
-  const camH = ((H * KART_Y - hz) * CAM_DIST) / f;
-  const fx = Math.cos(cam.a);
-  const fy = Math.sin(cam.a);
+/** Spuren hinter einem fahrenden Kart: Driftfunken, Turboflammen, Staub auf der Wiese */
+function trail(parts: Particle[], x: number, y: number, a: number, v: number, boost: boolean, driftDir: number, level: number, offroad: boolean, dt: number) {
+  const fx = Math.cos(a);
+  const fy = Math.sin(a);
   const rx = -fy;
   const ry = fx;
-  const cx = cam.x - fx * CAM_DIST;
-  const cy = cam.y - fy * CAM_DIST;
-  const tex = A.tex;
-
-  // Boden im Mode-7-Stil: jede Bildzeile ist eine Linie in der Welt, je höher, desto weiter weg.
-  for (let y = hz + 1; y < H; y++) {
-    const z = (camH * f) / (y - hz);
-    const k = z / f;
-    let wx = cx + fx * z - (rx * k * W) / 2;
-    let wy = cy + fy * z - (ry * k * W) / 2;
-    const sx = rx * k;
-    const sy = ry * k;
-    let o = y * W;
-    for (let x = 0; x < W; x++) {
-      const ix = Math.floor(wx);
-      const iy = Math.floor(wy);
-      buf[o++] = ix >= 0 && ix < WORLD && iy >= 0 && iy < WORLD ? tex[iy * WORLD + ix] : ((ix >> 5) ^ (iy >> 5)) & 1 ? G2 : G1;
-      wx += sx;
-      wy += sy;
+  const rnd = Math.random;
+  if (driftDir !== 0) {
+    const n = howMany(level ? 46 : 16, dt);
+    for (let i = 0; i < n; i++) {
+      for (const side of [-1, 1]) {
+        const wx = x - fx * 8 + rx * side * 6;
+        const wy = y - fy * 8 + ry * side * 6;
+        puff(parts, {
+          x: wx,
+          y: wy,
+          h: 0.8,
+          vx: -fx * 25 + rx * side * (10 + rnd() * 30) + (rnd() - 0.5) * 20,
+          vy: -fy * 25 + ry * side * (10 + rnd() * 30) + (rnd() - 0.5) * 20,
+          vh: 18 + rnd() * 34,
+          life: level ? 0.22 + rnd() * 0.18 : 0.45,
+          size: level ? 0.9 + rnd() * 0.6 : 1.3,
+          color: SPARK[level],
+          kind: level ? 'spark' : 'smoke',
+        });
+      }
     }
   }
-  ctx.putImageData(v.img, 0, 0, 0, hz + 1, W, H - hz - 1);
-
-  ctx.fillStyle = v.sky;
-  ctx.fillRect(0, 0, W, hz + 1);
-  const hw = A.hills.width;
-  let ox = ((((-cam.a / (Math.PI * 2)) * hw * 2) % hw) + hw) % hw;
-  ox -= hw;
-  for (; ox < W; ox += hw) ctx.drawImage(A.hills, Math.round(ox), hz + 1 - A.hills.height);
-  ctx.fillStyle = v.fog;
-  ctx.fillRect(0, hz - 4, W, 30);
-
-  // Alles, was aufrecht steht, von hinten nach vorne
-  const list: { z: number; draw: () => void }[] = [];
-  const add = (x: number, y: number, ww: number, hh: number, lift: number, draw: (sx: number, sy: number, sw: number, sh: number, z: number) => void, maxZ = 900) => {
-    const dx = x - cx;
-    const dy = y - cy;
-    const z = dx * fx + dy * fy;
-    if (z < 8 || z > maxZ) return;
-    const sc = f / z;
-    const sx = W / 2 + (dx * rx + dy * ry) * sc;
-    const sw = ww * sc;
-    if (sx + sw < 0 || sx - sw > W) return;
-    const sy = hz + (camH - lift) * sc;
-    list.push({ z, draw: () => draw(sx, sy, sw, hh * sc, z) });
-  };
-  for (const tr of t.trees) add(tr.x, tr.y, 30, 38, 0, (sx, sy, sw, sh) => ctx.drawImage(A.trees[tr.k], sx - sw / 2, sy - sh, sw, sh));
-  t.boxes.forEach((b, i) => {
-    if (scene.boxes[i] > 0) return;
-    const bob = Math.sin(scene.time * 3 + i) * 1.5;
-    add(b.x, b.y, 11, 11, 3 + bob, (sx, sy, sw, sh) => {
-      const squeeze = 0.75 + 0.25 * Math.abs(Math.cos(scene.time * 2 + i));
-      ctx.drawImage(A.box, sx - (sw * squeeze) / 2, sy - sh, sw * squeeze, sh);
-    });
-  });
-  for (const h of scene.haz) {
-    if (h.k === 'banane') add(h.x, h.y, 10, 8, 0, (sx, sy, sw, sh) => ctx.drawImage(A.banana, sx - sw / 2, sy - sh, sw, sh));
-    else add(h.x, h.y, 12, 10, 5, (sx, sy, sw, sh) => ctx.drawImage(A.arrow, sx - sw / 2, sy - sh, sw, sh));
-  }
-  for (const k of scene.karts) {
-    add(
-      k.x,
-      k.y,
-      15,
-      12.75,
-      0,
-      (sx, sy, sw, sh) => {
-        ctx.save();
-        ctx.translate(sx, sy);
-        const rot = k.spinA || (k.own ? k.lean : Math.max(-0.4, Math.min(0.4, wrapAngle(k.a - cam.a) * 0.3)));
-        ctx.translate(0, -sh / 2);
-        ctx.rotate(rot);
-        ctx.translate(0, sh / 2);
-        if (k.boost) {
-          const fl = sh * (0.25 + Math.random() * 0.2);
-          ctx.fillStyle = Math.random() < 0.5 ? '#ffd23b' : '#ff7a1f';
-          for (const ex of [-0.13, 0.13]) {
-            ctx.beginPath();
-            ctx.moveTo(sw * ex - sw * 0.06, -sh * 0.12);
-            ctx.lineTo(sw * ex + sw * 0.06, -sh * 0.12);
-            ctx.lineTo(sw * ex, -sh * 0.12 + fl);
-            ctx.closePath();
-            ctx.fill();
-          }
-        }
-        ctx.drawImage(kartSprite(k.color, k.emoji), -sw / 2, -sh, sw, sh);
-        if (k.drift) {
-          ctx.fillStyle = Math.abs(k.drift) >= 2 ? '#ff9a2e' : '#6fd0ff';
-          for (const ex of [-0.4, 0.4]) {
-            for (let i = 0; i < 3; i++) {
-              const s = Math.max(1, sw * 0.05);
-              ctx.fillRect(sw * ex + (Math.random() - 0.5) * sw * 0.25, -sh * 0.08 - Math.random() * sh * 0.25, s, s);
-            }
-          }
-        }
-        ctx.restore();
-      },
-      1400,
-    );
-  }
-  list.sort((a, b) => b.z - a.z);
-  for (const o of list) o.draw();
-
-  if (boostFx) {
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 7; i++) {
-      const side = i % 2 ? 1 : -1;
-      const y0 = hz + 10 + Math.random() * (H - hz - 20);
-      const x0 = W / 2 + side * (W * 0.32 + Math.random() * W * 0.15);
-      ctx.beginPath();
-      ctx.moveTo(x0, y0);
-      ctx.lineTo(x0 + side * 18, y0 + (y0 - hz) * 0.25);
-      ctx.stroke();
+  if (boost) {
+    const n = howMany(70, dt);
+    for (let i = 0; i < n; i++) {
+      const side = rnd() < 0.5 ? -1 : 1;
+      puff(parts, {
+        x: x - fx * 10 + rx * side * 3,
+        y: y - fy * 10 + ry * side * 3,
+        h: 3.2,
+        vx: -fx * (40 + rnd() * 40) + (rnd() - 0.5) * 16,
+        vy: -fy * (40 + rnd() * 40) + (rnd() - 0.5) * 16,
+        vh: 4 + rnd() * 8,
+        life: 0.14 + rnd() * 0.1,
+        size: 1.6 + rnd() * 1.2,
+        color: rnd() < 0.5 ? '#ffd23b' : '#ff6a1f',
+        kind: 'flame',
+      });
     }
   }
+  if (offroad && v > 40) {
+    const n = howMany(26, dt);
+    for (let i = 0; i < n; i++) {
+      const side = rnd() < 0.5 ? -1 : 1;
+      puff(parts, {
+        x: x - fx * 8 + rx * side * 6,
+        y: y - fy * 8 + ry * side * 6,
+        h: 0.5,
+        vx: (rnd() - 0.5) * 30 - fx * 15,
+        vy: (rnd() - 0.5) * 30 - fy * 15,
+        vh: 20 + rnd() * 25,
+        life: 0.5 + rnd() * 0.3,
+        size: 1.2 + rnd() * 1.2,
+        color: rnd() < 0.6 ? '#b9965e' : '#8fd27a',
+        kind: 'dust',
+      });
+    }
+  }
+}
 
-  // Minikarte oben im Himmel
-  const ms = Math.round(Math.min(W * 0.24, hz - 6));
-  const mx = Math.round((W - ms) / 2);
-  const my = Math.max(3, hz - ms - 3);
-  ctx.drawImage(A.map, mx, my, ms, ms);
-  for (const k of [...scene.karts].sort((a, b) => Number(a.own) - Number(b.own))) {
-    ctx.fillStyle = '#1b1022';
-    ctx.fillRect(mx + (k.x / WORLD) * ms - 2.5, my + (k.y / WORLD) * ms - 2.5, 5, 5);
-    ctx.fillStyle = k.color;
-    ctx.fillRect(mx + (k.x / WORLD) * ms - 1.5, my + (k.y / WORLD) * ms - 1.5, 3, 3);
+function burst(parts: Particle[], x: number, y: number, n: number, make: (rnd: () => number, i: number) => Partial<Particle>) {
+  for (let i = 0; i < n; i++) {
+    const p = make(Math.random, i);
+    const life = p.life ?? 0.8;
+    parts.push({ x, y, h: 2, vx: 0, vy: 0, vh: 0, size: 1.5, color: '#fff', kind: 'spark', ...p, life, max: life });
+  }
+}
+
+/** Ereignisse eines Karts als Effekt in der Welt */
+function eventFx(parts: Particle[], k: KartState, ev: KartEvent[]) {
+  for (const e of ev) {
+    if (e === 'hit') {
+      burst(parts, k.x, k.y, 9, (rnd, i) => {
+        const a = (i / 9) * Math.PI * 2;
+        return { h: 9, vx: Math.cos(a) * 22, vy: Math.sin(a) * 22, vh: 14 + rnd() * 10, life: 0.9, size: 2.3, color: i % 3 ? '#ffe14a' : '#ffffff', kind: 'star' };
+      });
+    } else if (e === 'wall') {
+      const fx = Math.cos(k.a);
+      const fy = Math.sin(k.a);
+      burst(parts, k.x + fx * 8, k.y + fy * 8, 7, (rnd) => ({ h: 2, vx: (rnd() - 0.5) * 40, vy: (rnd() - 0.5) * 40, vh: 10 + rnd() * 15, life: 0.6, size: 2.2, color: '#e9e4ef', kind: 'smoke' }));
+    } else if (e === 'turbo' || e === 'pad' || e === 'pilz') {
+      const fx = Math.cos(k.a);
+      const fy = Math.sin(k.a);
+      burst(parts, k.x - fx * 9, k.y - fy * 9, 14, (rnd) => ({
+        h: 3,
+        vx: -fx * (50 + rnd() * 60) + (rnd() - 0.5) * 50,
+        vy: -fy * (50 + rnd() * 60) + (rnd() - 0.5) * 50,
+        vh: 6 + rnd() * 20,
+        life: 0.25 + rnd() * 0.15,
+        size: 2 + rnd() * 1.5,
+        color: e === 'turbo' ? (k.drift >= 1.1 ? '#ff9a2e' : '#6fd0ff') : rnd() < 0.5 ? '#ffd23b' : '#ff6a1f',
+        kind: 'flame',
+      }));
+    }
   }
 }
 
@@ -610,6 +227,7 @@ interface Msg {
   text: string;
   until: number;
   big?: boolean;
+  warn?: boolean;
 }
 
 interface Race {
@@ -619,6 +237,7 @@ interface Race {
   karts: Partial<Record<Side, KartState>>;
   remote: Remote | null;
   course: Course;
+  boxSeen: number[];
   winner: Side | null;
   endIn: number;
   ended: boolean;
@@ -626,8 +245,10 @@ interface Race {
   seq: number;
   lastN: number;
   lastSeq: number;
-  cams: Partial<Record<Side, { x: number; y: number; a: number }>>;
+  cams: Partial<Record<Side, Cam>>;
   msgs: Partial<Record<Side, Msg>>;
+  shake: Partial<Record<Side, number>>;
+  parts: Particle[];
   hudT: number;
   beeped: number;
 }
@@ -638,7 +259,18 @@ interface Hud {
   place: number;
   item: string;
   rolling: boolean;
+  speed: number;
+  /** Startampel: 1–3 rote Lampen, 4 = grün */
+  lights: number;
+  tip: string | null;
   msg: Msg | null;
+}
+
+interface ViewGfx {
+  ground: Ground;
+  fx: HTMLCanvasElement;
+  ready: boolean;
+  fit: () => void;
 }
 
 const isSide = (s: string): s is Side => s === 'p1' || s === 'p2';
@@ -662,13 +294,15 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
       karts.p1 = newKart(track, lat('p1'));
       if (!solo) karts.p2 = newKart(track, lat('p2'));
     }
+    const course = newCourse(track);
     race.current = {
       ph: online ? 'wait' : 'count',
       count: COUNTDOWN,
       t: 0,
       karts,
       remote: null,
-      course: newCourse(track),
+      course,
+      boxSeen: [...course.boxes],
       winner: null,
       endIn: 0,
       ended: false,
@@ -678,6 +312,8 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
       lastSeq: -1,
       cams: {},
       msgs: {},
+      shake: {},
+      parts: [],
       hudT: 0,
       beeped: 0,
     };
@@ -688,7 +324,14 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
   const endRef = useRef(onEnd);
   endRef.current = onEnd;
 
-  const canvases = useRef<Partial<Record<Side, HTMLCanvasElement | null>>>({});
+  const settings = useRef(loadSettings());
+  const [assist, setAssist] = useState<Record<Side, boolean>>(() => ({ p1: settings.current.assist, p2: settings.current.assist }));
+  const assistRef = useRef(assist);
+  assistRef.current = assist;
+
+  const groundHosts = useRef<Partial<Record<Side, HTMLDivElement | null>>>({});
+  const fxCanvases = useRef<Partial<Record<Side, HTMLCanvasElement | null>>>({});
+  const screens = useRef<Partial<Record<Side, HTMLDivElement | null>>>({});
   const gfx = useRef<Partial<Record<Side, ViewGfx>>>({});
   const padEls = useRef<Partial<Record<Side, HTMLDivElement | null>>>({});
   const pointers = useRef(new Map<number, { side: Side; zone: Zone }>());
@@ -697,40 +340,46 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
   const engine = useRef<ReturnType<typeof hum>>(null);
   const [hud, setHud] = useState<Partial<Record<Side, Hud>>>({});
   const [phase, setPhase] = useState<Phase>(race.current.ph);
+  const [gfxKind, setGfxKind] = useState<string>('');
+  /** Bildschärfe: Ruckelt es, rechnen wir mit weniger Pixeln. */
+  const quality = useRef({ scale: 1, acc: 0, n: 0 });
 
-  // Leinwände an den Platz anpassen
+  // Boden (WebGL oder Software) und Effekt-Ebene anlegen und an den Platz anpassen
   useEffect(() => {
-    getAssets(track);
+    prepareGfx(track);
     const obs: ResizeObserver[] = [];
+    const made: ViewGfx[] = [];
     for (const side of views) {
-      const c = canvases.current[side];
-      const box = c?.parentElement;
-      if (!c || !box) continue;
+      const host = groundHosts.current[side];
+      const fx = fxCanvases.current[side];
+      if (!host || !fx) continue;
       const fit = () => {
-        const r = box.getBoundingClientRect();
+        const r = host.getBoundingClientRect();
         if (r.width < 10 || r.height < 10) return;
-        const h = Math.max(96, Math.min(640, Math.round((VIEW_W * r.height) / r.width)));
-        const old = gfx.current[side];
-        if (old && old.h === h) return;
-        c.width = VIEW_W;
-        c.height = h;
-        const ctx = c.getContext('2d')!;
-        const img = ctx.createImageData(VIEW_W, h);
-        const hz = Math.round(h * HORIZON);
-        const sky = ctx.createLinearGradient(0, 0, 0, hz);
-        sky.addColorStop(0, '#6cc4ff');
-        sky.addColorStop(1, '#ffd9ec');
-        const fog = ctx.createLinearGradient(0, hz - 4, 0, hz + 26);
-        fog.addColorStop(0, 'rgba(255,217,236,1)');
-        fog.addColorStop(1, 'rgba(255,217,236,0)');
-        gfx.current[side] = { ctx, w: VIEW_W, h, img, buf: new Uint32Array(img.data.buffer), sky, fog };
+        const dpr = Math.max(0.75, Math.min(2, window.devicePixelRatio || 1) * quality.current.scale);
+        v.ground.resize(r.width, r.height, dpr);
+        const w = Math.round(r.width * dpr);
+        const h = Math.round(r.height * dpr);
+        if (fx.width !== w || fx.height !== h) {
+          fx.width = w;
+          fx.height = h;
+        }
+        v.ready = true;
       };
+      const v: ViewGfx = { ground: makeGround(host, track, settings.current.gl), fx, ready: false, fit };
+      made.push(v);
+      gfx.current[side] = v;
       fit();
       const ro = new ResizeObserver(fit);
-      ro.observe(box);
+      ro.observe(host);
       obs.push(ro);
     }
-    return () => obs.forEach((o) => o.disconnect());
+    setGfxKind(made[0]?.ground.kind ?? '');
+    return () => {
+      obs.forEach((o) => o.disconnect());
+      for (const v of made) v.ground.destroy();
+      gfx.current = {};
+    };
   }, [duo]);
 
   // Tastatur: ←/→ lenken, ↑ oder Leertaste für das Item – zu zweit oben mit A/D und W.
@@ -755,15 +404,26 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
     };
   }, []);
 
-  const humanInput = (side: Side): Input => {
+  const toggleAssist = (side: Side) => {
+    const on = !assistRef.current[side];
+    const k = race.current!.karts[side];
+    if (k && on) k.lane = Math.max(-LANE_MAX, Math.min(LANE_MAX, k.lat));
+    setAssist((a) => ({ ...a, [side]: on }));
+    saveAssist(on);
+    tone(on ? 880 : 520, 70, 'triangle', 0.05);
+  };
+
+  const humanInput = (side: Side, k: KartState, dt: number): Input => {
     const p = pressed.current[side];
-    const k = keys.current;
+    const keyset = keys.current;
     const own = views[views.length - 1] === side;
-    const left = p.l || (own && k.has('arrowleft')) || ((duo ? side === 'p2' : true) && k.has('a'));
-    const right = p.r || (own && k.has('arrowright')) || ((duo ? side === 'p2' : true) && k.has('d'));
+    const left = p.l || (own && keyset.has('arrowleft')) || ((duo ? side === 'p2' : true) && keyset.has('a'));
+    const right = p.r || (own && keyset.has('arrowright')) || ((duo ? side === 'p2' : true) && keyset.has('d'));
     const use = p.use;
     p.use = false;
-    return { steer: (right ? 1 : 0) - (left ? 1 : 0), use };
+    const steer = (right ? 1 : 0) - (left ? 1 : 0);
+    if (assistRef.current[side]) return { ...assistInput(k, track, steer, dt), use };
+    return { steer, use };
   };
 
   const say = (side: Side, text: string, sec = 1.3, big = false) => {
@@ -776,9 +436,10 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
   };
 
   const feedback = (side: Side, ev: KartEvent[]) => {
-    if (!views.includes(side) || !ev.length) return;
     const R = race.current!;
     const k = R.karts[side]!;
+    eventFx(R.parts, k, ev);
+    if (!views.includes(side) || !ev.length) return;
     for (const e of ev) {
       // Nach dem Zieleinlauf fährt das Kart allein weiter – dann bitte keine Meldungen mehr.
       if (e !== 'finish' && (R.ph === 'end' || (k.fin !== null && k.fin < R.t))) continue;
@@ -799,10 +460,12 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
       else if (e === 'wall') {
         sfx.wall();
         buzz(15);
+        R.shake[side] = Math.max(R.shake[side] ?? 0, 0.18);
       } else if (e === 'hit') {
         sfx.miss();
         buzz([30, 40, 30]);
         say(side, 'Autsch! 💫');
+        R.shake[side] = 0.45;
       } else if (e === 'lap') {
         sfx.point();
         say(side, `Runde ${k.lap}/${LAPS}`);
@@ -812,6 +475,16 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
       } else if (e === 'finish') {
         sfx.point();
         say(side, `Ziel! 🏁 ${fmtTime(k.fin ?? 0)}`, 30);
+        burst(R.parts, k.x, k.y, 40, (rnd) => ({
+          h: 4,
+          vx: (rnd() - 0.5) * 90,
+          vy: (rnd() - 0.5) * 90,
+          vh: 40 + rnd() * 50,
+          life: 1.4 + rnd() * 0.6,
+          size: 1.3,
+          color: CONFETTI[Math.floor(rnd() * CONFETTI.length)],
+          kind: 'confetti',
+        }));
       }
     }
   };
@@ -909,7 +582,7 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
       const rival = rivalOf(R, side);
       const cpu = players[side].cpu && !online;
       const auto = cpu || k.fin !== null || R.ph === 'end' || AUTOPILOT;
-      const inp = auto ? kiInput(k, track, rival, Math.random, dt) : humanInput(side);
+      const inp = auto ? kiInput(k, track, rival, Math.random, dt) : humanInput(side, k, dt);
       const ev: KartEvent[] = [];
       stepKart(k, inp, dt, track, R.t, ev, {
         rnd: Math.random,
@@ -951,6 +624,23 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
       feedback('p2', eb);
     }
     tickCourse(R.course, dt);
+    // Aufgefahrene Item-Boxen zerplatzen in Konfetti
+    R.course.boxes.forEach((left, i) => {
+      if (left > 0 && R.boxSeen[i] <= 0) {
+        const b = track.boxes[i];
+        burst(R.parts, b.x, b.y, 16, (rnd) => ({
+          h: 6,
+          vx: (rnd() - 0.5) * 70,
+          vy: (rnd() - 0.5) * 70,
+          vh: 25 + rnd() * 35,
+          life: 0.9 + rnd() * 0.4,
+          size: 1.2,
+          color: CONFETTI[Math.floor(rnd() * CONFETTI.length)],
+          kind: 'confetti',
+        }));
+      }
+      R.boxSeen[i] = left;
+    });
   };
 
   const checkFinish = (R: Race, now: number) => {
@@ -986,6 +676,7 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
   useLoop((dt) => {
     const R = race.current!;
     const now = performance.now();
+    const time = now / 1000;
     if (online) syncNet(R, dt, now);
     if (R.remote) updateRemote(R.remote, dt, now);
 
@@ -1013,6 +704,21 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
       }
     }
 
+    // Ruckelt es über zwei Sekunden, wird das Bild etwas gröber gerechnet.
+    if (R.ph === 'race') {
+      const q = quality.current;
+      q.acc += dt;
+      q.n++;
+      if (q.acc >= 2) {
+        if (q.acc / q.n > 1 / 40 && q.scale > 0.5) {
+          q.scale = Math.max(0.5, q.scale * 0.7);
+          for (const side of views) gfx.current[side]?.fit();
+        }
+        q.acc = 0;
+        q.n = 0;
+      }
+    }
+
     // Motor
     if (engine.current) {
       const ks = views.map((s) => R.karts[s]!);
@@ -1020,42 +726,77 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
       engine.current.set(48 + v * 0.42, 0.022);
     }
 
-    // Bilder malen
-    const A = getAssets(track);
-    const dk: DrawKart[] = [];
+    // Spuren hinter den Karts
+    const dk: (DrawKart & { side: Side | null })[] = [];
     for (const side of Object.keys(R.karts).filter(isSide)) {
       const k = R.karts[side]!;
+      const level = driftLevel(k);
+      const off = !onRoad(k);
+      if (R.ph === 'race' || R.ph === 'end') trail(R.parts, k.x, k.y, k.a, k.v, k.boost > 0, k.driftDir, level, off, dt);
       dk.push({
         x: k.x,
         y: k.y,
         a: k.a,
-        spinA: k.spin > 0 ? (1.1 - k.spin) * Math.PI * 3.6 : 0,
-        boost: k.boost > 0,
-        drift: driftLevel(k) * k.driftDir,
+        yaw: k.spin > 0 ? (1.1 - k.spin) * Math.PI * 3.6 : k.driftDir * 0.34 + k.st * 0.07,
+        bob: off && k.v > 30 ? Math.abs(Math.sin(time * 24)) * 0.9 : 0,
         color: players[side].color,
         emoji: players[side].emoji,
-        side,
         own: false,
-        lean: 0,
+        side,
       });
     }
     if (R.remote) {
       const o = otherSide(me);
       const nk = R.remote.pkt;
-      dk.push({ x: R.remote.x, y: R.remote.y, a: R.remote.a, spinA: nk.sp ? ((now / 1000) * 11) % (Math.PI * 2) : 0, boost: !!nk.b, drift: nk.d, color: players[o].color, emoji: players[o].emoji, side: null, own: false, lean: 0 });
+      const dir = Math.sign(nk.d);
+      if (R.ph === 'race' || R.ph === 'end') trail(R.parts, R.remote.x, R.remote.y, R.remote.a, nk.v, !!nk.b, dir, Math.abs(nk.d), false, dt);
+      dk.push({
+        x: R.remote.x,
+        y: R.remote.y,
+        a: R.remote.a,
+        yaw: nk.sp ? (time * 11) % (Math.PI * 2) : dir * 0.34,
+        bob: 0,
+        color: players[o].color,
+        emoji: players[o].emoji,
+        own: false,
+        side: null,
+      });
     }
+    stepParticles(R.parts, dt);
+
+    // Bilder malen
     const haz: Hazard[] = [...Object.values(R.karts).flatMap((k) => k!.haz), ...(R.remote?.haz ?? [])];
     for (const side of views) {
-      const g = gfx.current[side];
+      const v = gfx.current[side];
       const k = R.karts[side]!;
-      const cam = (R.cams[side] ??= { x: k.x, y: k.y, a: k.a });
-      cam.a = wrapAngle(cam.a + wrapAngle(k.a - cam.a) * Math.min(1, dt * 6));
+      const cam = (R.cams[side] ??= { x: k.x, y: k.y, a: k.a, dist: CAM_DIST, focal: FOCAL });
+      const boosting = k.boost > 0;
+      const ease = Math.min(1, dt * 4);
+      cam.a = wrapAngle(cam.a + wrapAngle(k.a - cam.a) * Math.min(1, dt * 5.5));
       cam.x = k.x;
       cam.y = k.y;
-      if (!g) continue;
-      const rel = wrapAngle(k.a - cam.a);
-      const karts = dk.map((d) => (d.side === side ? { ...d, own: true, lean: Math.max(-0.35, Math.min(0.35, rel * 0.8 + k.st * 0.06 + (k.drift > 0 ? k.driftDir * 0.12 : 0))) } : d));
-      drawView(g, track, A, cam, { karts, haz, boxes: R.course.boxes, time: now / 1000 }, k.boost > 0);
+      cam.focal += ((boosting ? FOCAL_BOOST : FOCAL - 0.04 * Math.min(1, k.v / VMAX)) - cam.focal) * ease;
+      cam.dist += ((boosting ? CAM_DIST_BOOST : CAM_DIST) - cam.dist) * ease;
+
+      // Wackeln bei Treffern
+      const scr = screens.current[side];
+      const sh = R.shake[side] ?? 0;
+      if (scr && (sh > 0 || scr.style.transform)) {
+        R.shake[side] = Math.max(0, sh - dt);
+        const amp = Math.min(1, sh * 3) * 7;
+        scr.style.transform = sh > 0 ? `translate(${(Math.random() - 0.5) * amp}px, ${(Math.random() - 0.5) * amp}px)` : '';
+      }
+
+      if (!v?.ready) continue;
+      v.ground.draw(cam);
+      drawOverlay(v.fx, track, cam, {
+        karts: dk.map((d) => ({ ...d, own: d.side === side })),
+        haz,
+        boxes: R.course.boxes,
+        parts: R.parts,
+        time,
+        streaks: boosting ? Math.min(1, k.boost * 2) : 0,
+      });
     }
 
     // Anzeige (10× pro Sekunde reicht)
@@ -1067,11 +808,22 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
         const k = R.karts[side]!;
         const rival = rivalOf(R, side);
         let msg: Msg | null = null;
+        let lights = 0;
+        let tip: string | null = null;
         if (R.ph === 'wait') msg = { text: `Warte auf ${players[otherSide(me)].name} …`, until: Infinity };
-        else if (R.ph === 'count') msg = { text: String(Math.max(1, Math.ceil(R.count))), until: Infinity, big: true };
-        else {
+        else if (R.ph === 'count') {
+          const n = Math.max(1, Math.ceil(R.count));
+          msg = { text: String(n), until: Infinity, big: true };
+          lights = 4 - n;
+        } else {
           const m = R.msgs[side];
           if (m && m.until > now) msg = m;
+          if (R.ph === 'race' && R.t < 0.9) lights = 4;
+          if (R.ph === 'race' && k.fin === null && k.wrong > 1) msg = { text: '↩ Falsche Richtung!', until: Infinity, warn: true };
+        }
+        if (R.ph === 'wait' || R.ph === 'count') {
+          const tips = assistRef.current[side] ? TIPS_ASSIST : TIPS_FREE;
+          tip = tips[Math.floor(time / 2.6) % tips.length];
         }
         next[side] = {
           lap: k.lap,
@@ -1079,6 +831,9 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
           place: rival ? (ahead(k, rival) ? 1 : 2) : 1,
           item: k.roll > 0 ? ITEM_EMOJI[ITEMS[Math.floor(now / 90) % 3]] : k.item ? ITEM_EMOJI[k.item] : '',
           rolling: k.roll > 0,
+          speed: Math.round(k.v * 0.6),
+          lights,
+          tip,
           msg,
         };
       }
@@ -1141,10 +896,12 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
       {views.map((side) => {
         const h = hud[side];
         const flipped = duo && side === 'p2';
+        const helped = assist[side];
         return (
           <div key={side} className={cls('kart-view', flipped && 'flip')} style={{ '--pc': players[side].color } as CSSProperties}>
-            <div className="kart-screen">
-              <canvas ref={(el) => void (canvases.current[side] = el)} />
+            <div className="kart-screen" data-gfx={gfxKind} ref={(el) => void (screens.current[side] = el)}>
+              <div className="kart-ground" ref={(el) => void (groundHosts.current[side] = el)} />
+              <canvas className="kart-fx" ref={(el) => void (fxCanvases.current[side] = el)} />
               <div className="kart-hud">
                 <div className="kart-top">
                   <div className="kart-info">
@@ -1153,25 +910,51 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
                     </span>
                     <span className="kart-time">{h?.time ?? fmtTime(0)}</span>
                     {solo && best !== undefined && <span className="kart-best">🏆 {fmtTime(best)}</span>}
+                    {!AUTOPILOT && (
+                      <button type="button" className={cls('kart-assist', helped && 'on')} aria-pressed={helped} onClick={(e) => {
+                          e.currentTarget.blur();
+                          toggleAssist(side);
+                        }}
+                      >
+                        🛟 Lenkhilfe {helped ? 'an' : 'aus'}
+                      </button>
+                    )}
                   </div>
-                  <div className={cls('kart-item', h?.rolling && 'rolling', !h?.item && 'empty')}>{h?.item ?? ''}</div>
+                  <div className={cls('kart-item', h?.rolling && 'rolling', !h?.item && 'empty', h?.item && !h.rolling && 'ready')}>{h?.item ?? ''}</div>
                 </div>
-                {!solo && phase !== 'wait' && <div className={cls('kart-place', `p${h?.place ?? 1}`)}>{h?.place ?? 1}.</div>}
+                {(h?.lights ?? 0) > 0 && (
+                  <div className={cls('kart-lights', h!.lights === 4 && 'go')}>
+                    {[1, 2, 3].map((n) => (
+                      <i key={n} className={cls(h!.lights === 4 ? 'g' : n <= h!.lights && 'r')} />
+                    ))}
+                  </div>
+                )}
+                {h?.tip && (
+                  <div key={h.tip} className="kart-tip">
+                    {h.tip}
+                  </div>
+                )}
+                {phase !== 'wait' && phase !== 'count' && (
+                  <div className="kart-speed">
+                    <b>{h?.speed ?? 0}</b> km/h
+                  </div>
+                )}
+                {!solo && phase !== 'wait' && phase !== 'count' && <div className={cls('kart-place', `p${h?.place ?? 1}`)}>{h?.place ?? 1}.</div>}
                 {h?.msg && (
-                  <div key={h.msg.text} className={cls('kart-msg', h.msg.big && 'big')}>
+                  <div key={h.msg.text} className={cls('kart-msg', h.msg.big && 'big', h.msg.warn && 'warn')}>
                     {h.msg.text}
                   </div>
                 )}
               </div>
             </div>
             <div className="kart-pad" ref={(el) => void (padEls.current[side] = el)} {...padHandlers(side, flipped)}>
-              <div data-z="l" aria-label="Links lenken">
+              <div data-z="l" aria-label={helped ? 'Spur nach links' : 'Links lenken'}>
                 ◀
               </div>
               <div data-z="u" className={cls('kart-use', !h?.item && 'empty')} aria-label="Item einsetzen">
                 {h?.item && !h.rolling ? h.item : '✦'}
               </div>
-              <div data-z="r" aria-label="Rechts lenken">
+              <div data-z="r" aria-label={helped ? 'Spur nach rechts' : 'Rechts lenken'}>
                 ▶
               </div>
             </div>

@@ -9,14 +9,16 @@ import type { Side } from './logic';
 
 export const WORLD = 1280;
 /** Straßenbreite */
-export const ROAD = 72;
-const HALF = ROAD / 2;
+export const ROAD = 88;
+export const HALF = ROAD / 2;
 /** Hecke: so weit darf man seitlich von der Mittellinie weg */
-export const WALL = 84;
+export const WALL = 96;
+/** Lenkhilfe: so weit nach außen geht die Wunschspur */
+export const LANE_MAX = HALF - 9;
 export const LAPS = 3;
 export const KART_R = 7;
 export const VMAX = 190;
-export const OFFROAD = 92;
+export const OFFROAD = 125;
 export const BOOST = 285;
 export const COUNTDOWN = 3;
 /** Ab so viel Driftzeit gibt's den kleinen / großen Mini-Turbo */
@@ -156,15 +158,15 @@ export function buildTrack(): Track {
   const t: Track = { n, px, py, dx, dy, len: total, spacing, boxes: [], pads: [], trees: [] };
 
   for (const at of [0.28, 0.66]) {
-    for (const lat of [-24, -8, 8, 24]) {
+    for (const lat of [-30, -10, 10, 30]) {
       const p = trackPoint(t, at * total, lat);
       t.boxes.push({ x: p.x, y: p.y });
     }
   }
   for (const [at, lat] of [
-    [0.12, -16],
-    [0.47, 16],
-    [0.83, -14],
+    [0.12, -20],
+    [0.47, 20],
+    [0.83, -18],
   ] as const) {
     const p = trackPoint(t, at * total, lat);
     t.pads.push({ x: p.x, y: p.y, a: p.a, s: at * total, lat });
@@ -283,6 +285,10 @@ export interface KartState {
   holdDir: number;
   /** So lange schon nicht mehr in Driftrichtung gelenkt */
   grace: number;
+  /** Lenkhilfe: die Spur, der das Kart folgt */
+  lane: number;
+  /** So lange schon in die falsche Richtung unterwegs */
+  wrong: number;
   item: ItemKind | null;
   /** Item-Roulette läuft noch so lange */
   roll: number;
@@ -308,6 +314,12 @@ export interface Input {
   steer: number;
   /** Item einsetzen (einmalig) */
   use: boolean;
+  /** Mit Lenkhilfe: in welche Richtung der Mensch wirklich drückt (dafür gibt's den Drift) */
+  hold?: number;
+  /** Lenkhilfe aktiv: etwas mehr Grip */
+  assist?: boolean;
+  /** Lenkhilfe bremst vor zu engen Kurven (0–1) */
+  brake?: number;
 }
 
 /** Was ein Kart von seinem Gegner wissen muss – lokal das andere Kart, online die mitgeschickte Ansicht. */
@@ -347,6 +359,8 @@ export function newKart(t: Track, lat: number): KartState {
     hold: 0,
     holdDir: 0,
     grace: 0,
+    lane: lat,
+    wrong: 0,
     item: null,
     roll: 0,
     fin: null,
@@ -402,6 +416,35 @@ export interface StepOpts {
   vmaxMul?: number;
 }
 
+/** Wie schnell das Kart bei vollem Einschlag dreht (rad/s) – bei hohem Tempo etwas ruhiger. */
+export const turnRate = (k: { v: number }) => (2.9 - 0.5 * clamp(k.v / VMAX, 0, 1.5)) * Math.min(1, k.v / 70);
+
+/**
+ * Lenkhilfe wie bei Handy-Rennspielen: Das Kart folgt von selbst der Strecke und hält seine Spur,
+ * ◀ ▶ verschieben nur die Spur. Gibt die Lenkung für `stepKart` zurück.
+ */
+export function assistInput(k: KartState, t: Track, player: number, dt: number): Input {
+  const hold = clamp(player, -1, 1);
+  k.lane = clamp(k.lane + hold * 75 * dt, -LANE_MAX, LANE_MAX);
+  const p = trackPoint(t, k.s + 28 + k.v * 0.3, k.lane);
+  const want = wrapAngle(Math.atan2(p.y - k.y, p.x - k.x) - k.a) * 2.6;
+  // Zu eng für das Tempo? Dann nimmt die Hilfe etwas Gas weg.
+  const brake = clamp((Math.abs(want) - 1) / 1.5, 0, 1);
+  let steer = want;
+  if (k.driftDir !== 0) {
+    // Im Drift dreht das Kart schon von selbst in die Kurve – das gleicht die Hilfe aus.
+    // Geht es so nicht mehr (Drift gegen die Kurve), bricht die Hilfe den Drift ab.
+    const drifting = (want - k.driftDir * 0.45) / 0.75;
+    if (drifting * k.driftDir > -1) steer = drifting;
+    else {
+      k.driftDir = 0;
+      k.drift = 0;
+      k.hold = -99; // erst nach dem Loslassen wieder
+    }
+  }
+  return { steer: clamp(steer, -1, 1), use: false, hold, assist: true, brake };
+}
+
 /** Ist das Kart auf dem Asphalt (mit etwas Toleranz für die Randsteine)? */
 export const onRoad = (k: { lat: number }) => Math.abs(k.lat) <= HALF + 3;
 
@@ -426,14 +469,16 @@ export function stepKart(k: KartState, inp: Input, dt: number, t: Track, raceT: 
   // Tempo: Gas gibt das Kart von selbst.
   let vmax = (road ? VMAX : OFFROAD) * (o.vmaxMul ?? 1);
   if (k.boost > 0) vmax = Math.max(vmax, BOOST);
+  if (inp.brake) vmax *= 1 - 0.35 * clamp(inp.brake, 0, 1);
   if (spinning) vmax = 25;
   if (k.v < vmax) k.v = Math.min(vmax, k.v + (k.boost > 0 ? 420 : 125) * dt);
-  else k.v = Math.max(vmax, k.v - (spinning ? 260 : road ? 160 : 320) * dt);
+  else k.v = Math.max(vmax, k.v - (spinning ? 260 : inp.brake ? 320 : road ? 160 : 190) * dt);
 
   // Lenken & Driften: Wer eine Kurve hält, driftet – beim Loslassen gibt's einen Mini-Turbo.
   const steer = spinning ? 0 : clamp(inp.steer, -1, 1);
-  k.st += clamp(steer - k.st, -dt * 7, dt * 7);
-  const dir = Math.abs(steer) > 0.6 ? Math.sign(steer) : 0;
+  k.st += clamp(steer - k.st, -dt * 6, dt * 6);
+  const held = inp.hold ?? steer;
+  const dir = !spinning && Math.abs(held) > 0.6 ? Math.sign(held) : 0;
   if (dir !== 0 && dir === k.holdDir) k.hold += dt;
   else {
     k.holdDir = dir;
@@ -444,7 +489,6 @@ export function stepKart(k: KartState, inp: Input, dt: number, t: Track, raceT: 
       k.driftDir = 0;
       k.drift = 0;
     } else {
-      k.drift += dt;
       // Kurz loslassen beendet den Drift noch nicht – erst wer länger geradeaus will.
       k.grace = dir === k.driftDir ? 0 : k.grace + dt;
       if (k.grace > 0.3) {
@@ -461,8 +505,9 @@ export function stepKart(k: KartState, inp: Input, dt: number, t: Track, raceT: 
     k.drift = 0;
     k.grace = 0;
   }
-  const grip = Math.min(1, k.v / 70);
-  const turn = 2.7 * grip * (k.driftDir !== 0 ? k.driftDir * 0.45 + k.st * 0.75 : k.st);
+  const turn = turnRate(k) * (inp.assist ? 1.25 : 1) * (k.driftDir !== 0 ? k.driftDir * 0.45 + k.st * 0.75 : k.st);
+  // Aufladen nur, wenn das Kart wirklich in die Kurve geht (nicht beim Geradeaus-Driften)
+  if (k.driftDir !== 0 && turn * k.driftDir > 0.55) k.drift += dt;
   k.a = wrapAngle(k.a + turn * dt);
 
   k.x = clamp(k.x + Math.cos(k.a) * k.v * dt, 4, WORLD - 4);
@@ -485,7 +530,7 @@ export function stepKart(k: KartState, inp: Input, dt: number, t: Track, raceT: 
       hy -= ny * out * 1.4;
       k.a = Math.atan2(hy, hx);
       if (k.wallT <= 0) {
-        k.v *= 0.6;
+        k.v *= 0.8;
         k.wallT = 0.4;
         ev.push('wall');
       }
@@ -501,6 +546,7 @@ export function stepKart(k: KartState, inp: Input, dt: number, t: Track, raceT: 
   k.s = loc.s;
   k.seg = loc.i;
   k.lat = loc.lat;
+  k.wrong = k.v > 20 && Math.cos(k.a) * t.dx[loc.i] + Math.sin(k.a) * t.dy[loc.i] < -0.2 ? k.wrong + dt : 0;
   const lap = clamp(Math.floor(k.prog / t.len) + 1, 1, LAPS);
   if (lap > k.lap) {
     k.lap = lap;
@@ -614,13 +660,13 @@ export function ahead(a: { fin: number | null; prog: number }, b: { fin: number 
 // ───────────────────────── KI ─────────────────────────
 
 /** Gummiband: Liegt die KI weit hinten, fährt sie etwas schneller – liegt sie vorne, etwas langsamer. */
-export const kiVmax = (k: { prog: number }, rival: { prog: number } | null) => (rival ? clamp(0.94 + (rival.prog - k.prog) / 2500, 0.88, 1.06) : 1);
+export const kiVmax = (k: { prog: number }, rival: { prog: number } | null) => (rival ? clamp(0.98 + (rival.prog - k.prog) / 2000, 0.9, 1.12) : 1);
 
 export function kiInput(k: KartState, t: Track, rival: Rival | null, rnd: () => number, dt: number): Input {
   const ai = (k.ai ??= { lane: 0, t: 0, wait: 0 });
   ai.t -= dt;
   if (ai.t <= 0) {
-    ai.lane = (rnd() * 2 - 1) * 20;
+    ai.lane = (rnd() * 2 - 1) * 26;
     ai.t = 2 + rnd() * 3;
   }
   let lane = ai.lane;
@@ -631,7 +677,7 @@ export function kiInput(k: KartState, t: Track, rival: Rival | null, rnd: () => 
       const l = locate(t, h.x, h.y, k.seg);
       let d = l.s - k.s;
       if (d < -t.len / 2) d += t.len;
-      if (d > 0 && d < 90 && Math.abs(l.lat - lane) < 16) lane = clamp(l.lat > 0 ? l.lat - 22 : l.lat + 22, -28, 28);
+      if (d > 0 && d < 90 && Math.abs(l.lat - lane) < 16) lane = clamp(l.lat > 0 ? l.lat - 24 : l.lat + 24, -LANE_MAX, LANE_MAX);
     }
   }
   const p = trackPoint(t, k.s + 34 + k.v * 0.32, lane);
