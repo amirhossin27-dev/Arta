@@ -108,6 +108,21 @@ export const TOGETHER_DONE = [
   'Ihr zwei seid unschlagbar! Bonus +10 Herzpunkte. 🏅',
 ];
 
+export const WEEK_GOAL_DONE = [
+  'Wochenziel geknackt! 🎯 Ihr zwei seid ein echtes Power-Paar.',
+  'Zusammen geschafft! Das schreit nach einem gemütlichen Date-Abend. 🥂',
+  '{me} und {partner}: Ziel erreicht! Jetzt wird gefeiert. 🎉',
+  'Euer Wochenziel ist voll – ich bin stolz auf euch zwei! 💞',
+  'Ziel erreicht! Alles, was diese Woche noch kommt, ist Bonus. 🌟',
+];
+
+export const STREAK_UP = [
+  'Heute wart ihr beide aktiv – eure Serie wächst! 💞',
+  'Ihr zieht das gemeinsam durch. Weiter so, ihr zwei! 🔥',
+  '{partner} war heute auch schon dran – ein Tag mehr für eure Serie. 🥰',
+  'Team-Tag! Eure Paar-Serie legt noch einen drauf. 💪',
+];
+
 export const STEP_GOAL = [
   'Schrittziel geknackt! {partner} wäre jetzt gern an deiner Seite gelaufen. 💞',
   'Jeder Schritt heute war ein kleiner Schritt in Richtung Glück. 👣✨',
