@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { todayKey } from './date';
+import { applyHealthNode, clearHealth, isHealth } from './health';
 import { LIVE_DB_URL } from './liveConfig';
 import { heartBurst, showLove } from './love';
 import { heartsOn } from './stats';
@@ -272,8 +273,11 @@ function connect(s: Session) {
     const me = getDevice().deviceId;
     for (const name of new Set([...Object.keys(prev), ...Object.keys(room)])) {
       if (isChannel(name) && prev[name] !== room[name]) s.queue = s.queue.then(() => readChannel(s, name, room[name]));
+      if (isHealth(name) && prev[name] !== room[name]) s.queue = s.queue.then(() => applyHealthNode(name, room[name]));
     }
-    for (const dev of touched) if (dev !== me && !isChannel(dev)) s.queue = s.queue.then(() => mergeNode(s, dev, s.mirror[dev]));
+    for (const dev of touched) {
+      if (dev !== me && !isChannel(dev) && !isHealth(dev)) s.queue = s.queue.then(() => mergeNode(s, dev, s.mirror[dev]));
+    }
     if (!s.greeted) s.queue = s.queue.then(() => schedulePush(0));
   };
   es.addEventListener('put', onData('put') as EventListener);
@@ -583,6 +587,7 @@ function stopSession() {
   window.clearTimeout(s.retryTimer);
   session = null;
   clearChannels();
+  clearHealth();
   setStatus({ state: 'off', message: undefined, partnerAt: undefined, pending: false, lastPushAt: undefined });
 }
 

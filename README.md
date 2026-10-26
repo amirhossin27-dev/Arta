@@ -19,6 +19,7 @@ Sie läuft als **Web-App im Browser** und lässt sich wie eine normale App auf d
 - Einplanen für dich, deinen Schatz (als kleine Challenge 😜) oder euch beide, mit Uhrzeit, bis zu 2 Wochen im Voraus
 - Eingebauter Timer, Wochenansicht und Bonuspunkte, wenn ihr eine gemeinsame Einheit beide schafft
 - **👣 Schritte** von euch beiden: Tagesziel mit Ring, kleines Schritte-Duell und Wochenbalken. Mitzählen über den Bewegungssensor, solange Arta offen ist (das Display bleibt dafür an), oder die Zahl aus der Health-App / Google Fit eintragen. Web-Apps dürfen nicht auf Apple Health oder Google Fit zugreifen und im Hintergrund keine Sensoren lesen – deshalb dieser Weg.
+- **🍎 Automatisch aus Apple Health (iPhone):** Ein Kurzbefehl liest die Schritte von heute und schickt sie an euren Live-Raum, auch wenn Arta zu ist. Mit einer Automation („App wird geschlossen“ / Tageszeit) läuft das von allein. Die Anleitung mit Kopier-Knöpfen steht in Arta unter Sport → 👣 Schritte → Eintragen → „Apple Health verbinden“.
 
 **🥗 Essen**
 - Tägliche kcal-Bilanz (Tagesziel + Sport − Essen) mit Eiweiß, Kohlenhydraten und Fett

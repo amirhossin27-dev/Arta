@@ -1,0 +1,119 @@
+import { useSyncExternalStore } from 'react';
+import { toKey } from './date';
+import { myLiveSteps, setMySteps } from './pedometer';
+import type { DaySteps } from './steps';
+import { getDevice } from './store';
+import type { PersonId } from './types';
+
+/**
+ * Schritte aus Apple Health: Ein iPhone-Kurzbefehl liest die Schritte von heute und schreibt sie
+ * – auch wenn Arta zu ist – als kleinen Eintrag `health-a` / `health-b` in euren Live-Raum.
+ * Der Eintrag hat dieselbe Form wie die Geräte-Stände (siehe database.rules.json), ist aber
+ * nicht verschlüsselt, weil Kurzbefehle das nicht können: Er enthält nur die Schrittzahl.
+ *
+ *   { "v": 1, "at": {".sv": "timestamp"}, "iv": "health", "ct": "8432" }
+ *
+ * `at` setzt die Datenbank selbst (Serverzeit) – daraus ergibt sich der Tag.
+ */
+export const HEALTH_PREFIX = 'health-';
+
+export interface HealthSteps {
+  date: string;
+  count: number;
+  /** Wann der Kurzbefehl zuletzt geschickt hat. */
+  at: number;
+  /** Die letzte Nachricht hatte keine lesbare Schrittzahl (Variable im Kurzbefehl vergessen?). */
+  broken?: boolean;
+}
+
+export const isHealth = (name: string) => name.startsWith(HEALTH_PREFIX);
+
+/** Vorlage für den Anfragetext im Kurzbefehl; SCHRITTE wird durch die Health-Variable ersetzt. */
+export const HEALTH_BODY = '{"v":1,"at":{".sv":"timestamp"},"iv":"health","ct":"SCHRITTE"}';
+
+/**
+ * Liest die Schrittzahl aus dem, was der Kurzbefehl in den Text setzt –
+ * je nach iPhone-Sprache z. B. „8432“, „8.432“, „8,432“, „8432 Schritte“ oder „8432,0“.
+ */
+export function parseStepText(text: string): number | undefined {
+  const m = text.match(/\d[\d.,'   ]*/);
+  if (!m) return undefined;
+  let token = m[0].replace(/[\s'  ]/g, '').replace(/[.,]+$/, '');
+  if (token.includes('.') && token.includes(',')) {
+    // „1.234,5“ oder „1,234.5“: Das letzte Trennzeichen steht vor den Nachkommastellen.
+    const dec = token.lastIndexOf(',') > token.lastIndexOf('.') ? ',' : '.';
+    token = token.split(dec === ',' ? '.' : ',').join('').replace(dec, '.');
+  } else if (/^\d{1,3}([.,]\d{3})+$/.test(token)) {
+    token = token.replace(/[.,]/g, '');
+  } else {
+    token = token.replace(',', '.');
+  }
+  const n = Number(token);
+  return Number.isFinite(n) && n >= 0 && n <= 200_000 ? Math.round(n) : undefined;
+}
+
+export function parseHealthNode(node: unknown): HealthSteps | undefined {
+  const n = node as { at?: unknown; ct?: unknown } | null;
+  if (!n || typeof n !== 'object' || typeof n.at !== 'number' || typeof n.ct !== 'string') return undefined;
+  const count = parseStepText(n.ct);
+  if (count === undefined) return undefined;
+  return { date: toKey(new Date(n.at)), count, at: n.at };
+}
+
+let health: Partial<Record<PersonId, HealthSteps>> = {};
+const listeners = new Set<() => void>();
+
+const subscribe = (fn: () => void) => {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+};
+
+const getHealth = () => health;
+
+export function useHealth(): Partial<Record<PersonId, HealthSteps>> {
+  return useSyncExternalStore(subscribe, getHealth, getHealth);
+}
+
+function setHealth(next: Partial<Record<PersonId, HealthSteps>>) {
+  health = next;
+  listeners.forEach((l) => l());
+}
+
+export function clearHealth() {
+  if (Object.keys(health).length) setHealth({});
+}
+
+/**
+ * Ein `health-…`-Eintrag aus dem Live-Raum. Für dich selbst übernimmt Arta die Zahl in deinen
+ * Schritte-Tag (dein Handy schreibt ja nur deine eigenen Daten); beim Partner wird sie nur
+ * angezeigt, bis sein Handy sie selbst übernimmt.
+ */
+export function applyHealthNode(name: string, node: unknown) {
+  const person = name.slice(HEALTH_PREFIX.length);
+  if (person !== 'a' && person !== 'b') return;
+  const h = parseHealthNode(node);
+  const cur = health[person];
+  if (!h) {
+    const at = (node as { at?: unknown } | null)?.at;
+    if (typeof at === 'number') {
+      // Der Kurzbefehl läuft, schickt aber keine Zahl mit – die letzte gute bleibt stehen.
+      if (!cur?.broken) setHealth({ ...health, [person]: { ...(cur ?? { date: toKey(new Date(at)), count: 0, at }), broken: true } });
+    } else if (cur) {
+      const next = { ...health };
+      delete next[person];
+      setHealth(next);
+    }
+    return;
+  }
+  if (!cur || cur.broken || cur.at !== h.at || cur.count !== h.count) setHealth({ ...health, [person]: h });
+  // Apple Health zählt alles, was Arta selbst mitgezählt hat, ebenfalls – deshalb das Maximum.
+  if (person === getDevice().me && h.count > myLiveSteps(h.date)) setMySteps(h.date, h.count);
+}
+
+/** Schritte eines Tages inklusive dessen, was Apple Health schon gemeldet hat. */
+export function withHealth(s: DaySteps, person: PersonId): DaySteps {
+  const h = health[person];
+  return h && h.date === s.date && h.count > s.count ? { ...s, count: h.count } : s;
+}

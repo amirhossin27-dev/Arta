@@ -948,6 +948,33 @@ button.person-steps:active {
   font-size: 1.7rem;
 }
 
+.steps-source {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.copy-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.copy-box textarea {
+  font-family: ui-monospace, Menlo, monospace;
+  word-break: break-all;
+  resize: none;
+}
+
+.copy-box .btn {
+  align-self: flex-start;
+}
+
+.health-status.ok {
+  background: var(--food-soft);
+}
+
 .steps-why {
   margin: 4px 2px 8px;
 }
