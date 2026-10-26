@@ -1902,6 +1902,29 @@ input[type='checkbox'] {
   flex: none;
 }
 
+/* iOS Safari gibt Datums-/Zeitfeldern eine eigene Mindestbreite, dann ragen
+   sie trotz width: 100% über den Kartenrand hinaus. */
+input[type='date'],
+input[type='time'],
+input[type='datetime-local'],
+input[type='month'] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* ohne native Optik fällt ein leeres Feld auf iOS sonst flach zusammen */
+input::-webkit-date-and-time-value {
+  min-height: 1.45em;
+  text-align: left;
+}
+
+.big-input::-webkit-date-and-time-value {
+  text-align: center;
+}
+
 .field {
   display: flex;
   flex-direction: column;
