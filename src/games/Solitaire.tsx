@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as RPointerEvent } from 'react';
 import { cls } from '../lib/hooks';
-import { buzz, sfx, tone, useTouchLock } from './engine';
+import { buzz, sfx, tone } from './engine';
 import {
   autoStep,
   bestTarget,
@@ -183,13 +183,11 @@ export function Solitaire({ best, onEnd }: GameProps) {
   const [giveUp, setGiveUp] = useState(false);
   const [shake, setShake] = useState<number | null>(null);
   const board = useRef<HTMLDivElement>(null);
-  const root = useRef<HTMLDivElement>(null);
   const bounce = useRef<HTMLCanvasElement>(null);
   const els = useRef(new Map<number, HTMLDivElement>());
   const drag = useRef<Drag | null>(null);
   const [dragIds, setDragIds] = useState<number[]>([]);
   const finalTime = useRef(0);
-  useTouchLock(root);
 
   useLayoutEffect(() => {
     const el = board.current;
@@ -378,7 +376,7 @@ export function Solitaire({ best, onEnd }: GameProps) {
   const ss = String(secs % 60).padStart(2, '0');
 
   return (
-    <div className="g-col fill sol" ref={root}>
+    <div className="g-col fill sol">
       <div className="score-strip">
         <span>
           ⏱ {mm}:{ss}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
-import { buzz, heartPath, noise, sfx, tone, unlockAudio, useLoop, useTouchLock } from './engine';
+import { buzz, heartPath, noise, sfx, tone, unlockAudio, useLoop } from './engine';
 import { otherSide, type Side } from './logic';
 import {
   BODY_H,
@@ -167,7 +167,6 @@ export function Strike({ mode, p1, p2, net, best, onEnd }: GameProps) {
   const [locked, setLocked] = useState(false);
   const [mouse, setMouse] = useState(false);
 
-  const root = useRef<HTMLDivElement>(null);
   const view = useRef<HTMLDivElement>(null);
   const glCv = useRef<HTMLCanvasElement>(null);
   const hudCv = useRef<HTMLCanvasElement>(null);
@@ -230,7 +229,6 @@ export function Strike({ mode, p1, p2, net, best, onEnd }: GameProps) {
     urgent: false,
   });
 
-  useTouchLock(root);
 
   // ───── WebGL einrichten ─────
   useEffect(() => {
@@ -1159,7 +1157,7 @@ export function Strike({ mode, p1, p2, net, best, onEnd }: GameProps) {
   }
 
   return (
-    <div ref={root} className="hs">
+    <div className="hs">
       <div ref={view} className="hs-view" {...viewHandlers}>
         <canvas ref={glCv} className="hs-gl" />
         <canvas ref={hudCv} className="hs-hud" />
