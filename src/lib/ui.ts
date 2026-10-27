@@ -15,8 +15,11 @@ export type SheetState =
   | { type: 'settings' }
   | { type: 'cheer' }
   | { type: 'couple' }
+  | { type: 'weekGoal' }
+  | { type: 'streak' }
   | { type: 'steps'; date: string }
   | { type: 'health' }
+  | { type: 'gesund'; view?: 'routinen' | 'tipps' }
   | { type: 'game'; id: GameId; join?: string };
 
 interface UIState {
