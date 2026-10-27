@@ -6,6 +6,8 @@ import { ExerciseSheet } from './components/exercise';
 import { GameScreen } from './games/GameScreen';
 import { ArcadeInvite } from './games/Invite';
 import { LoveLayer } from './components/LoveLayer';
+import { PhotoBackdrop } from './components/PhotoBackdrop';
+import { PhotoSheet } from './components/photos';
 import { CheerSheet, CoupleSheet, SettingsSheet, SyncSheet } from './components/sheets';
 import { StreakSheet, WeekGoalSheet } from './components/goals';
 import { HealthSheet } from './components/healthSetup';
@@ -195,6 +197,7 @@ export default function App() {
 
   return (
     <div className="app" data-tab={ui.tab}>
+      <PhotoBackdrop />
       <header className="topbar">
         <button className="brand" onClick={() => nav.setTab('heute')}>
           <span className="brand-heart">❤</span> Arta
@@ -247,6 +250,7 @@ export default function App() {
       {sheet?.type === 'steps' && <StepsSheet date={sheet.date} onClose={close} />}
       {sheet?.type === 'health' && <HealthSheet onClose={close} />}
       {sheet?.type === 'gesund' && <GesundSheet view={sheet.view} onClose={close} />}
+      {sheet?.type === 'photo' && <PhotoSheet id={sheet.id} onClose={close} />}
       {sheet?.type === 'game' && <GameScreen key={`${sheet.id}-${sheet.join ?? ''}`} id={sheet.id} join={sheet.join} onClose={close} />}
       {live && <ArcadeInvite />}
 

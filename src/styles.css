@@ -9890,3 +9890,272 @@ button.sol-slot {
 .hs-nogl-emoji {
   font-size: 54px;
 }
+
+/* ───── Gemeinsame Fotos ───── */
+
+/* Hinter allem: gleitet von rechts herein, steht mit langsamer Kamerafahrt und zieht nach links weiter. */
+.photo-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(38%);
+  transition:
+    opacity 1.6s ease,
+    transform 1.8s cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+
+.photo-backdrop.in {
+  opacity: 1;
+  transform: none;
+}
+
+.photo-backdrop.out {
+  opacity: 0;
+  transform: translateX(-28%);
+  transition-duration: 1.5s;
+  transition-timing-function: ease-in;
+}
+
+.photo-backdrop img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.62;
+  animation: photo-drift 28s linear forwards;
+}
+
+.photo-backdrop.move-1 img {
+  transform-origin: 20% 30%;
+}
+.photo-backdrop.move-2 img {
+  transform-origin: 80% 40%;
+  animation-name: photo-drift-out;
+}
+.photo-backdrop.move-3 img {
+  transform-origin: 50% 80%;
+}
+
+/* Oben unter der Leiste und unten über den Tabs sanft in den Hintergrund übergehen. */
+.photo-backdrop-fade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to bottom,
+      var(--bg) 0,
+      color-mix(in srgb, var(--bg) 35%, transparent) 16%,
+      transparent 34%,
+      transparent 72%,
+      color-mix(in srgb, var(--bg) 70%, transparent) 100%
+    ),
+    radial-gradient(ellipse at 50% 50%, transparent 55%, color-mix(in srgb, var(--bg) 35%, transparent) 100%);
+}
+
+@keyframes photo-drift {
+  from {
+    transform: scale(1.04);
+  }
+  to {
+    transform: scale(1.16);
+  }
+}
+
+@keyframes photo-drift-out {
+  from {
+    transform: scale(1.16);
+  }
+  to {
+    transform: scale(1.04);
+  }
+}
+
+/* Solange ein Foto zu sehen ist, werden die Karten zu Milchglas. */
+.app .card,
+.app .stat,
+.app .hero {
+  transition:
+    background-color 1.2s ease,
+    opacity 1.2s ease;
+}
+
+body.photo-on .app .card,
+body.photo-on .app .stat {
+  background-color: color-mix(in srgb, var(--surface) 78%, transparent);
+  backdrop-filter: blur(22px) saturate(1.2);
+  -webkit-backdrop-filter: blur(22px) saturate(1.2);
+}
+
+body.photo-on .app .hero {
+  opacity: 0.9;
+}
+
+body.photo-on .topbar {
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+}
+
+.photo-pill {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 14px);
+  z-index: 25;
+  max-width: min(86vw, 420px);
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--shadow);
+  font-size: 0.85rem;
+  font-weight: 750;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  opacity: 0;
+  animation: photo-pill 8s ease 1s forwards;
+}
+
+@keyframes photo-pill {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  8%,
+  86% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo-backdrop,
+  .photo-backdrop.out {
+    transform: none;
+  }
+  .photo-backdrop img {
+    animation: none;
+  }
+}
+
+/* Album unter „Liebe“ */
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.photo-tile {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface-2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  transition: transform 0.15s;
+}
+
+.photo-tile:active {
+  transform: scale(0.95);
+}
+
+.photo-tile img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: fade-in 0.3s ease;
+}
+
+.photo-wait {
+  font-size: 1.4rem;
+}
+
+.photo-wait-text {
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.photo-card .link {
+  align-self: center;
+  margin-top: 8px;
+}
+
+.photo-card .card-head + .photo-grid {
+  margin-top: 4px;
+}
+
+.photo-freq {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+/* Einzelansicht */
+.photo-view {
+  position: relative;
+  width: 100%;
+  max-height: 62vh;
+  margin: 0 auto 10px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.photo-view img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  animation: fade-in 0.3s ease;
+}
+
+.photo-view-wait {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.photo-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 1.6rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.photo-nav.prev {
+  left: 8px;
+}
+
+.photo-nav.next {
+  right: 8px;
+}
