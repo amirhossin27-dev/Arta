@@ -1,9 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { FLOWS, INFO_TOPICS, PHASES, SYMPTOMS } from '../../data/cycle';
-import { cycleStats, dayInfo, dueDate, fertilityFor, getCycle, periodsOf, phaseFor, phaseSegments, pregnancyWeek } from '../cycle';
-import { emptyData } from '../store';
+import { FLOWS, INFO_TOPICS, PHASES, SYMPTOMS, TESTS, TTC_STAGES } from '../../data/cycle';
+import {
+  cycleStats,
+  dayInfo,
+  dueDate,
+  fertilityFor,
+  getCycle,
+  loveHistory,
+  loveOn,
+  MAX_LOVE,
+  periodsOf,
+  phaseFor,
+  phaseSegments,
+  pregnancyWeek,
+  ttcRound,
+  ttcStatus,
+} from '../cycle';
+import { actions, commitData, emptyData, getData } from '../store';
 import { buildPayload, mergeData } from '../sync';
-import type { AppData, Period } from '../types';
+import type { AppData, CycleDay, Period } from '../types';
 
 const SETTINGS = { personId: 'b' as const, cycleLength: 28, periodLength: 5 };
 
@@ -122,6 +137,139 @@ describe('Zyklus-Vorhersage', () => {
   });
 });
 
+function withTest(d: AppData, date: string, changes: Partial<CycleDay>): AppData {
+  const id = `${date}-b`;
+  return { ...d, cycleDays: { ...d.cycleDays, [id]: { id, date, personId: 'b', symptoms: [], updatedAt: 1, ...changes } } };
+}
+
+function withLove(d: AppData, dates: string[]): AppData {
+  return { ...d, loveDays: Object.fromEntries(dates.map((date) => [date, { id: date, date, count: 1, updatedAt: 1 }])) };
+}
+
+function ttc(d: AppData, since?: string): AppData {
+  return { ...d, couple: { ...d.couple, cycle: { ...SETTINGS, ttc: true, ttcSince: since } } };
+}
+
+describe('Ovulationstest', () => {
+  it('verschiebt Eisprung, fruchtbares Fenster und nächste Periode', () => {
+    const plain = getCycle(withCycle([{ start: '2026-10-01' }]), '2026-10-20')!;
+    expect(plain.ovulation).toBe('2026-10-14');
+    expect(plain.next).toBe('2026-10-29');
+
+    // Positiv an Zyklustag 17 → Eisprung an Tag 18, Periode ca. 14 Tage später
+    const d = withTest(withCycle([{ start: '2026-10-01' }]), '2026-10-17', { lh: 'pos' });
+    const c = getCycle(d, '2026-10-20')!;
+    expect(c.lhOvulation).toEqual({ '2026-10-01': 18 });
+    expect(c.ovulation).toBe('2026-10-18');
+    expect(c.length).toBe(32);
+    expect(c.next).toBe('2026-11-02');
+    expect(c.lateBy).toBe(0);
+    expect(c.todayInfo).toMatchObject({ cycleDay: 20, phase: 'luteal', byTest: true });
+    expect(dayInfo(c, '2026-10-18')).toMatchObject({ ovulation: true, fertility: 'hoch', byTest: true });
+    expect(dayInfo(c, '2026-10-14')).toMatchObject({ ovulation: false, fertility: 'mittel' });
+    expect(phaseSegments(c.length, 5, c.ovDay).reduce((a, [, n]) => a + n, 0)).toBe(32);
+  });
+
+  it('nimmt nur den ersten positiven Test und ignoriert negative oder unplausible', () => {
+    let d = withCycle([{ start: '2026-10-01' }]);
+    d = withTest(d, '2026-10-12', { lh: 'neg' });
+    d = withTest(d, '2026-10-13', { lh: 'pos' });
+    d = withTest(d, '2026-10-14', { lh: 'pos' });
+    expect(getCycle(d, '2026-10-20')!.lhOvulation).toEqual({ '2026-10-01': 14 });
+
+    const early = withTest(withCycle([{ start: '2026-10-01' }]), '2026-10-03', { lh: 'pos' });
+    expect(getCycle(early, '2026-10-20')!.lhOvulation).toEqual({});
+  });
+
+  it('wirkt auch rückblickend auf vergangene Zyklen', () => {
+    const d = withTest(
+      withCycle([
+        { start: '2026-09-01', end: '2026-09-05' },
+        { start: '2026-09-30', end: '2026-10-04' },
+      ]),
+      '2026-09-11',
+      { lh: 'pos' },
+    );
+    const c = getCycle(d, '2026-10-10')!;
+    expect(dayInfo(c, '2026-09-12')).toMatchObject({ cycleDay: 12, ovulation: true, byTest: true });
+    expect(dayInfo(c, '2026-09-16').ovulation).toBe(false);
+  });
+});
+
+describe('Kinderwunsch', () => {
+  const base = () => ttc(withCycle([{ start: '2026-10-01' }]));
+
+  it('kennt die Etappen eines Zyklus', () => {
+    const at = (today: string, d = base()) => ttcStatus(d, getCycle(d, today)!)!;
+    expect(at('2026-10-03')).toMatchObject({ stage: 'periode', days: 6 });
+    expect(at('2026-10-06')).toMatchObject({ stage: 'vorher', days: 3, window: { start: '2026-10-09', end: '2026-10-15', ovulation: '2026-10-14' } });
+    expect(at('2026-10-12')).toMatchObject({ stage: 'fenster', days: 4 });
+    expect(at('2026-10-20')).toMatchObject({ stage: 'warten', days: 9, testDay: '2026-10-29' });
+    expect(at('2026-10-29')).toMatchObject({ stage: 'test', testDay: '2026-10-29' });
+    expect(at('2026-10-31')).toMatchObject({ stage: 'test' });
+    expect(at('2026-10-31', withTest(base(), '2026-10-30', { hcg: 'pos' }))).toMatchObject({ stage: 'positiv', positive: '2026-10-30' });
+    // Ein negativer Test ändert nichts
+    expect(at('2026-10-31', withTest(base(), '2026-10-30', { hcg: 'neg' })).stage).toBe('test');
+  });
+
+  it('wartet nach positivem Ovulationstest länger auf den Test', () => {
+    const d = withTest(base(), '2026-10-17', { lh: 'pos' });
+    expect(ttcStatus(d, getCycle(d, '2026-10-20')!)).toMatchObject({ stage: 'warten', testDay: '2026-11-02', window: { ovulation: '2026-10-18' } });
+  });
+
+  it('zählt Liebe im fruchtbaren Fenster', () => {
+    const d = withLove(base(), ['2026-10-05', '2026-10-10', '2026-10-13', '2026-10-20']);
+    expect(ttcStatus(d, getCycle(d, '2026-10-11')!)!.loveInWindow).toBe(1);
+    expect(ttcStatus(d, getCycle(d, '2026-10-20')!)!.loveInWindow).toBe(2);
+  });
+
+  it('zählt die Kinderwunsch-Zyklen ab dem Start', () => {
+    const d = ttc(withCycle([{ start: '2026-08-05' }, { start: '2026-09-03' }, { start: '2026-10-01' }]), '2026-09-10');
+    expect(ttcRound(getCycle(d, '2026-10-20')!)).toBe(2);
+    expect(ttcRound(getCycle(ttc(withCycle([{ start: '2026-10-01' }])), '2026-10-20')!)).toBe(1);
+    expect(ttcRound(getCycle(ttc(withCycle([{ start: '2026-10-01' }]), '2026-10-25'), '2026-10-20')!)).toBe(1);
+  });
+
+  it('zeigt im Rückblick, wie das Timing in jedem Zyklus lag', () => {
+    const d = withLove(withCycle([{ start: '2026-09-03' }, { start: '2026-10-01' }]), ['2026-09-12', '2026-09-20', '2026-10-10', '2026-10-13', '2026-10-20']);
+    const h = loveHistory(d, getCycle(d, '2026-10-25')!);
+    expect(h).toHaveLength(2);
+    expect(h[0]).toMatchObject({ start: '2026-10-01', end: '2026-10-25', running: true, days: 3, inWindow: 2, top: 1 });
+    expect(h[1]).toMatchObject({ start: '2026-09-03', end: '2026-09-30', running: false, days: 2, inWindow: 1, window: { ovulation: '2026-09-16' } });
+  });
+});
+
+describe('Zweisamkeit eintragen', () => {
+  it('setzt, zählt und löscht einen Tag', () => {
+    commitData(emptyData());
+    actions.setLoveDay('2026-10-20', 1);
+    expect(loveOn(getData(), '2026-10-20')).toBe(1);
+    actions.setLoveDay('2026-10-20', 99);
+    expect(loveOn(getData(), '2026-10-20')).toBe(MAX_LOVE);
+    actions.setLoveDay('2026-10-20', 0);
+    expect(loveOn(getData(), '2026-10-20')).toBe(0);
+    expect(getData().loveDays['2026-10-20'].deleted).toBe(true);
+    actions.setLoveDay('2026-10-20', 1);
+    expect(loveOn(getData(), '2026-10-20')).toBe(1);
+  });
+
+  it('wird komplett synchronisiert und von beiden Handys zu einem Eintrag', () => {
+    const mine = withLove(emptyData(), ['2025-01-14', '2026-10-20']);
+    const theirs = withLove(emptyData(), ['2026-10-20', '2026-10-22']);
+    const payload = buildPayload(mine, 'a', 'dev-a', '2026-10-25');
+    expect(Object.keys(payload.data.loveDays)).toEqual(['2025-01-14', '2026-10-20']);
+    const { data } = mergeData(theirs, payload.data, 'b');
+    expect(Object.keys(data.loveDays).sort()).toEqual(['2025-01-14', '2026-10-20', '2026-10-22']);
+  });
+
+  it('ältere Stände ohne Liebestage stürzen nicht ab', () => {
+    const old = emptyData() as Partial<AppData>;
+    delete old.loveDays;
+    const { data } = mergeData(emptyData(), old as AppData, 'a');
+    expect(data.loveDays).toEqual({});
+  });
+});
+
 describe('Schwangerschaft', () => {
   it('rechnet den Geburtstermin nach Naegele', () => {
     expect(dueDate('2026-10-01')).toBe('2027-07-08');
@@ -150,6 +298,14 @@ describe('Zyklus-Inhalte', () => {
       expect(ph.self.length).toBeGreaterThanOrEqual(3);
       expect(ph.partner.length).toBeGreaterThanOrEqual(3);
     }
+  });
+
+  it('hat für jede Kinderwunsch-Etappe Tipps für beide', () => {
+    for (const st of Object.values(TTC_STAGES)) {
+      expect(st.self.length).toBeGreaterThanOrEqual(3);
+      expect(st.partner.length).toBeGreaterThanOrEqual(3);
+    }
+    expect(TESTS.map((t) => t.key)).toEqual(['lh', 'hcg']);
   });
 
   it('hat eindeutige Symptome und Themen', () => {

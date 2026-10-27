@@ -51,6 +51,10 @@ export interface CycleSettings {
   cycleLength: number;
   /** Übliche Periodendauer in Tagen. */
   periodLength: number;
+  /** Kinderwunsch-Modus: Die fruchtbaren Tage werden zur Chance statt zur Warnung. */
+  ttc?: boolean;
+  /** Seit wann ihr „übt“ – daraus zählt Arta eure Kinderwunsch-Zyklen. */
+  ttcSince?: string;
 }
 
 export interface Couple extends Rec {
@@ -146,6 +150,7 @@ export interface GameStat extends Rec {
 }
 
 export type Flow = 'schmier' | 'leicht' | 'mittel' | 'stark';
+export type TestResult = 'neg' | 'pos';
 
 /** Eine Periode. Ohne `end` läuft sie noch (oder das Ende wurde nicht eingetragen). */
 export interface Period extends Rec {
@@ -161,6 +166,20 @@ export interface CycleDay extends Rec {
   flow?: Flow;
   symptoms: string[];
   note?: string;
+  /** Ovulationstest (LH). Positiv heißt: Der Eisprung kommt meist in den nächsten 12–36 Stunden. */
+  lh?: TestResult;
+  /** Schwangerschaftstest (hCG). */
+  hcg?: TestResult;
+}
+
+/**
+ * Ein Tag, an dem ihr euch geliebt habt (ID = Datum). Der Eintrag gehört euch beiden, deshalb
+ * darf jedes Handy ihn setzen – tragen beide denselben Tag ein, wird beim Sync einer daraus.
+ */
+export interface LoveDay extends Rec {
+  date: string;
+  /** Wie oft an diesem Tag. */
+  count: number;
 }
 
 /**
@@ -216,6 +235,7 @@ export interface AppData {
   games: Record<string, GameStat>;
   periods: Record<string, Period>;
   cycleDays: Record<string, CycleDay>;
+  loveDays: Record<string, LoveDay>;
   steps: Record<string, StepDay>;
   routineDays: Record<string, RoutineDay>;
   photos: Record<string, Photo>;
@@ -232,12 +252,13 @@ export type CollectionKey =
   | 'games'
   | 'periods'
   | 'cycleDays'
+  | 'loveDays'
   | 'steps'
   | 'routineDays'
   | 'photos';
 export type RecOf<K extends CollectionKey> = AppData[K][string];
 
-export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts', 'games', 'periods', 'cycleDays', 'steps', 'routineDays', 'photos'];
+export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts', 'games', 'periods', 'cycleDays', 'loveDays', 'steps', 'routineDays', 'photos'];
 
 export type PopupFreq = 'oft' | 'normal' | 'selten' | 'aus';
 /** Wie oft gemeinsame Fotos in den Hintergrund gleiten. */

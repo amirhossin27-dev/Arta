@@ -1,14 +1,19 @@
 import { useState, type MouseEvent } from 'react';
 import {
   BABY_SIZES,
+  CHANCE_LABEL,
   CYCLE_DISCLAIMER,
   CYCLE_FACTS,
   FERTILITY_LABEL,
   FLOWS,
   INFO_TOPICS,
+  LOVE_LOGGED,
+  LOVE_LOGGED_FERTILE,
   PHASES,
   SYMPTOM_BY_ID,
   SYMPTOMS,
+  TESTS,
+  TTC_STAGES,
 } from '../data/cycle';
 import { ProgressRing, Segmented, Stepper } from '../components/ui';
 import {
@@ -19,19 +24,26 @@ import {
   dueDate,
   fillCycle,
   getCycle,
+  loveDaysBetween,
+  loveHistory,
+  loveOn,
+  MAX_LOVE,
   MERGE_DAYS,
   periodAt,
   periodEnd,
   phaseSegments,
   pregnancyWeek,
+  ttcStatus,
   type Cycle as CycleData,
+  type Fertility,
+  type TtcStatus,
 } from '../lib/cycle';
-import { addDays, diffDays, formatDate, formatLong, formatShort, fromKey, relativeDay, toKey } from '../lib/date';
+import { addDays, diffDays, formatDate, formatLong, formatShort, fromKey, relativeDay, toKey, weekdayShort } from '../lib/date';
 import { cls, useToday } from '../lib/hooks';
 import { heartBurst, showLove } from '../lib/love';
-import { pickSeeded, seededShuffle } from '../lib/random';
-import { actions, useData, useDevice } from '../lib/store';
-import { other, type Flow, type PersonId } from '../lib/types';
+import { pickRandom, pickSeeded, seededShuffle } from '../lib/random';
+import { actions, getData, useData, useDevice } from '../lib/store';
+import { other, type Flow, type PersonId, type TestResult } from '../lib/types';
 import { nav } from '../lib/ui';
 
 const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
@@ -53,6 +65,22 @@ function inDays(n: number): string {
   return `in ${n} Tagen`;
 }
 
+/** Fruchtbarkeit – im Kinderwunsch-Modus als Chance formuliert. */
+function chanceText(f: Fertility, ttc?: boolean) {
+  return ttc ? CHANCE_LABEL[f] : { ...FERTILITY_LABEL[f], label: `Fruchtbarkeit ${FERTILITY_LABEL[f].label}` };
+}
+
+function setLove(e: MouseEvent, c: CycleData, date: string, count: number) {
+  const before = loveOn(getData(), date);
+  actions.setLoveDay(date, count);
+  if (count <= before) return;
+  heartBurst(e, '💞', 8);
+  if (before > 0) return;
+  const f = dayInfo(c, date).fertility;
+  const fertile = c.settings.ttc && f && f !== 'niedrig';
+  showLove({ emoji: '💞', title: 'Eingetragen', text: pickRandom(fertile ? LOVE_LOGGED_FERTILE : LOVE_LOGGED), tone: 'love' });
+}
+
 // ───────────────────────── Einrichten ─────────────────────────
 
 function CycleSetup() {
@@ -63,11 +91,16 @@ function CycleSetup() {
   const [last, setLast] = useState('');
   const [periodLength, setPeriodLength] = useState(DEFAULT_PERIOD);
   const [cycleLength, setCycleLength] = useState(DEFAULT_CYCLE);
+  const [ttc, setTtc] = useState(false);
   const ownerName = data.persons[owner].name;
 
   const start = () => {
-    actions.setupCycle({ personId: owner, cycleLength, periodLength }, last || undefined);
-    showLove({ emoji: '🌸', title: 'Periodenkalender ist bereit!', text: 'Je mehr ihr eintragt, desto genauer werden die Vorhersagen. 💕', tone: 'love', big: true });
+    actions.setupCycle({ personId: owner, cycleLength, periodLength, ...(ttc && { ttc, ttcSince: today }) }, last || undefined);
+    showLove(
+      ttc
+        ? { emoji: '🍼', title: 'Kinderwunsch-Kalender ist bereit!', text: 'Arta zeigt euch die besten Tage – der Rest ist Liebe. 💕', tone: 'love', big: true }
+        : { emoji: '🌸', title: 'Periodenkalender ist bereit!', text: 'Je mehr ihr eintragt, desto genauer werden die Vorhersagen. 💕', tone: 'love', big: true },
+    );
   };
 
   return (
@@ -97,6 +130,10 @@ function CycleSetup() {
           <Stepper value={cycleLength} min={20} max={45} onChange={setCycleLength} label="Tage" />
         </div>
         <p className="hint">Nicht sicher? Lasst einfach 28 und 5 Tage stehen – ab zwei eingetragenen Perioden rechnet Arta mit euren echten Werten.</p>
+        <label className="toggle-line">
+          <input type="checkbox" checked={ttc} onChange={(e) => setTtc(e.target.checked)} />
+          🍼 Wir wünschen uns ein Baby – Kinderwunsch-Modus
+        </label>
       </div>
 
       <button className="btn primary block" onClick={start}>
@@ -114,9 +151,9 @@ function CycleSetup() {
 // ───────────────────────── Überblick ─────────────────────────
 
 function PhaseBar({ c }: { c: CycleData }) {
-  const L = c.stats.cycleLength;
+  const L = c.length;
   const day = c.todayInfo.cycleDay;
-  const segments = phaseSegments(L, c.stats.periodLength);
+  const segments = phaseSegments(L, c.stats.periodLength, c.ovDay);
   const pos = day ? Math.min((day - 0.5) / L, 1) * 100 : undefined;
   return (
     <div className="phase-bar" aria-hidden="true">
@@ -140,7 +177,8 @@ function CycleHero({ c }: { c: CycleData }) {
   const { isOwner, owner, partner } = useCycleNames(c);
   const t = c.todayInfo;
   const phase = t.phase ? PHASES[t.phase] : undefined;
-  const L = c.stats.cycleLength;
+  const L = c.length;
+  const ttc = c.settings.ttc;
   const untilNext = c.next ? diffDays(c.today, c.next) : undefined;
   const open = c.open && diffDays(c.open.start, c.today) <= c.stats.periodLength + 3 ? c.open : undefined;
   const yesterday = addDays(c.today, -1);
@@ -163,7 +201,10 @@ function CycleHero({ c }: { c: CycleData }) {
 
   return (
     <div className="hero hero-cycle" data-phase={t.phase ?? 'none'} data-deco={phase?.emoji ?? '🌸'}>
-      <p className="eyebrow">{isOwner ? 'Mein Zyklus' : `Zyklus von ${owner.name}`}</p>
+      <p className="eyebrow">
+        {isOwner ? 'Mein Zyklus' : `Zyklus von ${owner.name}`}
+        {ttc && ' · 🍼 Kinderwunsch'}
+      </p>
       {!c.last ? (
         <>
           <h1>Wann war die letzte Periode?</h1>
@@ -197,10 +238,14 @@ function CycleHero({ c }: { c: CycleData }) {
           )}
           {t.fertility && t.phase !== 'spaet' && (
             <span>
-              {FERTILITY_LABEL[t.fertility].emoji} Fruchtbarkeit {FERTILITY_LABEL[t.fertility].label}
+              {chanceText(t.fertility, ttc).emoji} {chanceText(t.fertility, ttc).label}
             </span>
           )}
-          {c.fertile && !c.current && diffDays(c.today, c.fertile.ovulation) >= 0 && <span>🥚 Eisprung ca. {relativeDay(c.fertile.ovulation, c.today)}</span>}
+          {c.fertile && !c.current && diffDays(c.today, c.fertile.ovulation) >= 0 && (
+            <span>
+              🥚 Eisprung {t.byTest && c.fertile.ovulation === c.ovulation ? 'laut Test' : 'ca.'} {relativeDay(c.fertile.ovulation, c.today)}
+            </span>
+          )}
         </div>
       )}
       {c.last && <PhaseBar c={c} />}
@@ -240,6 +285,16 @@ function DayLog({ c, date, compact }: { c: CycleData; date: string; compact?: bo
     actions.logCycleDay(date, { symptoms: symptoms.includes(id) ? symptoms.filter((s) => s !== id) : [...symptoms, id] });
   };
   const setFlow = (flow: Flow) => actions.logCycleDay(date, { flow: entry?.flow === flow ? undefined : flow });
+  const setTest = (key: 'lh' | 'hcg', result: TestResult) => {
+    const off = entry?.[key] === result;
+    actions.logCycleDay(date, { [key]: off ? undefined : result });
+    if (off || result !== 'pos') return;
+    showLove(
+      key === 'lh'
+        ? { emoji: '🧪', title: 'Ovulationstest positiv!', text: 'Der Eisprung kommt wahrscheinlich in den nächsten 1–2 Tagen. Heute und die nächsten 2 Tage sind eure besten Tage. 💞', tone: 'love', big: true }
+        : { emoji: '🤰', title: 'Positiver Test!', text: 'Herzlichen Glückwunsch, ihr zwei! 🎉 Vereinbart bald einen Termin bei der Frauenärztin.', tone: 'party', big: true },
+    );
+  };
 
   return (
     <div className="day-log">
@@ -259,6 +314,20 @@ function DayLog({ c, date, compact }: { c: CycleData; date: string; compact?: bo
           </button>
         ))}
       </div>
+      {c.settings.ttc && (
+        <>
+          <span className="field-label">Tests</span>
+          <div className="chips">
+            {TESTS.flatMap((t) =>
+              (['neg', 'pos'] as const).map((r) => (
+                <button key={t.key + r} className={cls('chip', entry?.[t.key] === r && 'active', r === 'pos' && 'chip-pos')} onClick={() => setTest(t.key, r)}>
+                  {t.emoji} {t.label} {r === 'pos' ? '＋' : '−'}
+                </button>
+              )),
+            )}
+          </div>
+        </>
+      )}
       {!compact && (
         <input
           key={`${date}-${entry?.note ?? ''}`}
@@ -291,7 +360,7 @@ function TodayCard({ c }: { c: CycleData }) {
             Eintragen
           </button>
         </div>
-        {symptoms.length || entry?.flow ? (
+        {symptoms.length || entry?.flow || entry?.lh || entry?.hcg ? (
           <div className="symptom-list">
             {entry?.flow && <span className="tag">{FLOWS.find((f) => f.id === entry.flow)?.emoji} {FLOWS.find((f) => f.id === entry.flow)?.label}</span>}
             {symptoms.map((s) => (
@@ -299,6 +368,14 @@ function TodayCard({ c }: { c: CycleData }) {
                 {s.emoji} {s.label}
               </span>
             ))}
+            {TESTS.map(
+              (t) =>
+                entry?.[t.key] && (
+                  <span key={t.key} className="tag">
+                    {t.emoji} {t.label} {entry[t.key] === 'pos' ? 'positiv' : 'negativ'}
+                  </span>
+                ),
+            )}
           </div>
         ) : (
           <p className="muted">{names.name} hat heute noch nichts eingetragen. Frag doch einfach mal nach. 💕</p>
@@ -334,7 +411,10 @@ function TipsCard({ c }: { c: CycleData }) {
   const phase = PHASES[phaseId];
   const entry = cycleDayEntry(data, c.today, c.owner);
   const symptoms = (entry?.symptoms ?? []).map((id) => SYMPTOM_BY_ID[id]).filter(Boolean);
-  const tips = seededShuffle(who === 'self' ? phase.self : phase.partner, `${c.today}-${who}`).slice(0, 3);
+  // Im Kinderwunsch-Modus passen die Tipps zur Etappe auf dem Weg zum Baby.
+  const ttc = c.settings.ttc ? ttcStatus(data, c) : undefined;
+  const source = ttc ? TTC_STAGES[ttc.stage] : phase;
+  const tips = seededShuffle(who === 'self' ? source.self : source.partner, `${c.today}-${who}`).slice(0, 3);
   const fact = pickSeeded(CYCLE_FACTS, `fact-${c.today}`);
 
   return (
@@ -360,7 +440,7 @@ function TipsCard({ c }: { c: CycleData }) {
         ))}
         {tips.map((tip) => (
           <li key={tip}>
-            <span className="tip-emoji">{phase.emoji}</span>
+            <span className="tip-emoji">{source.emoji}</span>
             <span>{fillCycle(tip, names)}</span>
           </li>
         ))}
@@ -391,9 +471,9 @@ function PhaseCard({ c }: { c: CycleData }) {
       {f && phaseId !== 'spaet' && (
         <div className={cls('fertility-box', `fert-${f}`)}>
           <b>
-            {FERTILITY_LABEL[f].emoji} Fruchtbarkeit heute: {FERTILITY_LABEL[f].label}
+            {c.settings.ttc ? `${CHANCE_LABEL[f].emoji} Heute: ${CHANCE_LABEL[f].label}` : `${FERTILITY_LABEL[f].emoji} Fruchtbarkeit heute: ${FERTILITY_LABEL[f].label}`}
           </b>
-          <span>{FERTILITY_LABEL[f].text}</span>
+          <span>{(c.settings.ttc ? CHANCE_LABEL : FERTILITY_LABEL)[f].text}</span>
           {c.fertile && (
             <span className="small">
               Fruchtbares Fenster: {formatShort(c.fertile.start)} – {formatShort(c.fertile.end)} · Eisprung ca. {formatShort(c.fertile.ovulation)}
@@ -417,6 +497,215 @@ function PhaseCard({ c }: { c: CycleData }) {
           </span>
         </button>
       </div>
+    </div>
+  );
+}
+
+// ───────────────────────── Liebe & Kinderwunsch ─────────────────────────
+
+function whenLabel(c: CycleData, date: string): string {
+  if (date === c.today) return 'Heute';
+  if (date === addDays(c.today, -1)) return 'Gestern';
+  return 'An diesem Tag';
+}
+
+/** „Heute haben wir uns geliebt“ – nach dem Eintragen mit Zähler. */
+function LoveToggle({ c, date }: { c: CycleData; date: string }) {
+  const data = useData();
+  const n = loveOn(data, date);
+  if (!n) {
+    return (
+      <button className="btn soft block love-btn" onClick={(e) => setLove(e, c, date, 1)}>
+        💞 {whenLabel(c, date)} haben wir uns geliebt
+      </button>
+    );
+  }
+  return (
+    <div className="love-row">
+      <span>💞 Uns geliebt</span>
+      <Stepper value={n} min={0} max={MAX_LOVE} onChange={(k) => actions.setLoveDay(date, k)} label="mal" />
+    </div>
+  );
+}
+
+/** Tage nebeneinander: fruchtbar eingefärbt, mit 💞 zum Antippen. */
+function LoveStrip({ c, from, days = 7 }: { c: CycleData; from: string; days?: number }) {
+  const data = useData();
+  return (
+    <div className="love-strip">
+      {Array.from({ length: days }, (_, i) => addDays(from, i)).map((k) => {
+        const info = dayInfo(c, k);
+        const n = loveOn(data, k);
+        const fert = !info.period && info.fertility && info.fertility !== 'niedrig' ? info.fertility : undefined;
+        return (
+          <button
+            key={k}
+            className={cls('love-day', fert && `fertile-${fert}`, info.period && 'period', n > 0 && 'on', k === c.today && 'today')}
+            disabled={k > c.today}
+            aria-pressed={n > 0}
+            aria-label={`${formatDate(k)}: ${n > 0 ? 'uns geliebt' : 'nichts eingetragen'}`}
+            onClick={(e) => setLove(e, c, k, n > 0 ? 0 : 1)}
+          >
+            <span className="ld-wd">{k === c.today ? 'Heute' : weekdayShort(k)}</span>
+            <span className="ld-num">{fromKey(k).getDate()}</span>
+            <span className="ld-heart">{n > 0 ? '💞' : '♡'}</span>
+            {n > 1 && <span className="ld-count">{n}</span>}
+            {info.ovulation && <span className="ld-ovu">🥚</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function stageHead(s: TtcStatus, c: CycleData): { title: string; sub: string } {
+  const w = s.window;
+  switch (s.stage) {
+    case 'positiv': {
+      const week = pregnancyWeek(c.last!.start, c.today);
+      return {
+        title: 'Positiver Test – herzlichen Glückwunsch!',
+        sub: `Falls sich das bestätigt: SSW ${week.weeks}+${week.days} · errechneter Termin ${formatDate(dueDate(c.last!.start, c.stats.cycleLength))}`,
+      };
+    }
+    case 'periode':
+      return {
+        title: 'Neuer Zyklus, neue Chance',
+        sub: s.days > 0 ? `Das fruchtbare Fenster beginnt ${inDays(s.days)} (${formatShort(w.start)}).` : 'Das fruchtbare Fenster beginnt schon bald nach der Periode.',
+      };
+    case 'vorher':
+      return {
+        title: s.days === 1 ? 'Morgen beginnt das fruchtbare Fenster' : `Noch ${s.days} Tage bis zum fruchtbaren Fenster`,
+        sub: `${formatShort(w.start)} – ${formatShort(w.end)} · Eisprung ca. ${formatShort(w.ovulation)}`,
+      };
+    case 'fenster': {
+      const f = c.todayInfo.fertility ?? 'mittel';
+      return { title: `Fruchtbares Fenster · Tag ${s.days} von 7`, sub: `${CHANCE_LABEL[f].emoji} Heute ${CHANCE_LABEL[f].label}: ${CHANCE_LABEL[f].text}` };
+    }
+    case 'warten':
+      return {
+        title: 'Zwei-Wochen-Warten',
+        sub: `Noch ${s.days} ${s.days === 1 ? 'Tag' : 'Tage'} bis zum Test – ab ${formatShort(s.testDay!)} ist er aussagekräftig.`,
+      };
+    case 'test':
+      return {
+        title: 'Zeit für einen Test',
+        sub:
+          c.lateBy > 0
+            ? `Die Periode ist seit ${c.lateBy === 1 ? '1 Tag' : `${c.lateBy} Tagen`} überfällig – am besten mit Morgenurin testen.`
+            : 'Heute wäre die Periode fällig – jetzt ist ein Test aussagekräftig.',
+      };
+  }
+}
+
+/** Wie lief das Timing in diesem Zyklus? */
+function timingText(s: TtcStatus, top: number): string | undefined {
+  if (s.stage === 'fenster') {
+    return s.loveInWindow === 0
+      ? 'Noch kein 💞 im Fenster – heute wäre ein schöner Tag dafür. 😉'
+      : `💞 An ${s.loveInWindow} ${s.loveInWindow === 1 ? 'Tag' : 'Tagen'} im Fenster – weiter so, alle 1 bis 2 Tage reicht völlig.`;
+  }
+  if (s.stage !== 'warten' && s.stage !== 'test') return undefined;
+  if (s.loveInWindow >= 2 && top >= 1) return 'Super Timing! Mehr könnt ihr nicht tun – jetzt heißt es Daumen drücken. 🤞';
+  if (s.loveInWindow >= 1) return `💞 An ${s.loveInWindow} ${s.loveInWindow === 1 ? 'Tag' : 'Tagen'} im Fenster. Die besten Chancen bringen die 2 Tage vor dem Eisprung.`;
+  return 'In diesem Fenster ist kein 💞 eingetragen. Vergessen? Tippt einfach unten auf die Tage.';
+}
+
+/** Kinderwunsch: Wo steht ihr, wann sind die besten Tage – und wie war euer Timing? */
+function BabyCard({ c }: { c: CycleData }) {
+  const data = useData();
+  const s = ttcStatus(data, c);
+  if (!s) return null;
+  const head = stageHead(s, c);
+  const w = s.window;
+  const top = c.today >= addDays(w.ovulation, -2) ? loveDaysBetween(data, addDays(w.ovulation, -2), w.ovulation < c.today ? w.ovulation : c.today) : 0;
+  const timing = timingText(s, top);
+  const history = loveHistory(data, c).filter((h) => !h.running);
+  // Zyklen, bevor ihr überhaupt etwas eingetragen habt, lassen wir weg.
+  while (history.length && history[history.length - 1].days === 0) history.pop();
+  const week = s.stage === 'positiv' ? pregnancyWeek(c.last!.start, c.today) : undefined;
+  const size = week ? [...BABY_SIZES].reverse().find((b) => b.week <= week.weeks) : undefined;
+
+  return (
+    <div className="card baby-card" data-stage={s.stage}>
+      <div className="card-head">
+        <h2>🍼 Unser Babywunsch</h2>
+        <span className="tag">Zyklus {s.round}</span>
+      </div>
+      <div className="baby-stage">
+        <span className="baby-stage-emoji">{TTC_STAGES[s.stage].emoji}</span>
+        <span>
+          <b>{head.title}</b>
+          <span className="small">{head.sub}</span>
+        </span>
+      </div>
+      {size && (
+        <p className="small">
+          Das Baby wäre jetzt etwa so groß wie {size.text} {size.emoji}
+        </p>
+      )}
+
+      <span className="field-label">Fruchtbares Fenster · tippt an, wann ihr euch geliebt habt</span>
+      <LoveStrip c={c} from={w.start} />
+      {timing && <p className="baby-timing">{timing}</p>}
+      {s.stage !== 'positiv' && <LoveToggle c={c} date={c.today} />}
+
+      {c.todayInfo.byTest ? (
+        <p className="hint">🧪 Eisprung per Ovulationstest bestimmt – Fenster und Periode sind jetzt genauer berechnet.</p>
+      ) : (
+        (s.stage === 'fenster' || (s.stage === 'vorher' && s.days <= 4)) && (
+          <p className="hint">🧪 Ovulationstests helfen beim Timing: Ist einer positiv, tragt ihn unter „Wie geht’s dir heute?“ ein – Arta rechnet den Eisprung dann neu.</p>
+        )
+      )}
+      {s.round >= 7 && s.stage !== 'positiv' && (
+        <p className="hint">💞 Klappt es nach 12 Zyklen nicht (ab 35 Jahren nach 6), lasst euch beide beraten. Das ist häufig – und oft gut behandelbar.</p>
+      )}
+
+      {history.length > 0 && (
+        <details className="topic love-history">
+          <summary>📈 Rückblick: euer Timing</summary>
+          <ul className="period-history">
+            {history.map((h) => (
+              <li key={h.start}>
+                <span className="nowrap">
+                  Ab {formatShort(h.start)}
+                  {h.byTest && ' 🧪'}
+                </span>
+                <span className="muted small">
+                  💞 {h.days} {h.days === 1 ? 'Tag' : 'Tage'} · {h.inWindow} im Fenster
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="hint">Gezählt werden Tage, an denen ihr euch geliebt habt. Das Fenster sind die 5 Tage vor dem Eisprung und der Tag danach.</p>
+        </details>
+      )}
+    </div>
+  );
+}
+
+/** Ohne Kinderwunsch-Modus: Liebe einfach diskret festhalten. */
+function LoveCard({ c }: { c: CycleData }) {
+  const data = useData();
+  const days = loveDaysBetween(data, c.last!.start, c.today);
+  const fertile = c.ovulation && c.today >= addDays(c.ovulation, -5) ? loveDaysBetween(data, addDays(c.ovulation, -5), addDays(c.ovulation, 1)) : 0;
+  const startTtc = () => {
+    actions.updateCycle({ ttc: true, ttcSince: c.today });
+    showLove({ emoji: '🍼', title: 'Kinderwunsch-Modus an', text: 'Arta zeigt euch jetzt die besten Tage, eure Chancen und wann sich ein Test lohnt. Viel Liebe euch zwei! 💕', tone: 'love', big: true });
+  };
+  return (
+    <div className="card love-card">
+      <h2>💞 Zweisamkeit</h2>
+      <p className="muted small">Tragt ein, wann ihr euch geliebt habt – ganz diskret, nur für euch zwei.</p>
+      <LoveStrip c={c} from={addDays(c.today, -6)} />
+      <LoveToggle c={c} date={c.today} />
+      <p className="hint">
+        In diesem Zyklus an {days} {days === 1 ? 'Tag' : 'Tagen'}
+        {fertile > 0 && `, davon ${fertile} an fruchtbaren Tagen`}. Frühere Tage tragt ihr im Kalender nach.
+      </p>
+      <button className="btn ghost block" onClick={startTtc}>
+        🍼 Wir wünschen uns ein Baby
+      </button>
     </div>
   );
 }
@@ -462,8 +751,8 @@ function DayDetail({ c, date }: { c: CycleData; date: string }) {
       )}
       {info.fertility && info.phase !== 'spaet' && (
         <p className="small">
-          {FERTILITY_LABEL[info.fertility].emoji} Fruchtbarkeit {FERTILITY_LABEL[info.fertility].label}
-          {info.ovulation && ' · 🥚 voraussichtlicher Eisprung'}
+          {chanceText(info.fertility, c.settings.ttc).emoji} {chanceText(info.fertility, c.settings.ttc).label}
+          {info.ovulation && (info.byTest ? ' · 🥚 Eisprung laut Ovulationstest' : ' · 🥚 voraussichtlicher Eisprung')}
         </p>
       )}
 
@@ -506,6 +795,7 @@ function DayDetail({ c, date }: { c: CycleData; date: string }) {
           🩸 Periode hat an diesem Tag begonnen
         </button>
       )}
+      {past && <LoveToggle c={c} date={date} />}
       {date === c.today ? (
         <p className="hint">Wie es heute geht, tragt ihr oben ein. ☝️</p>
       ) : past ? (
@@ -547,6 +837,7 @@ function CalendarCard({ c }: { c: CycleData }) {
           if (!k) return <span key={`x${i}`} />;
           const info = dayInfo(c, k);
           const entry = cycleDayEntry(data, k, c.owner);
+          const love = loveOn(data, k);
           const fertile = !info.period && info.fertility && info.fertility !== 'niedrig' ? info.fertility : undefined;
           return (
             <button
@@ -565,7 +856,8 @@ function CalendarCard({ c }: { c: CycleData }) {
             >
               <span className="cal-num">{fromKey(k).getDate()}</span>
               {info.ovulation && !info.period && <span className="cal-ovu">🥚</span>}
-              {entry && (entry.symptoms.length > 0 || entry.flow || entry.note) && <span className="cal-dot" />}
+              {love > 0 && <span className="cal-love">💞</span>}
+              {entry && (entry.symptoms.length > 0 || entry.flow || entry.note || entry.lh || entry.hcg) && <span className="cal-dot" />}
             </button>
           );
         })}
@@ -581,6 +873,7 @@ function CalendarCard({ c }: { c: CycleData }) {
           <i className="lg fertile-hoch" /> fruchtbar
         </span>
         <span>🥚 Eisprung</span>
+        <span>💞 Zweisamkeit</span>
         <span>
           <i className="lg dot" /> Eintrag
         </span>
@@ -697,6 +990,16 @@ function CycleSettingsBox({ c, ownerName }: { c: CycleData; ownerName: string })
         <span className="field-label">Zyklus dauert meist</span>
         <Stepper value={c.settings.cycleLength} min={20} max={45} onChange={(cycleLength) => actions.updateCycle({ cycleLength })} label="Tage" />
       </div>
+      <label className="toggle-line">
+        <input type="checkbox" checked={!!c.settings.ttc} onChange={(e) => actions.updateCycle(e.target.checked ? { ttc: true, ttcSince: c.today } : { ttc: false, ttcSince: undefined })} />
+        🍼 Kinderwunsch-Modus
+      </label>
+      {c.settings.ttc && (
+        <label className="field">
+          <span className="field-label">Wir wünschen uns ein Baby seit</span>
+          <input type="date" value={c.settings.ttcSince ?? ''} max={c.today} onChange={(e) => e.target.value && actions.updateCycle({ ttcSince: e.target.value })} />
+        </label>
+      )}
       <span className="field-label">Wessen Zyklus?</span>
       <Segmented
         value={c.owner}
@@ -830,8 +1133,10 @@ export function Cycle() {
   return (
     <>
       <CycleHero c={c} />
+      {c.last && c.settings.ttc && <BabyCard c={c} />}
       {c.last && <TodayCard c={c} />}
       {c.last && <TipsCard c={c} />}
+      {c.last && !c.settings.ttc && <LoveCard c={c} />}
       <CalendarCard c={c} />
       {c.last && <PhaseCard c={c} />}
       <StatsCard c={c} />
@@ -851,9 +1156,26 @@ export function CycleTodayCard() {
   const isOwner = device.me === c.owner;
   const names = { name: data.persons[c.owner].name, partner: data.persons[other(c.owner)].name };
   const phase = PHASES[c.todayInfo.phase];
-  const tip = pickSeeded(isOwner ? phase.self : phase.partner, `${today}-today-${isOwner}`);
+  const ttc = c.settings.ttc ? ttcStatus(data, c) : undefined;
+  const source = ttc ? TTC_STAGES[ttc.stage] : phase;
+  const tip = pickSeeded(isOwner ? source.self : source.partner, `${today}-today-${isOwner}`);
   const untilNext = c.next ? diffDays(today, c.next) : undefined;
-  const status = c.current
+  const chance = c.todayInfo.fertility && CHANCE_LABEL[c.todayInfo.fertility];
+  const ttcLine =
+    ttc?.stage === 'positiv'
+      ? 'Positiver Test 🎉'
+      : ttc?.stage === 'fenster' && chance
+        ? `Fruchtbare Tage · ${chance.label}`
+        : ttc?.stage === 'vorher' && ttc.days <= 3
+          ? `Fruchtbare Tage beginnen ${inDays(ttc.days)}`
+          : ttc?.stage === 'warten'
+            ? `Test in ${ttc.days} ${ttc.days === 1 ? 'Tag' : 'Tagen'} sinnvoll`
+            : ttc?.stage === 'test'
+              ? 'Zeit für einen Test 🧪'
+              : undefined;
+  const status = ttcLine
+    ? ttcLine
+    : c.current
     ? `Periode · Tag ${diffDays(c.current.start, today) + 1}`
     : c.lateBy > 0
       ? `Periode seit ${c.lateBy} ${c.lateBy === 1 ? 'Tag' : 'Tagen'} überfällig`
@@ -862,7 +1184,7 @@ export function CycleTodayCard() {
         : `Zyklustag ${c.todayInfo.cycleDay} · ${phase.name}`;
   return (
     <button className="card cycle-today" data-phase={c.todayInfo.phase} onClick={nav.openCycle}>
-      <span className="cycle-today-emoji">{phase.emoji}</span>
+      <span className="cycle-today-emoji">{ttcLine ? source.emoji : phase.emoji}</span>
       <span className="cycle-today-text">
         <b>
           {isOwner ? 'Dein Zyklus' : names.name}: {status}

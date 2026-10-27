@@ -9,6 +9,8 @@ import { pickRandom } from '../lib/random';
 import { actions, useData, useDevice } from '../lib/store';
 import { other, type PersonId } from '../lib/types';
 import { nav } from '../lib/ui';
+import { Amor } from './Amor';
+import { Ballz } from './Ballz';
 import { Battleship } from './Battleship';
 import { Breakout } from './Breakout';
 import { Checkers } from './Checkers';
@@ -20,6 +22,7 @@ import { FitDice } from './FitDice';
 import { Flappy } from './Flappy';
 import { Game2048 } from './Game2048';
 import { GuessWho } from './GuessWho';
+import { Hopper } from './Hopper';
 import { Invaders } from './Invaders';
 import { Kart } from './Kart';
 import { Kniffel } from './Kniffel';
@@ -29,14 +32,18 @@ import { MauMau } from './MauMau';
 import { Memory } from './Memory';
 import { Minesweeper } from './Minesweeper';
 import { Muehle } from './Muehle';
+import { Muncher } from './Muncher';
 import { hostMatch, leaveMatch, markRecorded, publishShared, pushAct, setReady, useArcade } from './online';
 import { Pong } from './Pong';
 import { Reaction } from './Reaction';
 import { GAME_BY_ID, MODE_LABEL, type GameId, type GameMeta, type GameMode } from './registry';
 import { Romme } from './Romme';
+import { Runner } from './Runner';
+import { Strike } from './Strike';
 import { Simon } from './Simon';
 import { Slf } from './Slf';
 import { Snake } from './Snake';
+import { Solitaire } from './Solitaire';
 import { Tetris } from './Tetris';
 import { TicTacToe } from './TicTacToe';
 import type { GameOutcome, GameProps, NetLink, Player } from './types';
@@ -48,6 +55,7 @@ const COMPONENTS: Record<GameId, ComponentType<GameProps>> = {
   romme: Romme,
   kniffel: Kniffel,
   ludo: Ludo,
+  solitaire: Solitaire,
   fitdice: FitDice,
   chess: Chess,
   checkers: Checkers,
@@ -64,6 +72,12 @@ const COMPONENTS: Record<GameId, ComponentType<GameProps>> = {
   reaction: Reaction,
   snake: Snake,
   breakout: Breakout,
+  ballz: Ballz,
+  amor: Amor,
+  runner: Runner,
+  strike: Strike,
+  hopper: Hopper,
+  muncher: Muncher,
   simon: Simon,
   tetris: Tetris,
   invaders: Invaders,
@@ -355,10 +369,16 @@ export function GameScreen({ id, join, onClose }: { id: GameId; join?: string; o
     const rivalBest = summary.best[rival.id];
     if (failed) {
       actions.recordGame(id, { player: soloId });
+      const mines = id === 'minesweeper';
       return {
-        emoji: '💥',
-        title: 'Boom!',
-        text: prev !== undefined ? `Dein Rekord bleibt bei ${prev} ${meta.scoreLabel}. Nächste Runde klappt’s! 💪` : 'Das war knapp – gleich nochmal, das erste Feld ist immer sicher! 💪',
+        emoji: mines ? '💥' : meta.emoji,
+        title: mines ? 'Boom!' : 'Neue Runde, neues Glück',
+        text:
+          prev !== undefined
+            ? `Dein Rekord bleibt bei ${prev} ${meta.scoreLabel}. Nächste Runde klappt’s! 💪`
+            : mines
+              ? 'Das war knapp – gleich nochmal, das erste Feld ist immer sicher! 💪'
+              : 'Nicht jede Partie geht auf – die nächsten Karten liegen besser! 🍀',
       };
     }
     actions.recordGame(id, { score, player: soloId, lowerIsBetter: meta.lowerIsBetter });
@@ -376,7 +396,7 @@ export function GameScreen({ id, join, onClose }: { id: GameId; join?: string; o
     else text = 'Gleich nochmal – du schaffst mehr! 💪';
     return {
       emoji: record ? '🏆' : meta.emoji,
-      title: record ? 'Neuer Rekord!' : meta.id === 'kart' ? 'Im Ziel! 🏁' : meta.id === 'memory' ? 'Geschafft!' : 'Game over',
+      title: record ? 'Neuer Rekord!' : meta.id === 'kart' ? 'Im Ziel! 🏁' : meta.id === 'memory' || meta.id === 'solitaire' ? 'Geschafft!' : 'Game over',
       text,
       score,
     };

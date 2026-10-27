@@ -1,4 +1,4 @@
-import type { Fertility, PhaseId } from '../lib/cycle';
+import type { Fertility, PhaseId, TtcStage } from '../lib/cycle';
 import type { Flow } from '../lib/types';
 
 // Platzhalter: {name} = Person mit Zyklus, {partner} = ihr Gegenüber.
@@ -144,6 +144,116 @@ export const FERTILITY_LABEL: Record<Fertility, { label: string; emoji: string; 
   hoch: { label: 'hoch', emoji: '🌸', text: 'Die fruchtbarsten Tage rund um den Eisprung.' },
 };
 
+/** Im Kinderwunsch-Modus wird aus der Fruchtbarkeit eine Chance. */
+export const CHANCE_LABEL: Record<Fertility, { label: string; emoji: string; text: string }> = {
+  hoch: { label: 'Top-Chance', emoji: '🌸', text: 'Die besten Tage überhaupt: kurz vor und am Eisprung.' },
+  mittel: { label: 'gute Chance', emoji: '🌼', text: 'Fruchtbares Fenster: Spermien können bis zu 5 Tage auf den Eisprung warten.' },
+  niedrig: { label: 'geringe Chance', emoji: '🌙', text: 'Heute ist die Chance gering – Zeit für Nähe ganz ohne Hintergedanken.' },
+};
+
+export interface TtcStageInfo {
+  emoji: string;
+  /** Tipps für die Person mit Zyklus. */
+  self: string[];
+  /** Tipps für das Gegenüber. */
+  partner: string[];
+}
+
+/** Tipps auf dem Weg zum Baby – je nachdem, wo ihr gerade im Zyklus steht. */
+export const TTC_STAGES: Record<TtcStage, TtcStageInfo> = {
+  periode: {
+    emoji: '🌷',
+    self: [
+      'Es hat diesmal nicht geklappt – das ist völlig normal. Selbst bei perfektem Timing liegt die Chance pro Zyklus nur bei etwa 20 bis 30 %.',
+      'Du darfst traurig sein. Und dann: Wärmflasche, Tee und ein Abend nur für euch.',
+      'Folsäure weiter nehmen – sie wirkt am besten, wenn sie schon vor der Schwangerschaft eingenommen wird.',
+      'Plant schon mal etwas Schönes für das fruchtbare Fenster – lieber ein Date als ein Termin.',
+    ],
+    partner: [
+      'Sag {name}, dass ihr ein Team seid – egal, wie lange es dauert. 💞',
+      'Kein „Nächstes Mal klappt’s bestimmt“ – lieber zuhören und in den Arm nehmen.',
+      'Übernimm heute das Kochen und macht es euch gemütlich.',
+      'Auch du zählst: wenig Alkohol, nicht rauchen, gut schlafen – Spermien reifen etwa zweieinhalb Monate.',
+    ],
+  },
+  vorher: {
+    emoji: '🌱',
+    self: [
+      'Ovulationstests bereitlegen: Ab ein paar Tagen vor dem Fenster einmal täglich testen, am besten nachmittags.',
+      'Achte auf deinen Zervixschleim: Wird er klar und dehnbar wie rohes Eiweiß, ist der Eisprung nah.',
+      'Bewegung, buntes Essen und genug Schlaf – dein Körper bereitet gerade eine Eizelle vor.',
+      'Nähe ist auch jetzt schön – Spermien können bis zu 5 Tage auf den Eisprung warten.',
+    ],
+    partner: [
+      'Plant schon mal ein Date für das fruchtbare Fenster – romantisch statt nach Stoppuhr. 🕯️',
+      'Heiße Bäder, Sauna und den Laptop auf dem Schoß meiden – Spermien mögen es kühl.',
+      'Obst, Gemüse, Nüsse und Fisch tun auch deinen Spermien gut.',
+      'Überrasch {name} mit einer kleinen Aufmerksamkeit – Vorfreude ist die schönste Freude.',
+    ],
+  },
+  fenster: {
+    emoji: '🌸',
+    self: [
+      'Alle 1 bis 2 Tage im Fenster reicht völlig – öfter muss nicht sein.',
+      'Ovulationstest positiv? Dann sind heute und die nächsten 2 Tage eure besten Tage.',
+      'Danach ruhig noch ein paar Minuten kuschelnd liegen bleiben – ganz ohne Kopfstand. 😉',
+      'Gleitgel? Dann nur spermienfreundliches – normales kann die Spermien ausbremsen.',
+      'Kein Druck: Entspannte Nähe ist besser als ein perfekter Plan.',
+    ],
+    partner: [
+      'Macht es romantisch statt pflichtbewusst: Kerzen, Musik, Handy weg. 🕯️',
+      'Kein Leistungsdruck – lacht zusammen und sagt euch, was ihr euch wünscht.',
+      'Heute lieber keinen Alkohol und früh nach Hause. 😏',
+      'Komplimente, Hand halten, kuscheln – Nähe beginnt lange vor dem Schlafzimmer.',
+    ],
+  },
+  warten: {
+    emoji: '🤞',
+    self: [
+      'Jetzt heißt es Geduld: Ein Test ist erst ab dem Tag der erwarteten Periode aussagekräftig.',
+      'Ziehen oder Brustspannen kann alles bedeuten – auch PMS. Versuch, nicht jedes Zeichen zu deuten.',
+      'Leb einfach schon ein bisschen so, als wärst du schwanger: kein Alkohol, kein Rauchen, Folsäure nehmen.',
+      'Lenk dich ab: Plant etwas Schönes, macht Sport, trefft Freunde.',
+    ],
+    partner: [
+      'Die Wartezeit ist für {name} oft nervenaufreibend – sei geduldig, liebevoll und sorg für Ablenkung.',
+      'Plant zusammen etwas für die Wartezeit: Ausflug, Kochabend oder Spieleabend. 🎲',
+      'Nicht ständig fragen „Und, spürst du was?“ – einfach da sein.',
+      'Schick {name} eine kleine Botschaft: „Egal, was kommt – ich liebe dich.“ 💌',
+    ],
+  },
+  test: {
+    emoji: '🧪',
+    self: [
+      'Am zuverlässigsten ist der Test mit Morgenurin.',
+      'Negativ, aber die Periode bleibt aus? Nach 2 bis 3 Tagen noch einmal testen.',
+      'Macht den Test zusammen – egal, wie er ausgeht, ihr seid nicht allein.',
+    ],
+    partner: [
+      'Sei beim Test dabei und haltet euch an der Hand. 🤝',
+      'Egal, was der Test zeigt: Nimm {name} in den Arm.',
+      'Bleibt die Periode länger aus und der Test ist negativ, ist ein Termin bei der Frauenärztin sinnvoll.',
+    ],
+  },
+  positiv: {
+    emoji: '🎉',
+    self: [
+      'Herzlichen Glückwunsch! Mach einen Termin bei deiner Frauenärztin – die erste Untersuchung ist meist um die 6. bis 8. Woche.',
+      'Folsäure weiter nehmen – und ab jetzt kein Alkohol, kein Rauchen, kein roher Fisch und keine Rohmilch.',
+      'Such dir früh eine Hebamme – sie sind oft schnell ausgebucht.',
+    ],
+    partner: [
+      'Feiert diesen Moment! 🥂 (Für {name} natürlich alkoholfrei.)',
+      'Begleite {name} zu den Vorsorgeterminen.',
+      'Ab jetzt deine Jobs: Katzenklo, schweres Heben und Gartenarbeit mit Erde.',
+    ],
+  },
+};
+
+/** Kurze Einblendungen, wenn ihr eintragt, dass ihr euch geliebt habt. */
+export const LOVE_LOGGED = ['Eingetragen – ganz diskret. 🤫', 'Ihr zwei seid einfach süß. 💕', 'Nähe tut Herz und Körper gut. 💞', 'Liebe ist das beste Workout. 😏'];
+export const LOVE_LOGGED_FERTILE = ['Perfektes Timing! Daumen sind gedrückt. 🤞', 'Mitten im fruchtbaren Fenster – drückt euch die Daumen. 🌸', 'Bestes Timing – jetzt nur noch Geduld und viel Liebe. 💕'];
+
 export const FLOWS: { id: Flow; label: string; emoji: string }[] = [
   { id: 'schmier', label: 'Schmierblutung', emoji: '💧' },
   { id: 'leicht', label: 'Leicht', emoji: '🩸' },
@@ -197,6 +307,8 @@ export const CYCLE_FACTS = [
   'Auch Spermien brauchen Zeit: Ihre Bildung dauert etwa zweieinhalb Monate. Gesunder Lebensstil lohnt sich also für beide.',
   'Selbst bei einem perfekt passenden Timing liegt die Chance, in einem Zyklus schwanger zu werden, bei jungen Paaren nur bei etwa 20 bis 30 %.',
   'Regelmäßige Bewegung kann Regelschmerzen und PMS-Beschwerden lindern.',
+  'Die besten Chancen auf ein Baby gibt es an den 2 Tagen vor dem Eisprung – nicht erst am Tag selbst.',
+  'Etwa 8 von 10 Paaren mit Kinderwunsch werden innerhalb eines Jahres schwanger – viele schon in den ersten Monaten.',
 ];
 
 export interface InfoTopic {
@@ -227,6 +339,44 @@ export const INFO_TOPICS: InfoTopic[] = [
       'Spermien brauchen etwa zweieinhalb Monate zum Reifen: nicht rauchen, wenig Alkohol, ausgewogen essen, bewegen.',
       'Hitze mögen sie nicht: keine Laptops auf dem Schoß und nicht ständig in die Sauna.',
       'Kein Leistungsdruck – Zärtlichkeit und Spaß sind das beste Rezept.',
+    ],
+  },
+  {
+    id: 'ovutest',
+    emoji: '🧪',
+    title: 'Ovulationstests richtig nutzen',
+    intro: 'Ovulationstests (LH-Tests) messen den Hormonanstieg kurz vor dem Eisprung. Ist der Test positiv, folgt der Eisprung meist innerhalb von 1 bis 2 Tagen.',
+    points: [
+      'Etwa 3 bis 4 Tage vor dem erwarteten fruchtbaren Fenster mit dem Testen beginnen und dann täglich testen.',
+      'Am besten zwischen späterem Vormittag und Abend testen und 2 Stunden vorher wenig trinken – Morgenurin ist hier nicht ideal.',
+      'Positiv ist der Test, wenn die Testlinie mindestens so kräftig ist wie die Kontrolllinie.',
+      'Tragt das Ergebnis in Arta ein: Bei einem positiven Test rechnet Arta den Eisprung neu und verschiebt das fruchtbare Fenster und die erwartete Periode.',
+      'Nach dem Absetzen der Pille, bei PCOS oder sehr unregelmäßigem Zyklus können LH-Tests ungenau sein.',
+    ],
+    partner: ['Die besten Tage sind der Tag des positiven Tests und die 2 Tage danach. 💞'],
+  },
+  {
+    id: 'warten',
+    emoji: '🤞',
+    title: 'Die Zwei-Wochen-Wartezeit',
+    points: [
+      'Nach dem Eisprung braucht eine befruchtete Eizelle etwa 6 bis 10 Tage, bis sie sich einnistet. Erst danach bildet der Körper das Schwangerschaftshormon hCG.',
+      'Eine leichte Schmierblutung in dieser Zeit kann eine Einnistungsblutung sein – muss aber nicht.',
+      'Frühe Anzeichen wie Brustspannen, Müdigkeit oder Ziehen ähneln PMS sehr. Sicherheit gibt erst der Test.',
+      'Normal weiterleben: Sport im gewohnten Maß, ausgewogen essen, kein Alkohol.',
+    ],
+    partner: ['Für Ablenkung sorgen: Ausflüge, Kochabende, Spieleabende.', 'Geduld und Nähe – die Wartezeit ist für euch beide aufregend.'],
+  },
+  {
+    id: 'mythen',
+    emoji: '💡',
+    title: 'Mythen rund ums Schwangerwerden',
+    points: [
+      'Danach Beine hochlegen oder eine Kerze machen? Nicht nötig – die schnellsten Spermien sind nach wenigen Minuten im Eileiter. Ein paar Minuten liegen bleiben schadet aber nicht.',
+      'Je öfter, desto besser? Nicht unbedingt: Alle 1 bis 2 Tage im fruchtbaren Fenster ist ideal.',
+      'Nur am Tag des Eisprungs klappt es? Nein – die Tage davor sind sogar besonders wichtig, weil die Spermien dann schon warten.',
+      'Nach der Pille dauert es ewig? Meist pendelt sich der Zyklus innerhalb weniger Monate nach dem Absetzen ein.',
+      'Keine Schuldfrage: Klappt es länger nicht, liegt es ungefähr gleich oft an ihr wie an ihm – deshalb lassen sich immer beide untersuchen.',
     ],
   },
   {
@@ -320,6 +470,11 @@ export const BABY_SIZES: { week: number; text: string; emoji: string }[] = [
   { week: 32, text: 'eine Kokosnuss', emoji: '🥥' },
   { week: 36, text: 'eine Honigmelone', emoji: '🍈' },
   { week: 40, text: 'eine kleine Wassermelone', emoji: '🍉' },
+];
+
+export const TESTS: { key: 'lh' | 'hcg'; label: string; emoji: string }[] = [
+  { key: 'lh', label: 'Ovulationstest', emoji: '🧪' },
+  { key: 'hcg', label: 'Schwangerschaftstest', emoji: '🤰' },
 ];
 
 export const CYCLE_DISCLAIMER =

@@ -30,9 +30,9 @@ export function buildPayload(d: AppData, from: PersonId, deviceId: string, today
       if (DATED.includes(key)) return (r.date ?? '') >= since;
       if (key === 'shopping') return !r.deleted || r.updatedAt > Date.now() - 30 * 86_400_000;
       // Spielbilanzen sind winzig (eine Zeile pro Spiel und Gerät) – immer komplett mitschicken.
-      // Dasselbe gilt für Perioden – die Vorhersage braucht die ganze Historie – und für die
-      // Foto-Beschreibungen (die Bilder selbst reisen getrennt, siehe photoSync.ts).
-      if (key === 'games' || key === 'periods' || key === 'photos') return true;
+      // Dasselbe gilt für Perioden und Liebestage – Vorhersage und Rückblick brauchen die ganze Historie –
+      // und für die Foto-Beschreibungen (die Bilder selbst reisen getrennt, siehe photoSync.ts).
+      if (key === 'games' || key === 'periods' || key === 'loveDays' || key === 'photos') return true;
       return r.updatedAt > recentTs || (key === 'notes' && !r.seen);
     });
     (out as unknown as Record<string, unknown>)[key] = Object.fromEntries(kept);
