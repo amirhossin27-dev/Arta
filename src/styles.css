@@ -3971,6 +3971,189 @@ input::-webkit-date-and-time-value {
   flex: 1 1 auto;
 }
 
+/* Zweisamkeit & Kinderwunsch */
+.cal-love {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  font-size: 0.66rem;
+}
+
+.love-btn {
+  margin-top: 4px;
+}
+
+.love-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--love-soft);
+  font-weight: 750;
+  font-size: 0.9rem;
+}
+
+.love-row .stepper-value {
+  min-width: 56px;
+}
+
+.love-strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+  margin: 8px 0;
+}
+
+.love-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 0 5px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  border: 2px solid transparent;
+  transition: transform 0.12s, background 0.2s;
+}
+
+.love-day:active {
+  transform: scale(0.92);
+}
+
+.love-day:disabled {
+  opacity: 0.55;
+}
+
+.love-day.fertile-mittel {
+  background: var(--cy-fertile-soft);
+}
+
+.love-day.fertile-hoch {
+  background: color-mix(in srgb, var(--cy-fertile) 32%, var(--surface));
+}
+
+.love-day.period {
+  background: var(--cy-period-soft);
+}
+
+.love-day.today {
+  border-color: var(--text);
+}
+
+.love-day.on {
+  border-color: var(--love);
+}
+
+.ld-wd {
+  font-size: 0.64rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.ld-num {
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.ld-heart {
+  font-size: 1rem;
+  line-height: 1.1;
+  color: var(--muted);
+}
+
+.love-day.on .ld-heart {
+  animation: beat 1.6s ease-in-out infinite;
+}
+
+.ld-count {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: var(--love);
+}
+
+.ld-ovu {
+  position: absolute;
+  top: -5px;
+  right: -3px;
+  font-size: 0.7rem;
+}
+
+.baby-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: linear-gradient(160deg, var(--love-soft), var(--surface) 55%);
+}
+
+.baby-stage {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.baby-stage > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.baby-stage b {
+  font-size: 1.02rem;
+}
+
+.baby-stage-emoji {
+  flex: none;
+  font-size: 2rem;
+  animation: beat 2.4s ease-in-out infinite;
+}
+
+.baby-card[data-stage='fenster'] .baby-stage {
+  background: var(--cy-fertile-soft);
+  border-color: color-mix(in srgb, var(--cy-fertile) 40%, transparent);
+}
+
+.baby-card .field-label {
+  margin-top: 8px;
+}
+
+.baby-timing {
+  font-size: 0.88rem;
+  font-weight: 650;
+  margin-bottom: 4px;
+}
+
+.love-history {
+  margin-top: 8px;
+}
+
+.love-history .period-history li {
+  background: var(--surface);
+}
+
+.love-history .nowrap {
+  white-space: nowrap;
+}
+
+.love-history .period-history .small {
+  text-align: right;
+}
+
+.chip-pos {
+  font-weight: 800;
+}
+
 /* Statistik */
 .cycle-stats {
   display: grid;
