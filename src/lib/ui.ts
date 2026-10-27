@@ -24,6 +24,7 @@ export type SheetState =
   | { type: 'event'; id?: string; date?: string; back?: boolean }
   | { type: 'calendar'; back?: boolean }
   | { type: 'gesund'; view?: 'routinen' | 'tipps' }
+  | { type: 'photo'; id: string }
   | { type: 'game'; id: GameId; join?: string };
 
 interface UIState {

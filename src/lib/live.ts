@@ -24,12 +24,20 @@ const SALT = enc.encode('arta-live-v1');
 export interface RoomKeys {
   /** Pfad des Raums in der Datenbank (verrät nichts über den Schlüssel). */
   id: string;
+  /**
+   * Zweiter Raum nur für die Fotos (gleiche Datenbank-Regeln, ein Eintrag pro Foto). So hängen
+   * die großen Bilder nicht am Echtzeit-Stream, der bei jedem App-Start den ganzen Raum lädt.
+   */
+  photos: string;
   key: CryptoKey;
 }
+
+const hex = (bits: ArrayBuffer) => Array.from(new Uint8Array(bits), (b) => b.toString(16).padStart(2, '0')).join('');
 
 export async function deriveRoom(secret: string): Promise<RoomKeys> {
   const base = await crypto.subtle.importKey('raw', fromB64Url(secret), 'HKDF', false, ['deriveBits', 'deriveKey']);
   const bits = await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: SALT, info: enc.encode('room') }, base, 128);
+  const photoBits = await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: SALT, info: enc.encode('photos') }, base, 128);
   const key = await crypto.subtle.deriveKey(
     { name: 'HKDF', hash: 'SHA-256', salt: SALT, info: enc.encode('key') },
     base,
@@ -37,8 +45,7 @@ export async function deriveRoom(secret: string): Promise<RoomKeys> {
     false,
     ['encrypt', 'decrypt'],
   );
-  const id = Array.from(new Uint8Array(bits), (b) => b.toString(16).padStart(2, '0')).join('');
-  return { id, key };
+  return { id: hex(bits), photos: hex(photoBits), key };
 }
 
 export function newRoom(): LiveRoom {
@@ -372,7 +379,7 @@ function announce(name: string, stats: MergeStats, hearts: number) {
   // Im Hintergrund sieht niemand die Einblendung – also bis zur Rückkehr in die App aufheben.
   if (document.visibilityState === 'hidden') return whenVisible(() => announce(name, stats, hearts));
   if (hearts) heartBurst(undefined, '❤️', Math.min(hearts * 4, 20));
-  const acc = announced ?? { name, hearts: 0, stats: { changed: 0, newNotes: 0, newSurprises: 0, newCoupons: 0, newShopping: 0, newPlan: 0, newEvents: 0 } };
+  const acc = announced ?? { name, hearts: 0, stats: { changed: 0, newNotes: 0, newSurprises: 0, newCoupons: 0, newShopping: 0, newPlan: 0, newEvents: 0, newPhotos: 0 } };
   for (const k of Object.keys(acc.stats) as (keyof MergeStats)[]) acc.stats[k] += stats[k];
   acc.hearts += hearts;
   announced = acc;
@@ -402,6 +409,7 @@ export function liveSummary(stats: MergeStats): string {
   if (stats.newPlan) parts.push(`${stats.newPlan} geplante Einheit${stats.newPlan === 1 ? '' : 'en'} 💪`);
   if (stats.newShopping) parts.push(`${stats.newShopping} Einkaufsartikel 🛒`);
   if (stats.newEvents) parts.push(`${stats.newEvents} neue${stats.newEvents === 1 ? 'r' : ''} Termin${stats.newEvents === 1 ? '' : 'e'} 📅`);
+  if (stats.newPhotos) parts.push(`${stats.newPhotos} neue${stats.newPhotos === 1 ? 's Foto' : ' Fotos'} 📸`);
   return parts.join(' · ');
 }
 

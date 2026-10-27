@@ -12,6 +12,7 @@ import { other, type Person, type PopupFreq } from '../lib/types';
 import { nav } from '../lib/ui';
 import { WeekGoalPicker } from './goals';
 import { NotifySettings } from './notify';
+import { PhotoFreqPicker } from './photos';
 import { Segmented, Sheet } from './ui';
 
 // ───────────────────────── Sync ─────────────────────────
@@ -543,6 +544,22 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
             ['aus', 'Aus'],
           ]}
         />
+      </div>
+
+      <h3>📸 Fotos im Hintergrund</h3>
+      <div className="inset">
+        <p className="muted small">Wie oft sollen eure gemeinsamen Fotos sanft in den Hintergrund gleiten?</p>
+        <PhotoFreqPicker />
+        <button
+          className="btn soft block"
+          onClick={() => {
+            onClose();
+            nav.setLoveView('wir');
+            nav.setTab('liebe');
+          }}
+        >
+          🖼️ Zum Fotoalbum (unter Liebe)
+        </button>
       </div>
 
       <h3>🔔 Mitteilungen</h3>

@@ -235,6 +235,22 @@ export interface RoutineDay extends Rec {
   total: number;
 }
 
+/**
+ * Ein gemeinsames Foto. Synchronisiert wird nur diese kleine Beschreibung; das Bild selbst liegt
+ * auf jedem Handy in der IndexedDB und reist einmalig verschlüsselt über den Live-Raum (lib/photoSync.ts).
+ */
+export interface Photo extends Rec {
+  /** Wer das Foto hinzugefügt hat – nur dieses Handy darf Bildunterschrift ändern oder löschen. */
+  by: PersonId;
+  createdAt: number;
+  /** Seitenverhältnis für Platzhalter, solange das Bild noch unterwegs ist. */
+  w: number;
+  h: number;
+  caption?: string;
+  /** Das Bild liegt im Live-Raum bereit – das andere Handy kann es jetzt holen. */
+  ready?: boolean;
+}
+
 export interface AppData {
   v: 1;
   persons: Record<PersonId, Person>;
@@ -253,6 +269,7 @@ export interface AppData {
   steps: Record<string, StepDay>;
   events: Record<string, CalEvent>;
   routineDays: Record<string, RoutineDay>;
+  photos: Record<string, Photo>;
 }
 
 export type CollectionKey =
@@ -269,12 +286,15 @@ export type CollectionKey =
   | 'loveDays'
   | 'steps'
   | 'routineDays'
-  | 'events';
+  | 'events'
+  | 'photos';
 export type RecOf<K extends CollectionKey> = AppData[K][string];
 
-export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts', 'games', 'periods', 'cycleDays', 'loveDays', 'steps', 'routineDays', 'events'];
+export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts', 'games', 'periods', 'cycleDays', 'loveDays', 'steps', 'routineDays', 'events', 'photos'];
 
 export type PopupFreq = 'oft' | 'normal' | 'selten' | 'aus';
+/** Wie oft gemeinsame Fotos in den Hintergrund gleiten. */
+export type PhotoFreq = PopupFreq;
 
 /** Gerätebezogene Einstellungen – werden nicht synchronisiert. */
 export interface DeviceState {
@@ -282,6 +302,8 @@ export interface DeviceState {
   me: PersonId;
   onboarded: boolean;
   popupFreq: PopupFreq;
+  /** Fotos im Hintergrund (`undefined` = „normal“). */
+  photoFreq?: PhotoFreq;
   lastDailyPopup?: string;
   lastSyncAt?: number;
   /** Retro-Sounds in den Spielen (Standard: an). */

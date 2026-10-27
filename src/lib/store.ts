@@ -15,6 +15,7 @@ import {
   type MealEntry,
   type Person,
   type PersonId,
+  type PhotoFreq,
   type PopupFreq,
   type RecOf,
   type Routine,
@@ -63,6 +64,7 @@ export function emptyData(): AppData {
     steps: {},
     routineDays: {},
     events: {},
+    photos: {},
   };
 }
 
@@ -538,6 +540,29 @@ export const actions = {
     commitData(withRec(data, 'routineDays', { id, date, personId: me, done: next.filter((r) => ids.has(r)), total: routines.length, updatedAt: 0 }));
   },
 
+  // ───── Fotos ─────
+  /** Neues gemeinsames Foto (das Bild selbst liegt schon in der IndexedDB, siehe lib/photoStore.ts). */
+  addPhoto(input: { id: string; w: number; h: number; caption?: string }) {
+    commitData(withRec(data, 'photos', { ...input, by: device.me, createdAt: Date.now(), updatedAt: 0 }));
+  },
+
+  /** Nur eigene Fotos – das Handy des Partners ändert seine Fotos selbst. */
+  setPhotoCaption(id: string, caption: string) {
+    const p = data.photos[id];
+    if (p && !p.deleted && p.by === device.me) patch('photos', id, { caption: caption.trim() || undefined });
+  },
+
+  /** Das Bild ist im Live-Raum angekommen – das andere Handy holt es sich daraufhin. */
+  markPhotoReady(id: string) {
+    const p = data.photos[id];
+    if (p && !p.deleted && !p.ready && p.by === device.me) patch('photos', id, { ready: true });
+  },
+
+  removePhoto(id: string) {
+    const p = data.photos[id];
+    if (p && p.by === device.me) patch('photos', id, { deleted: true });
+  },
+
   // ───── Spiele ─────
   /** Trägt eine Runde in die Bilanz dieses Geräts ein (Sieg, Unentschieden und/oder Punktzahl). */
   recordGame(game: string, outcome: { winner?: PersonId | 'draw'; score?: number; player?: PersonId; lowerIsBetter?: boolean }) {
@@ -563,6 +588,10 @@ export const actions = {
   // Wer man ist (`device.me`), steht nach dem Einrichten bzw. Verbinden fest – einen Wechsel gibt es bewusst nicht.
   setPopupFreq(popupFreq: PopupFreq) {
     commitDevice({ popupFreq });
+  },
+
+  setPhotoFreq(photoFreq: PhotoFreq) {
+    commitDevice({ photoFreq });
   },
 
   setSound(sound: boolean) {

@@ -4,6 +4,7 @@ import App from './App';
 import { startCalendarFeed } from './lib/calendarFeed';
 import { startLive } from './lib/live';
 import { startNotify } from './lib/notify';
+import { startPhotos } from './lib/photoSync';
 import './styles.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -12,9 +13,10 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 );
 
-// Echtzeit-Sync mit dem Partner-Handy (falls eingerichtet) und Mitteilungen aufs Handy.
+// Echtzeit-Sync mit dem Partner-Handy (falls eingerichtet), Mitteilungen aufs Handy und gemeinsame Fotos.
 startLive();
 startNotify();
+startPhotos();
 // Gemeinsame Termine fürs Kalender-Abo im iPhone-Kalender bereitlegen.
 startCalendarFeed();
 
