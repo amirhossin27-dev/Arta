@@ -11,6 +11,7 @@ Sie läuft als **Web-App im Browser** und lässt sich wie eine normale App auf d
 - Gemeinsame Herzpunkte mit Paar-Level (von „Frisch verliebt“ bis „Legenden der Liebe“), Paar-Serie und Wochenziel
 - „Unser Tag“: Fortschritt von euch beiden nebeneinander (Einheiten, kcal, Schritte), mit Anfeuern-Knopf
 - Mein Tagesplan (morgens, mittags, abends) mit Sport und Essen
+- **🌿 Gesundheit:** ein Tipp des Tages (rund 50 Tipps zu Vitaminen, Hausmitteln wie Schwarzkümmelöl, Schlaf, Trinken, Darm und Kopf – passend zur Jahreszeit) und tägliche Routinen zum Abhaken, z. B. Vitamin D am Morgen oder Schwarzkümmelöl am Abend. Jede Person pflegt ihre eigenen; der Schatz sieht, was geschafft ist, und kann mit einem Tipp liebevoll erinnern. Arta erinnert zur Uhrzeit (Einblendung bzw. Mitteilung), und „In den Kalender“ legt einen täglichen Termin mit Hinweis an, der sich auch bei geschlossener App meldet. Alle Routinen geschafft = 3 Herzpunkte.
 - **📅 Unsere Termine** – siehe unten
 - Stimmungs-Check und „Frage des Tages“ für euch zwei
 
@@ -158,4 +159,4 @@ src/
   screens/     Heute, Sport, Essen, Einkauf, Liebe, Spiele, Einrichtung
 ```
 
-**Hinweis:** kcal- und Nährwerte sind Richtwerte und ersetzen keine Ernährungs- oder Trainingsberatung. Die Zyklus-Vorhersagen sind Schätzungen nach der Kalendermethode, kein Verhütungsmittel und kein Ersatz für ärztliche Beratung.
+**Hinweis:** kcal- und Nährwerte sind Richtwerte und ersetzen keine Ernährungs- oder Trainingsberatung. Die Gesundheitstipps sind allgemeine Hinweise – Nahrungsergänzung und Hausmittel bitte mit Arzt oder Apotheke absprechen. Die Zyklus-Vorhersagen sind Schätzungen nach der Kalendermethode, kein Verhütungsmittel und kein Ersatz für ärztliche Beratung.

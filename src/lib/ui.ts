@@ -15,12 +15,15 @@ export type SheetState =
   | { type: 'settings' }
   | { type: 'cheer' }
   | { type: 'couple' }
+  | { type: 'weekGoal' }
+  | { type: 'streak' }
   | { type: 'steps'; date: string }
   | { type: 'health' }
   | { type: 'events' }
   /** Termin ansehen/ändern (`id`) oder neu anlegen; `back`: danach wieder zur Terminliste. */
   | { type: 'event'; id?: string; date?: string; back?: boolean }
   | { type: 'calendar'; back?: boolean }
+  | { type: 'gesund'; view?: 'routinen' | 'tipps' }
   | { type: 'game'; id: GameId; join?: string };
 
 interface UIState {

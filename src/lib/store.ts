@@ -17,6 +17,7 @@ import {
   type PersonId,
   type PopupFreq,
   type RecOf,
+  type Routine,
   type ShopCategory,
   type Slot,
 } from './types';
@@ -24,6 +25,7 @@ import { uid } from './random';
 import { MERGE_DAYS } from './cycle';
 import { diffDays, todayKey } from './date';
 import { DEFAULT_STEP_GOAL, MAX_STEPS } from './steps';
+import { MAX_ROUTINES, routineId } from './routines';
 
 const DATA_KEY = 'arta.data.v1';
 const DEVICE_KEY = 'arta.device.v1';
@@ -58,6 +60,7 @@ export function emptyData(): AppData {
     periods: {},
     cycleDays: {},
     steps: {},
+    routineDays: {},
     events: {},
   };
 }
@@ -493,6 +496,37 @@ export const actions = {
     patch('events', id, { deleted: true });
   },
 
+  // ───── Gesundheit ─────
+  /** Neue Routine für dich selbst – Vorlagen behalten ihre ID. Gibt die ID zurück (oder nichts, wenn die Liste voll ist). */
+  addRoutine(input: Omit<Routine, 'id'> & { id?: string }): string | undefined {
+    const list = data.persons[device.me].routines ?? [];
+    if (list.length >= MAX_ROUTINES) return undefined;
+    const id = routineId(list, input.id ?? uid());
+    setRoutines([...list, { emoji: input.emoji, name: input.name.trim(), time: input.time, remind: input.remind, id }]);
+    return id;
+  },
+
+  updateRoutine(id: string, changes: Partial<Omit<Routine, 'id'>>) {
+    const list = data.persons[device.me].routines ?? [];
+    setRoutines(list.map((r) => (r.id === id ? { ...r, ...changes, id } : r)));
+  },
+
+  removeRoutine(id: string) {
+    setRoutines((data.persons[device.me].routines ?? []).filter((r) => r.id !== id));
+  },
+
+  /** Eigene Routine an einem Tag abhaken (oder wieder öffnen). */
+  setRoutineDone(date: string, routine: string, done: boolean) {
+    const me = device.me;
+    const routines = data.persons[me].routines ?? [];
+    const id = `${date}-${me}`;
+    const cur = data.routineDays[id];
+    const prev = cur && !cur.deleted ? cur.done : [];
+    const next = done ? [...new Set([...prev, routine])] : prev.filter((r) => r !== routine);
+    const ids = new Set(routines.map((r) => r.id));
+    commitData(withRec(data, 'routineDays', { id, date, personId: me, done: next.filter((r) => ids.has(r)), total: routines.length, updatedAt: 0 }));
+  },
+
   // ───── Spiele ─────
   /** Trägt eine Runde in die Bilanz dieses Geräts ein (Sieg, Unentschieden und/oder Punktzahl). */
   recordGame(game: string, outcome: { winner?: PersonId | 'draw'; score?: number; player?: PersonId; lowerIsBetter?: boolean }) {
@@ -567,6 +601,18 @@ function localZone(): string {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Berlin';
   } catch {
     return 'Europe/Berlin';
+  }
+}
+
+/** Eigene Routinen speichern – der heutige Tag zählt danach gegen die neue Liste. */
+function setRoutines(routines: Routine[]) {
+  const me = device.me;
+  actions.updatePerson(me, { routines });
+  const id = `${todayKey()}-${me}`;
+  const today = data.routineDays[id];
+  if (today && !today.deleted) {
+    const ids = new Set(routines.map((r) => r.id));
+    commitData(withRec(data, 'routineDays', { ...today, done: today.done.filter((r) => ids.has(r)), total: routines.length }));
   }
 }
 

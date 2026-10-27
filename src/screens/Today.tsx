@@ -3,6 +3,7 @@ import { MEAL_LABEL } from '../data/recipes';
 import { MOODS } from '../data/messages';
 import { UpcomingCard } from '../components/events';
 import { PlanRow } from '../components/exercise';
+import { HealthCard } from '../components/routines';
 import { PersonSteps } from '../components/steps';
 import { Bar, ProgressRing } from '../components/ui';
 import { dailyLove, dailyQuestion } from '../lib/daily';
@@ -11,6 +12,7 @@ import { cls, usePeople, useToday } from '../lib/hooks';
 import { isLive } from '../lib/live';
 import { heartBurst, showLove } from '../lib/love';
 import {
+  activeDates,
   activeMinutes,
   burnedFor,
   coupleStreak,
@@ -105,6 +107,19 @@ export function Today() {
   const lvl = levelInfo(pts);
   const week = weekDone(data, today);
   const cStreak = coupleStreak(data, today);
+  const meActive = activeDates(data, me.id).has(today);
+  const partnerActive = activeDates(data, partner.id).has(today);
+  const streakSub =
+    meActive && partnerActive
+      ? 'heute beide ✓'
+      : meActive
+        ? `heute fehlt ${partner.name}`
+        : partnerActive
+          ? 'heute fehlst du'
+          : cStreak > 0
+            ? 'heute noch offen'
+            : 'Tage beide aktiv';
+  const goalLeft = Math.max(data.couple.weeklyGoal - week.total, 0);
   const unread = unreadNotes(data, device.me);
   const plan = planFor(data, today, me.id);
   const meals = mealsFor(data, today, me.id);
@@ -156,21 +171,27 @@ export function Today() {
           <Bar value={lvl.progress} max={1} className="love" />
           <span className="stat-sub">{lvl.current.name}</span>
         </div>
-        <div className="stat">
+        <button className="stat tappable" onClick={() => nav.open({ type: 'streak' })} aria-label={`Paar-Serie: ${cStreak} ${cStreak === 1 ? 'Tag' : 'Tage'} – antippen für Details`}>
+          <span className="stat-more" aria-hidden="true">
+            ›
+          </span>
           <span className="stat-emoji">🔥</span>
           <b>{cStreak}</b>
           <span className="muted">Paar-Serie</span>
-          <span className="stat-sub">{cStreak === 1 ? 'Tag' : 'Tage'} beide aktiv</span>
-        </div>
-        <div className="stat">
+          <span className="stat-sub">{streakSub}</span>
+        </button>
+        <button className="stat tappable" onClick={() => nav.open({ type: 'weekGoal' })} aria-label={`Wochenziel: ${week.total} von ${data.couple.weeklyGoal} – antippen zum Einstellen`}>
+          <span className="stat-more" aria-hidden="true">
+            ›
+          </span>
           <span className="stat-emoji">🎯</span>
           <b>
             {week.total}/{data.couple.weeklyGoal}
           </b>
           <span className="muted">Wochenziel</span>
           <Bar value={week.total} max={data.couple.weeklyGoal} className="sport" />
-          <span className="stat-sub">Einheiten von euch beiden</span>
-        </div>
+          <span className="stat-sub">{goalLeft > 0 ? `noch ${goalLeft} ${goalLeft === 1 ? 'Einheit' : 'Einheiten'}` : '🎉 geschafft!'}</span>
+        </button>
       </div>
 
       <div className="card">
@@ -240,6 +261,8 @@ export function Today() {
           })
         )}
       </div>
+
+      <HealthCard />
 
       <div className="card">
         <h2>Wie fühlst du dich heute?</h2>

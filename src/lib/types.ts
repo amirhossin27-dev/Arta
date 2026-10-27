@@ -29,6 +29,19 @@ export interface Person extends Rec {
   /** Tägliches Schrittziel. */
   stepGoal: number;
   favorites: string[];
+  /** Tägliche Gesundheits-Routinen (z. B. Vitamin D, Schwarzkümmelöl) – pflegt nur das eigene Handy. */
+  routines?: Routine[];
+}
+
+/** Eine tägliche Gesundheits-Routine. Die ID ist die der Vorlage oder eine zufällige. */
+export interface Routine {
+  id: string;
+  emoji: string;
+  name: string;
+  /** Uhrzeit (HH:MM) – ordnet die Routine dem Tag zu und ist der Zeitpunkt der Erinnerung. */
+  time: string;
+  /** Zur Uhrzeit erinnern (Einblendung bzw. Mitteilung). */
+  remind: boolean;
 }
 
 /** Grundeinstellungen für den Periodenkalender: wessen Zyklus und die üblichen Längen. */
@@ -43,7 +56,10 @@ export interface CycleSettings {
 export interface Couple extends Rec {
   id: 'couple';
   anniversary?: string;
+  /** Gemeinsames Wochenziel: so viele Sport-Einheiten wollt ihr zusammen pro Woche (Mo–So) abhaken. */
   weeklyGoal: number;
+  /** Paar-Serie: zählt ein Tag mit erreichtem Schrittziel auch als aktiver Tag? */
+  streakSteps?: boolean;
   cycle?: CycleSettings;
 }
 
@@ -189,6 +205,17 @@ export interface CalEvent extends Rec {
   createdAt: number;
 }
 
+/**
+ * Abgehakte Routinen einer Person an einem Tag (ID `${date}-${personId}`), nur das eigene Handy
+ * schreibt sie. `total` hält fest, wie viele Routinen es an dem Tag gab.
+ */
+export interface RoutineDay extends Rec {
+  date: string;
+  personId: PersonId;
+  done: string[];
+  total: number;
+}
+
 export interface AppData {
   v: 1;
   persons: Record<PersonId, Person>;
@@ -205,6 +232,7 @@ export interface AppData {
   cycleDays: Record<string, CycleDay>;
   steps: Record<string, StepDay>;
   events: Record<string, CalEvent>;
+  routineDays: Record<string, RoutineDay>;
 }
 
 export type CollectionKey =
@@ -219,10 +247,11 @@ export type CollectionKey =
   | 'periods'
   | 'cycleDays'
   | 'steps'
+  | 'routineDays'
   | 'events';
 export type RecOf<K extends CollectionKey> = AppData[K][string];
 
-export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts', 'games', 'periods', 'cycleDays', 'steps', 'events'];
+export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts', 'games', 'periods', 'cycleDays', 'steps', 'routineDays', 'events'];
 
 export type PopupFreq = 'oft' | 'normal' | 'selten' | 'aus';
 

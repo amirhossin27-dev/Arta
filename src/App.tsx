@@ -7,8 +7,10 @@ import { GameScreen } from './games/GameScreen';
 import { ArcadeInvite } from './games/Invite';
 import { LoveLayer } from './components/LoveLayer';
 import { CheerSheet, CoupleSheet, SettingsSheet, SyncSheet } from './components/sheets';
+import { StreakSheet, WeekGoalSheet } from './components/goals';
 import { HealthSheet } from './components/healthSetup';
 import { CalendarSheet, EventSheet, EventsSheet } from './components/events';
+import { GesundSheet, useRoutineReminders } from './components/routines';
 import { StepsSheet, useStepMoments } from './components/steps';
 import { dailyLove } from './lib/daily';
 import { todayKey } from './lib/date';
@@ -161,6 +163,7 @@ export default function App() {
   const liveStatus = useLiveStatus();
   useLoveMoments(device.onboarded);
   useStepMoments(device.onboarded);
+  useRoutineReminders(device.onboarded);
   useOpenFromNotification();
 
   useEffect(() => {
@@ -240,11 +243,14 @@ export default function App() {
       {sheet?.type === 'settings' && <SettingsSheet onClose={close} />}
       {sheet?.type === 'cheer' && <CheerSheet onClose={close} />}
       {sheet?.type === 'couple' && <CoupleSheet onClose={close} />}
+      {sheet?.type === 'weekGoal' && <WeekGoalSheet onClose={close} />}
+      {sheet?.type === 'streak' && <StreakSheet onClose={close} />}
       {sheet?.type === 'steps' && <StepsSheet date={sheet.date} onClose={close} />}
       {sheet?.type === 'health' && <HealthSheet onClose={close} />}
       {sheet?.type === 'events' && <EventsSheet onClose={close} />}
       {sheet?.type === 'event' && <EventSheet key={sheet.id ?? 'neu'} id={sheet.id} date={sheet.date} back={sheet.back} onClose={close} />}
       {sheet?.type === 'calendar' && <CalendarSheet back={sheet.back} onClose={close} />}
+      {sheet?.type === 'gesund' && <GesundSheet view={sheet.view} onClose={close} />}
       {sheet?.type === 'game' && <GameScreen key={`${sheet.id}-${sheet.join ?? ''}`} id={sheet.id} join={sheet.join} onClose={close} />}
       {live && <ArcadeInvite />}
 
