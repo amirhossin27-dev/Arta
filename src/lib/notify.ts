@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { todayKey } from './date';
+import { addDays, todayKey } from './date';
 import {
   channelsLoaded,
   channelValue,
@@ -13,10 +13,11 @@ import {
   setKeepAliveHidden,
 } from './live';
 import { PUSH_RELAY_URL } from './liveConfig';
+import { extraDays, freshEvents, nextStart, whenText } from './events';
 import { heartsOn } from './stats';
 import { actions, getData, getDevice, onSent, subscribe, type Sent } from './store';
 import { fromB64Url, toB64Url } from './sync';
-import { other, type AppData, type Coupon, type LoveNote, type PersonId } from './types';
+import { other, type AppData, type CalEvent, type Coupon, type LoveNote, type PersonId } from './types';
 import { buildRelayRequest, generateVapidKeys, type PushMessage, type PushTarget, type VapidKeys } from './webpush';
 
 /**
@@ -52,6 +53,12 @@ export function heartsMessage(count: number, from: string, date: string): PushMe
     tag: `hearts-${date}`,
     tab: 'liebe',
   };
+}
+
+export function eventMessage(e: CalEvent, from: string, today = todayKey()): PushMessage {
+  const start = nextStart(e, today) ?? e.date;
+  const when = whenText({ event: e, start, end: addDays(start, extraDays(e)) }, today);
+  return { title: `📅 Neuer Termin von ${from}`, body: `${e.emoji} ${e.title} · ${when}`, tag: `event-${e.id}`, tab: 'heute' };
 }
 
 export function inviteMessage(game: { name: string; emoji: string }, from: string, id: string): PushMessage {
@@ -381,6 +388,8 @@ function onOutgoing(sent: Sent) {
     if (msg) void sendToPartner(msg, 2 * 24 * HOUR);
   } else if (sent.type === 'coupon') {
     void sendToPartner(couponMessage(sent.coupon, me), 2 * 24 * HOUR);
+  } else if (sent.type === 'event') {
+    void sendToPartner(eventMessage(sent.event, me), 2 * 24 * HOUR);
   } else {
     window.clearTimeout(heartTimer);
     heartTimer = window.setTimeout(() => {
@@ -410,6 +419,7 @@ function onStoreChange() {
     }
     for (const c of fresh.coupons) if (c.to === device.me) notifyIfHidden(couponMessage(c, name));
     if (fresh.hearts) notifyIfHidden(heartsMessage(heartsOn(data, today, partner), name, today));
+    for (const e of freshEvents(prevData, data, partner, 6 * HOUR)) notifyIfHidden(eventMessage(e, name, today));
   }
   prevData = data;
   prevMe = device.me;

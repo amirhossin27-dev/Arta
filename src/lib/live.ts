@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { todayKey } from './date';
+import { applyCalNode, CAL_FEED_PREFIX, clearCal, isCal, saveFeedFp } from './calendar';
 import { applyHealthNode, clearHealth, isHealth } from './health';
 import { LIVE_DB_URL } from './liveConfig';
 import { heartBurst, showLove } from './love';
@@ -127,10 +128,16 @@ export async function leaveRoom() {
   const room = getDevice().live;
   if (!room) return;
   actions.setLive(undefined);
+  saveFeedFp(undefined);
   try {
     const { id } = await deriveRoom(room.secret);
     const device = getDevice().deviceId;
-    await Promise.all([fetch(nodeUrl(id, device), { method: 'DELETE' }), fetch(nodeUrl(id, `${PUSH_PREFIX}${device}`), { method: 'DELETE' })]);
+    await Promise.all([
+      fetch(nodeUrl(id, device), { method: 'DELETE' }),
+      fetch(nodeUrl(id, `${PUSH_PREFIX}${device}`), { method: 'DELETE' }),
+      // Eigener Eintrag fürs Kalender-Abo – die Termine hat der Schatz ja selbst auch noch.
+      fetch(nodeUrl(id, `${CAL_FEED_PREFIX}${getDevice().me}`), { method: 'DELETE' }),
+    ]);
   } catch {
     // offline – der alte Stand bleibt einfach liegen
   }
@@ -281,9 +288,10 @@ function connect(s: Session) {
     for (const name of new Set([...Object.keys(prev), ...Object.keys(room)])) {
       if (isChannel(name) && prev[name] !== room[name]) s.queue = s.queue.then(() => readChannel(s, name, room[name]));
       if (isHealth(name) && prev[name] !== room[name]) s.queue = s.queue.then(() => applyHealthNode(name, room[name]));
+      if (isCal(name) && prev[name] !== room[name]) applyCalNode(name, room[name]);
     }
     for (const dev of touched) {
-      if (dev !== me && !isChannel(dev) && !isHealth(dev)) s.queue = s.queue.then(() => mergeNode(s, dev, s.mirror[dev]));
+      if (dev !== me && !isChannel(dev) && !isHealth(dev) && !isCal(dev)) s.queue = s.queue.then(() => mergeNode(s, dev, s.mirror[dev]));
     }
     if (!s.greeted) s.queue = s.queue.then(() => schedulePush(0));
   };
@@ -371,7 +379,7 @@ function announce(name: string, stats: MergeStats, hearts: number) {
   // Im Hintergrund sieht niemand die Einblendung – also bis zur Rückkehr in die App aufheben.
   if (document.visibilityState === 'hidden') return whenVisible(() => announce(name, stats, hearts));
   if (hearts) heartBurst(undefined, '❤️', Math.min(hearts * 4, 20));
-  const acc = announced ?? { name, hearts: 0, stats: { changed: 0, newNotes: 0, newSurprises: 0, newCoupons: 0, newShopping: 0, newPlan: 0, newPhotos: 0 } };
+  const acc = announced ?? { name, hearts: 0, stats: { changed: 0, newNotes: 0, newSurprises: 0, newCoupons: 0, newShopping: 0, newPlan: 0, newEvents: 0, newPhotos: 0 } };
   for (const k of Object.keys(acc.stats) as (keyof MergeStats)[]) acc.stats[k] += stats[k];
   acc.hearts += hearts;
   announced = acc;
@@ -400,6 +408,7 @@ export function liveSummary(stats: MergeStats): string {
   if (stats.newCoupons) parts.push(`${stats.newCoupons} Gutschein${stats.newCoupons === 1 ? '' : 'e'} 🎟️`);
   if (stats.newPlan) parts.push(`${stats.newPlan} geplante Einheit${stats.newPlan === 1 ? '' : 'en'} 💪`);
   if (stats.newShopping) parts.push(`${stats.newShopping} Einkaufsartikel 🛒`);
+  if (stats.newEvents) parts.push(`${stats.newEvents} neue${stats.newEvents === 1 ? 'r' : ''} Termin${stats.newEvents === 1 ? '' : 'e'} 📅`);
   if (stats.newPhotos) parts.push(`${stats.newPhotos} neue${stats.newPhotos === 1 ? 's Foto' : ' Fotos'} 📸`);
   return parts.join(' · ');
 }
@@ -596,6 +605,7 @@ function stopSession() {
   session = null;
   clearChannels();
   clearHealth();
+  clearCal();
   setStatus({ state: 'off', message: undefined, partnerAt: undefined, pending: false, lastPushAt: undefined });
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { couponMessage, freshFrom, heartsMessage, inviteMessage, isPushDoc, noteMessage } from '../notify';
+import { couponMessage, eventMessage, freshFrom, heartsMessage, inviteMessage, isPushDoc, noteMessage } from '../notify';
 import { emptyData } from '../store';
 import type { AppData, LoveNote } from '../types';
 
@@ -23,6 +23,11 @@ describe('Mitteilungen: Texte', () => {
     expect(heartsMessage(1, 'Sara', '2026-10-26').title).toBe('❤️ Ein Herz von Sara');
     expect(heartsMessage(5, 'Sara', '2026-10-26')).toMatchObject({ title: '❤️ 5 Herzen von Sara', tag: 'hearts-2026-10-26' });
     expect(inviteMessage({ name: 'Uno', emoji: '🃏' }, 'Sara', 'm1')).toMatchObject({ title: '🃏 Sara lädt dich zu Uno ein!', tab: 'spiele' });
+  });
+
+  it('neuer Termin vom Schatz', () => {
+    const e = { id: 'e1', title: 'Kino', emoji: '🎬', date: '2026-10-30', time: '20:00', who: 'both' as const, tz: 'Europe/Berlin', createdBy: 'b' as const, createdAt: NOW, updatedAt: NOW };
+    expect(eventMessage(e, 'Sara', '2026-10-26')).toEqual({ title: '📅 Neuer Termin von Sara', body: '🎬 Kino · Fr, 30. Okt., 20:00 Uhr', tag: 'event-e1', tab: 'heute' });
   });
 
   it('verrät Überraschungen nicht', () => {

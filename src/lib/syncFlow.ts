@@ -73,6 +73,7 @@ export function summarize(stats: MergeStats): string {
   if (stats.newCoupons) parts.push(`${stats.newCoupons} Gutschein${stats.newCoupons === 1 ? '' : 'e'} 🎟️`);
   if (stats.newPlan) parts.push(`${stats.newPlan} geplante Einheit${stats.newPlan === 1 ? '' : 'en'} 💪`);
   if (stats.newShopping) parts.push(`${stats.newShopping} Einkaufsartikel 🛒`);
+  if (stats.newEvents) parts.push(`${stats.newEvents} neue${stats.newEvents === 1 ? 'r' : ''} Termin${stats.newEvents === 1 ? '' : 'e'} 📅`);
   if (stats.newPhotos) parts.push(`${stats.newPhotos} neue${stats.newPhotos === 1 ? 's Foto' : ' Fotos'} 📸`);
   if (!parts.length) return stats.changed ? `${stats.changed} Änderungen übernommen.` : 'Ihr seid schon auf dem gleichen Stand. ✨';
   return parts.join(' · ');

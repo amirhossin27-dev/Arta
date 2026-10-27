@@ -14,7 +14,7 @@ import {
 } from '../data/health';
 import { todayKey } from '../lib/date';
 import { cls, usePeople, useToday } from '../lib/hooks';
-import { PUSH_RELAY_URL } from '../lib/liveConfig';
+import { openIcs, useRelayCalendar } from '../lib/ics';
 import { heartBurst, showLove } from '../lib/love';
 import { notifyActive, showLocal } from '../lib/notify';
 import { pickRandom } from '../lib/random';
@@ -36,7 +36,6 @@ import {
 } from '../lib/routines';
 import { SLOT_LABEL } from '../lib/stats';
 import { actions, getData, getDevice, useData } from '../lib/store';
-import { toB64Url } from '../lib/sync';
 import { other, type Person, type Routine } from '../lib/types';
 import { nav, type SheetState } from '../lib/ui';
 import { Chips, Segmented, Sheet } from './ui';
@@ -216,31 +215,13 @@ export function HealthCard() {
 // ───── Kalender ─────
 
 type CalendarRoute = 'relay' | 'file';
-let calendarRoute: CalendarRoute | undefined;
 
 /**
  * Kann das Push-Relay einen Kalendertermin als echte Antwort ausliefern? Dann öffnet sich auf dem
  * iPhone „Zum Kalender hinzufügen“ – Dateien aus der App heraus landen dort sonst nur im Download.
  */
 function useCalendarRoute(): CalendarRoute {
-  const [route, setRoute] = useState<CalendarRoute>(calendarRoute ?? 'file');
-  useEffect(() => {
-    if (calendarRoute || !PUSH_RELAY_URL) return;
-    let alive = true;
-    fetch(`${PUSH_RELAY_URL}/kalender`)
-      .then((res) => (res.ok ? res.text() : ''))
-      .then((text) => {
-        calendarRoute = text.includes('Kalender ✓') ? 'relay' : 'file';
-        if (alive) setRoute(calendarRoute);
-      })
-      .catch(() => {
-        // offline oder altes Relay – dann eben als Datei
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-  return route;
+  return useRelayCalendar() ? 'relay' : 'file';
 }
 
 /** Muss direkt aus dem Antippen heraus laufen, sonst blockiert Safari das neue Fenster. */
@@ -249,17 +230,7 @@ function openCalendar(r: Routine, route: CalendarRoute) {
   const me = getDevice().me;
   const url = new URL('./#tab=heute', window.location.href).href;
   const ics = routineIcs(r, me, todayKey(), url);
-  if (route === 'relay') {
-    window.open(`${PUSH_RELAY_URL}/termin.ics?d=${toB64Url(new TextEncoder().encode(ics))}`, '_blank');
-  } else {
-    const a = document.createElement('a');
-    a.href = `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
-    a.download = icsFileName(r);
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  }
+  openIcs(ics, icsFileName(r).replace(/\.ics$/, ''));
   const how = route === 'relay' ? 'Tippe auf „Hinzufügen“' : 'Öffne die geladene Datei und tippe auf „Hinzufügen“';
   showLove({
     emoji: '📅',

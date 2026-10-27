@@ -3,6 +3,7 @@ import {
   COLLECTIONS,
   other,
   type AppData,
+  type CalEvent,
   type CollectionKey,
   type Couple,
   type Coupon,
@@ -62,6 +63,7 @@ export function emptyData(): AppData {
     loveDays: {},
     steps: {},
     routineDays: {},
+    events: {},
     photos: {},
   };
 }
@@ -152,7 +154,11 @@ export function useDevice(): DeviceState {
 }
 
 /** Etwas wurde gerade auf diesem Handy an den Schatz verschickt (für die Push-Mitteilungen). */
-export type Sent = { type: 'note'; note: LoveNote } | { type: 'coupon'; coupon: Coupon } | { type: 'heart'; date: string };
+export type Sent =
+  | { type: 'note'; note: LoveNote }
+  | { type: 'coupon'; coupon: Coupon }
+  | { type: 'heart'; date: string }
+  | { type: 'event'; event: CalEvent };
 
 const sentListeners = new Set<(s: Sent) => void>();
 export const onSent = (fn: (s: Sent) => void) => {
@@ -483,6 +489,26 @@ export const actions = {
     if (today && !today.deleted) commitData(withRec(data, 'steps', { ...today, goal }));
   },
 
+  // ───── Termine ─────
+  /** Neuer gemeinsamer Termin – landet auf beiden Handys und im Kalender-Abo. */
+  addEvent(input: Omit<CalEvent, 'id' | 'updatedAt' | 'createdBy' | 'createdAt' | 'tz'>): string {
+    const id = uid();
+    commitData(withRec(data, 'events', { ...cleanEvent(input), id, tz: localZone(), createdBy: device.me, createdAt: Date.now(), updatedAt: 0 }));
+    emitSent({ type: 'event', event: data.events[id] });
+    return id;
+  },
+
+  /** Termine gehören euch beiden – jeder darf sie ändern. */
+  updateEvent(id: string, changes: Omit<CalEvent, 'id' | 'updatedAt' | 'createdBy' | 'createdAt' | 'tz'>) {
+    const cur = data.events[id];
+    if (!cur || cur.deleted) return;
+    commitData(withRec(data, 'events', { ...cur, ...cleanEvent(changes), tz: localZone() }));
+  },
+
+  removeEvent(id: string) {
+    patch('events', id, { deleted: true });
+  },
+
   // ───── Gesundheit ─────
   /** Neue Routine für dich selbst – Vorlagen behalten ihre ID. Gibt die ID zurück (oder nichts, wenn die Liste voll ist). */
   addRoutine(input: Omit<Routine, 'id'> & { id?: string }): string | undefined {
@@ -599,6 +625,24 @@ export const actions = {
     commitDevice({ ...defaultDevice(), deviceId: device.deviceId });
   },
 };
+
+/** Leere Felder weglassen statt "" zu speichern (Ende vor Beginn bei ganztägig ergibt keinen Sinn). */
+function cleanEvent<T extends Partial<CalEvent>>(e: T): T {
+  const out = { ...e, title: e.title?.trim(), place: e.place?.trim() || undefined, note: e.note?.trim() || undefined };
+  if (!out.time) out.endTime = undefined;
+  if (out.time || !out.endDate || (out.date && out.endDate <= out.date)) out.endDate = undefined;
+  if (!out.alarm) out.alarm = undefined;
+  if (!out.repeat) out.repeat = undefined;
+  return out;
+}
+
+function localZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Berlin';
+  } catch {
+    return 'Europe/Berlin';
+  }
+}
 
 /** Eigene Routinen speichern – der heutige Tag zählt danach gegen die neue Liste. */
 function setRoutines(routines: Routine[]) {

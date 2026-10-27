@@ -19,6 +19,10 @@ export type SheetState =
   | { type: 'streak' }
   | { type: 'steps'; date: string }
   | { type: 'health' }
+  | { type: 'events' }
+  /** Termin ansehen/ändern (`id`) oder neu anlegen; `back`: danach wieder zur Terminliste. */
+  | { type: 'event'; id?: string; date?: string; back?: boolean }
+  | { type: 'calendar'; back?: boolean }
   | { type: 'gesund'; view?: 'routinen' | 'tipps' }
   | { type: 'photo'; id: string }
   | { type: 'game'; id: GameId; join?: string };
