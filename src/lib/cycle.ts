@@ -22,6 +22,10 @@ const HISTORY = 6;
 export const MERGE_DAYS = 10;
 /** Wie lange nach Beginn man eine offene Periode noch beenden kann. */
 const OPEN_DAYS = 14;
+/** Früher als an diesem Zyklustag gilt ein Eisprung als Tippfehler beim Ovulationstest. */
+const MIN_OVULATION = 8;
+/** Mehr pro Tag braucht keine Statistik. 😉 */
+export const MAX_LOVE = 5;
 
 export interface CycleStats {
   cycleLength: number;
@@ -40,6 +44,8 @@ export interface DayInfo {
   period?: 'logged' | 'predicted';
   /** Liegt in der Zukunft – also nur eine Prognose. */
   predicted: boolean;
+  /** Der Eisprung dieses Zyklus stammt aus einem positiven Ovulationstest. */
+  byTest?: boolean;
 }
 
 export interface Cycle {
@@ -61,8 +67,26 @@ export interface Cycle {
   /** Die nächsten drei erwarteten Periodenbeginne. */
   predictions: string[];
   /** Nächstes (oder laufendes) fruchtbares Fenster mit Eisprung. */
-  fertile?: { start: string; end: string; ovulation: string };
+  fertile?: Window;
+  /** Erwartete Länge des laufenden Zyklus – ein positiver Ovulationstest kann sie verschieben. */
+  length: number;
+  /** Eisprung im laufenden Zyklus (Zyklustag und Datum). */
+  ovDay: number;
+  ovulation?: string;
+  /** Eisprung-Zyklustag je Periodenbeginn, wenn ihn ein positiver Ovulationstest verrät. */
+  lhOvulation: Record<string, number>;
   todayInfo: DayInfo;
+}
+
+/** Fruchtbares Fenster: 5 Tage vor dem Eisprung bis 1 Tag danach. */
+export interface Window {
+  start: string;
+  end: string;
+  ovulation: string;
+}
+
+export function windowAround(ovulation: string): Window {
+  return { start: addDays(ovulation, -5), end: addDays(ovulation, 1), ovulation };
 }
 
 const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -71,18 +95,17 @@ export function ovulationDay(cycleLength: number): number {
   return Math.max(cycleLength - LUTEAL_DAYS, 1);
 }
 
-export function phaseFor(day: number, cycleLength: number, periodLength: number): PhaseId {
+export function phaseFor(day: number, cycleLength: number, periodLength: number, ov = ovulationDay(cycleLength)): PhaseId {
   if (day > cycleLength) return 'spaet';
   if (day <= periodLength) return 'menstruation';
-  const ov = ovulationDay(cycleLength);
   if (day >= ov - 1 && day <= ov + 1) return 'eisprung';
   return day < ov ? 'follikel' : 'luteal';
 }
 
 /** Spermien überleben bis zu 5 Tage, die Eizelle 12–24 Stunden: fruchtbar sind ca. 5 Tage davor bis 1 Tag danach. */
-export function fertilityFor(day: number, cycleLength: number): Fertility {
+export function fertilityFor(day: number, cycleLength: number, ov = ovulationDay(cycleLength)): Fertility {
   if (day > cycleLength) return 'niedrig';
-  const rel = day - ovulationDay(cycleLength);
+  const rel = day - ov;
   if (rel >= -2 && rel <= 0) return 'hoch';
   if (rel >= -5 && rel <= 1) return 'mittel';
   return 'niedrig';
@@ -135,6 +158,38 @@ export function periodEnd(p: Period, periodLength: number): string {
   return p.end ?? addDays(p.start, periodLength - 1);
 }
 
+/**
+ * Ein positiver Ovulationstest verrät den Eisprung: meist etwa einen Tag später. Wir nehmen
+ * pro Zyklus den ersten positiven Test (Start → Zyklustag des Eisprungs).
+ */
+export function lhOvulations(d: AppData, person: PersonId, periods: Period[], today: string): Record<string, number> {
+  const positives = alive(d.cycleDays)
+    .filter((e) => e.personId === person && e.lh === 'pos' && e.date <= today)
+    .map((e) => e.date)
+    .sort();
+  const out: Record<string, number> = {};
+  periods.forEach((p, i) => {
+    const until = periods[i + 1]?.start;
+    const lh = positives.find((x) => x >= p.start && (!until || x < until));
+    if (!lh) return;
+    const ov = diffDays(p.start, lh) + 2;
+    if (ov >= MIN_OVULATION && ov + LUTEAL_DAYS <= MAX_GAP) out[p.start] = ov;
+  });
+  return out;
+}
+
+/** Länge und Eisprung-Tag des Zyklus, der mit periods[i] beginnt. */
+export function cycleShape(c: Pick<Cycle, 'periods' | 'stats' | 'lhOvulation'>, i: number): { len: number; ov: number; byTest: boolean } {
+  const p = c.periods[i];
+  const following = c.periods[i + 1]?.start;
+  const L = c.stats.cycleLength;
+  const lh = c.lhOvulation[p.start];
+  // Ohne Folgeperiode: Nach einem positiven Test kommt die Periode etwa 14 Tage nach dem Eisprung.
+  const gap = following ? diffDays(p.start, following) : lh ? lh + LUTEAL_DAYS : L;
+  const len = gap >= MIN_GAP && gap <= MAX_GAP ? gap : L;
+  return { len, ov: lh ?? ovulationDay(len), byTest: !!lh };
+}
+
 export function getCycle(d: AppData, today: string): Cycle | undefined {
   const settings = d.couple.cycle;
   if (!settings) return undefined;
@@ -142,30 +197,44 @@ export function getCycle(d: AppData, today: string): Cycle | undefined {
   const stats = cycleStats(periods, settings);
   const L = stats.cycleLength;
   const last = periods[periods.length - 1];
-  const base: Cycle = { settings, owner: settings.personId, today, periods, stats, last, lateBy: 0, predictions: [], todayInfo: { predicted: false } };
+  const lhOvulation = lhOvulations(d, settings.personId, periods, today);
+  const base: Cycle = {
+    settings,
+    owner: settings.personId,
+    today,
+    periods,
+    stats,
+    last,
+    lateBy: 0,
+    predictions: [],
+    length: L,
+    ovDay: ovulationDay(L),
+    lhOvulation,
+    todayInfo: { predicted: false },
+  };
   if (!last) return base;
 
-  const expected = addDays(last.start, L);
+  const shape = cycleShape(base, periods.length - 1);
+  const expected = addDays(last.start, shape.len);
   const lateBy = Math.max(0, diffDays(expected, today));
   // Ist sie überfällig, rechnen wir ab morgen mit ihr – die Prognose wandert mit.
   const next = lateBy > 0 ? addDays(today, 1) : expected;
   const predictions = [0, 1, 2].map((k) => addDays(next, k * L));
-  const cycle: Cycle = { ...base, next, lateBy, predictions };
+  const ovulation = addDays(last.start, shape.ov - 1);
+  const cycle: Cycle = { ...base, next, lateBy, predictions, length: shape.len, ovDay: shape.ov, ovulation };
 
   const current = today <= periodEnd(last, stats.periodLength) ? last : undefined;
   const open = !last.end && diffDays(last.start, today) < OPEN_DAYS ? last : undefined;
 
   // Fruchtbares Fenster im laufenden Zyklus – oder, wenn schon vorbei, im nächsten.
-  const ov = ovulationDay(L) - 1;
-  let ovulation = addDays(last.start, ov);
-  if (lateBy > 0 || diffDays(ovulation, today) > 1) ovulation = addDays(next, ov);
-  const fertile = { start: addDays(ovulation, -5), end: addDays(ovulation, 1), ovulation };
+  const fertile =
+    lateBy > 0 || diffDays(ovulation, today) > 1 ? windowAround(addDays(next, ovulationDay(L) - 1)) : windowAround(ovulation);
 
   return { ...cycle, current, open, fertile, todayInfo: dayInfo(cycle, today) };
 }
 
 /** Wie sieht ein beliebiger Tag im Zyklus aus – rückblickend oder als Prognose? */
-export function dayInfo(c: Pick<Cycle, 'periods' | 'stats' | 'next' | 'today'>, date: string): DayInfo {
+export function dayInfo(c: Pick<Cycle, 'periods' | 'stats' | 'next' | 'today' | 'lhOvulation'>, date: string): DayInfo {
   const { periods, stats } = c;
   const L = stats.cycleLength;
   const P = stats.periodLength;
@@ -174,21 +243,20 @@ export function dayInfo(c: Pick<Cycle, 'periods' | 'stats' | 'next' | 'today'>, 
   if (i < 0) return { predicted: false };
   const future = date > c.today;
   const p = periods[i];
-  const following = periods[i + 1]?.start;
 
-  if (following || !c.next || date < c.next) {
-    const gap = following ? diffDays(p.start, following) : L;
-    const len = gap >= MIN_GAP && gap <= MAX_GAP ? gap : L;
+  if (periods[i + 1] || !c.next || date < c.next) {
+    const { len, ov, byTest } = cycleShape(c, i);
     const plen = p.end ? diffDays(p.start, p.end) + 1 : P;
     const day = diffDays(p.start, date) + 1;
     const bleeding = date <= periodEnd(p, P);
     return {
       cycleDay: day,
-      phase: phaseFor(day, len, plen),
-      fertility: fertilityFor(day, len),
-      ovulation: day === ovulationDay(len),
+      phase: phaseFor(day, len, plen, ov),
+      fertility: fertilityFor(day, len, ov),
+      ovulation: day === ov,
       period: bleeding ? (future ? 'predicted' : 'logged') : undefined,
       predicted: future,
+      ...(byTest && { byTest }),
     };
   }
 
@@ -216,10 +284,10 @@ export function cycleDayEntry(d: AppData, date: string, person: PersonId): Cycle
 }
 
 /** Abschnitte der Zyklus-Leiste: [Phase, Anzahl Tage]. */
-export function phaseSegments(cycleLength: number, periodLength: number): [PhaseId, number][] {
+export function phaseSegments(cycleLength: number, periodLength: number, ov = ovulationDay(cycleLength)): [PhaseId, number][] {
   const counts = new Map<PhaseId, number>();
   for (let day = 1; day <= cycleLength; day++) {
-    const ph = phaseFor(day, cycleLength, periodLength);
+    const ph = phaseFor(day, cycleLength, periodLength, ov);
     counts.set(ph, (counts.get(ph) ?? 0) + 1);
   }
   return (['menstruation', 'follikel', 'eisprung', 'luteal'] as const).filter((ph) => counts.has(ph)).map((ph) => [ph, counts.get(ph)!]);
@@ -238,4 +306,99 @@ export function pregnancyWeek(lastPeriodStart: string, today: string): { weeks: 
 
 export function fillCycle(text: string, names: { name: string; partner: string }): string {
   return text.replace(/\{name\}/g, names.name).replace(/\{partner\}/g, names.partner);
+}
+
+// ───────────────────────── Liebe & Kinderwunsch ─────────────────────────
+
+/** Wie oft ihr euch an einem Tag geliebt habt (0 = kein Eintrag). */
+export function loveOn(d: AppData, date: string): number {
+  const e = d.loveDays[date];
+  return e && !e.deleted ? e.count : 0;
+}
+
+/** Tage mit Liebe zwischen from und to (beide einschließlich). */
+export function loveDaysBetween(d: AppData, from: string, to: string): number {
+  return alive(d.loveDays).filter((e) => e.date >= from && e.date <= to && e.count > 0).length;
+}
+
+export interface CycleLove {
+  start: string;
+  /** Letzter Tag des Zyklus – beim laufenden Zyklus heute. */
+  end: string;
+  window: Window;
+  byTest: boolean;
+  /** Tage mit Liebe im ganzen Zyklus, im fruchtbaren Fenster und an den Top-Tagen (2 Tage vor bis Eisprung). */
+  days: number;
+  inWindow: number;
+  top: number;
+  running: boolean;
+}
+
+/** Rückblick: Wann habt ihr euch in den letzten Zyklen geliebt – und wie lag das zum Eisprung? Neueste zuerst. */
+export function loveHistory(d: AppData, c: Cycle, count = HISTORY): CycleLove[] {
+  const out: CycleLove[] = [];
+  for (let i = c.periods.length - 1; i >= 0 && out.length < count; i--) {
+    const p = c.periods[i];
+    const following = c.periods[i + 1]?.start;
+    const end = following ? addDays(following, -1) : c.today;
+    const { ov, byTest } = cycleShape(c, i);
+    const window = windowAround(addDays(p.start, ov - 1));
+    out.push({
+      start: p.start,
+      end,
+      window,
+      byTest,
+      days: loveDaysBetween(d, p.start, end),
+      inWindow: loveDaysBetween(d, window.start, window.end < end ? window.end : end),
+      top: loveDaysBetween(d, addDays(window.ovulation, -2), window.ovulation < end ? window.ovulation : end),
+      running: !following,
+    });
+  }
+  return out;
+}
+
+export type TtcStage = 'periode' | 'vorher' | 'fenster' | 'warten' | 'test' | 'positiv';
+
+export interface TtcStatus {
+  stage: TtcStage;
+  /** Der wievielte Kinderwunsch-Zyklus gerade läuft (1 = der erste). */
+  round: number;
+  /** Fruchtbares Fenster des laufenden Zyklus. */
+  window: Window;
+  /** vorher: Tage bis zum Fenster · fenster: Tag im Fenster (1–7) · warten: Tage bis zum Testtag. */
+  days: number;
+  /** Ab diesem Tag ist ein Schwangerschaftstest aussagekräftig (= erwartete Periode). */
+  testDay?: string;
+  /** Tage mit Liebe im Fenster bis heute. */
+  loveInWindow: number;
+  /** Positiver Schwangerschaftstest in diesem Zyklus. */
+  positive?: string;
+}
+
+/** Wie viele Kinderwunsch-Zyklen es schon gibt: der Zyklus, in dem ihr angefangen habt, ist Nr. 1. */
+export function ttcRound(c: Pick<Cycle, 'periods' | 'settings' | 'today'>): number {
+  const since = c.settings.ttcSince ?? c.today;
+  const startedIn = [...c.periods].reverse().find((p) => p.start <= since)?.start ?? since;
+  return Math.max(1, c.periods.filter((p) => p.start >= startedIn).length);
+}
+
+/** Wo steht ihr gerade auf dem Weg zum Baby? */
+export function ttcStatus(d: AppData, c: Cycle): TtcStatus | undefined {
+  if (!c.last || !c.ovulation) return undefined;
+  const today = c.today;
+  const window = windowAround(c.ovulation);
+  const loveInWindow = today >= window.start ? loveDaysBetween(d, window.start, window.end < today ? window.end : today) : 0;
+  const positive = alive(d.cycleDays)
+    .filter((e) => e.personId === c.owner && e.hcg === 'pos' && e.date >= c.last!.start && e.date <= today)
+    .map((e) => e.date)
+    .sort()[0];
+  const base = { round: ttcRound(c), window, loveInWindow, days: 0, positive };
+  if (positive) return { ...base, stage: 'positiv' };
+  if (c.current) return { ...base, stage: 'periode', days: diffDays(today, window.start) };
+  if (c.lateBy > 0) return { ...base, stage: 'test', testDay: addDays(c.last.start, c.length) };
+  if (today < window.start) return { ...base, stage: 'vorher', days: diffDays(today, window.start) };
+  if (today <= window.end) return { ...base, stage: 'fenster', days: diffDays(window.start, today) + 1 };
+  const testDay = c.next!;
+  if (today >= testDay) return { ...base, stage: 'test', testDay };
+  return { ...base, stage: 'warten', testDay, days: diffDays(today, testDay) };
 }
