@@ -20,7 +20,7 @@ import {
   type Slot,
 } from './types';
 import { uid } from './random';
-import { MERGE_DAYS } from './cycle';
+import { MAX_LOVE, MERGE_DAYS } from './cycle';
 import { diffDays, todayKey } from './date';
 import { DEFAULT_STEP_GOAL, MAX_STEPS } from './steps';
 
@@ -56,6 +56,7 @@ export function emptyData(): AppData {
     games: {},
     periods: {},
     cycleDays: {},
+    loveDays: {},
     steps: {},
   };
 }
@@ -433,13 +434,23 @@ export const actions = {
     patch('periods', id, { deleted: true });
   },
 
-  logCycleDay(date: string, changes: Partial<Pick<CycleDay, 'flow' | 'symptoms' | 'note'>>) {
+  logCycleDay(date: string, changes: Partial<Pick<CycleDay, 'flow' | 'symptoms' | 'note' | 'lh' | 'hcg'>>) {
     const personId = data.couple.cycle?.personId;
     if (!personId) return;
     const id = `${date}-${personId}`;
     const cur = data.cycleDays[id];
     const base: CycleDay = cur && !cur.deleted ? cur : { id, date, personId, symptoms: [], updatedAt: 0 };
     commitData(withRec(data, 'cycleDays', { ...base, ...changes, deleted: undefined }));
+  },
+
+  /** Wie oft ihr euch an einem Tag geliebt habt – 0 löscht den Eintrag. Gehört euch beiden. */
+  setLoveDay(date: string, count: number) {
+    const cur = data.loveDays[date];
+    if (count <= 0) {
+      if (cur && !cur.deleted) patch('loveDays', date, { deleted: true });
+      return;
+    }
+    commitData(withRec(data, 'loveDays', { id: date, date, count: Math.min(count, MAX_LOVE), updatedAt: 0 }));
   },
 
   // ───── Schritte ─────
