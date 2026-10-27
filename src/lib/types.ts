@@ -192,6 +192,10 @@ export interface StepDay extends Rec {
   count: number;
   /** Schrittziel an diesem Tag – spätere Zieländerungen schreiben die Vergangenheit nicht um. */
   goal: number;
+  /** Zeitpunkt des Apple-Health-Stands, der in `count` steckt (siehe lib/health.ts). */
+  healthAt?: number;
+  /** Von Hand dazugezählt („+1.000“ für einen Gang ohne Handy) – das kennt Apple Health nicht. */
+  extra?: number;
 }
 
 export type Repeat = 'woche' | 'monat' | 'jahr';
