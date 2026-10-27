@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { drawScaled, loadBitmap } from './image';
 import type { MealType } from './types';
 
 /**
@@ -240,37 +241,11 @@ export interface PreparedImage {
   url: string;
 }
 
-async function loadBitmap(file: Blob): Promise<{ source: CanvasImageSource; width: number; height: number; close: () => void }> {
-  if ('createImageBitmap' in window) {
-    try {
-      const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-      return { source: bmp, width: bmp.width, height: bmp.height, close: () => bmp.close() };
-    } catch {
-      // Ältere Browser: über ein <img> laden.
-    }
-  }
-  const url = URL.createObjectURL(file);
-  try {
-    const img = new Image();
-    img.src = url;
-    await img.decode();
-    return { source: img, width: img.naturalWidth, height: img.naturalHeight, close: () => undefined };
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
 /** Verkleinert das Foto auf höchstens 1024 px und macht ein JPEG daraus. */
 export async function prepareImage(file: Blob): Promise<PreparedImage> {
   try {
     const bmp = await loadBitmap(file);
-    const scale = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(bmp.width * scale));
-    canvas.height = Math.max(1, Math.round(bmp.height * scale));
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Kein Canvas');
-    ctx.drawImage(bmp.source, 0, 0, canvas.width, canvas.height);
+    const canvas = drawScaled(bmp, MAX_SIDE);
     bmp.close();
     const url = canvas.toDataURL('image/jpeg', 0.85);
     return { data: url.slice(url.indexOf(',') + 1), mediaType: 'image/jpeg', url };

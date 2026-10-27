@@ -20,6 +20,7 @@ export type SheetState =
   | { type: 'steps'; date: string }
   | { type: 'health' }
   | { type: 'gesund'; view?: 'routinen' | 'tipps' }
+  | { type: 'photo'; id: string }
   | { type: 'game'; id: GameId; join?: string };
 
 interface UIState {
