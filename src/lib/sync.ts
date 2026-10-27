@@ -17,7 +17,7 @@ export interface SyncPayload {
   live?: LiveRoom;
 }
 
-const DATED: CollectionKey[] = ['plan', 'meals', 'moods', 'hearts', 'cycleDays', 'steps'];
+const DATED: CollectionKey[] = ['plan', 'meals', 'moods', 'hearts', 'cycleDays', 'steps', 'routineDays'];
 
 /** Nur relevante Daten mitschicken, damit der Link kurz bleibt. */
 export function buildPayload(d: AppData, from: PersonId, deviceId: string, today: string): SyncPayload {
