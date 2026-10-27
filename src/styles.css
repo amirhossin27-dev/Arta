@@ -9016,3 +9016,214 @@ button.sol-slot {
   touch-action: none;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 20px 50px rgba(0, 0, 0, 0.45);
 }
+
+/* ───────────── Herz-Strike ───────────── */
+.game-strike .game-stage {
+  max-width: 980px;
+  padding: 0 0 6px;
+}
+
+.hs {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.hs-view {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 200px;
+  margin: 0 8px;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #ffd9c4;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 18px 46px rgba(0, 0, 0, 0.5);
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.hs-gl,
+.hs-hud {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.hs-hud {
+  pointer-events: none;
+}
+
+.hs-view::after {
+  /* sanfte Vignette */
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 58%, rgba(40, 10, 40, 0.28));
+}
+
+.hs-pad {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 14px;
+  height: min(156px, 22vh);
+  min-height: 112px;
+}
+
+.hs-stick {
+  position: relative;
+  flex: none;
+  height: 100%;
+  max-height: 140px;
+  aspect-ratio: 1;
+  border: 2px solid var(--gline);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02) 62%, rgba(255, 255, 255, 0.09));
+  touch-action: none;
+}
+
+.hs-knob {
+  position: absolute;
+  left: 27%;
+  top: 27%;
+  width: 46%;
+  height: 46%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, color-mix(in srgb, var(--pc) 55%, #fff), var(--pc));
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45), inset 0 -3px 0 rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  transition: transform 0.08s ease-out;
+}
+
+.hs-knob.on {
+  transition: none;
+}
+
+.hs-help {
+  flex: 1;
+  min-width: 0;
+  color: var(--gmuted);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .hs-help {
+    display: none;
+  }
+}
+
+.hs-btns {
+  flex: none;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.hs-reload {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 2px solid var(--gline);
+  border-radius: 50%;
+  background: var(--gsurf);
+  font-size: 22px;
+  touch-action: none;
+}
+
+.hs-reload:active {
+  transform: scale(0.92);
+}
+
+.hs-fire {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 100%;
+  max-height: 132px;
+  aspect-ratio: 1;
+  border: 3px solid color-mix(in srgb, var(--pc) 70%, #fff);
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 32%, color-mix(in srgb, var(--pc) 55%, #fff), var(--pc) 70%);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4), inset 0 -5px 0 rgba(0, 0, 0, 0.18);
+  color: #fff;
+  touch-action: none;
+  transition: transform 0.06s;
+}
+
+.hs-fire b {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.hs-fire small {
+  font-size: 10px;
+  font-weight: 800;
+  opacity: 0.92;
+}
+
+.hs-fire.on {
+  transform: scale(0.93);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.25), 0 0 26px color-mix(in srgb, var(--pc) 80%, transparent);
+}
+
+/* Quer und flach: Knöpfe liegen über dem Bild */
+@media (orientation: landscape) and (max-height: 560px) {
+  .hs {
+    position: relative;
+  }
+
+  .hs-view {
+    margin: 0;
+  }
+
+  .hs-pad {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 10px;
+    height: 128px;
+    pointer-events: none;
+  }
+
+  .hs-stick,
+  .hs-reload,
+  .hs-fire {
+    pointer-events: auto;
+    opacity: 0.85;
+  }
+
+  .hs-help {
+    visibility: hidden;
+  }
+}
+
+.hs-nogl {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.hs-nogl-emoji {
+  font-size: 54px;
+}

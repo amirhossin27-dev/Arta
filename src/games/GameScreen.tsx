@@ -39,6 +39,7 @@ import { Reaction } from './Reaction';
 import { GAME_BY_ID, MODE_LABEL, type GameId, type GameMeta, type GameMode } from './registry';
 import { Romme } from './Romme';
 import { Runner } from './Runner';
+import { Strike } from './Strike';
 import { Simon } from './Simon';
 import { Slf } from './Slf';
 import { Snake } from './Snake';
@@ -74,6 +75,7 @@ const COMPONENTS: Record<GameId, ComponentType<GameProps>> = {
   ballz: Ballz,
   amor: Amor,
   runner: Runner,
+  strike: Strike,
   hopper: Hopper,
   muncher: Muncher,
   simon: Simon,

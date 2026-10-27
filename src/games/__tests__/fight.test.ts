@@ -91,7 +91,7 @@ describe('Herz-Fighter: Kämpfer', () => {
   it('steht im Spielemenü bei den Arcade-Spielen, mit KI, zu zweit und online', () => {
     const g = GAME_BY_ID.fight;
     expect(g.name).toBe('Herz-Fighter');
-    expect(g.category).toBe('arcade');
+    expect(g.category).toBe('action');
     expect(g.modes).toEqual(expect.arrayContaining(['cpu', 'duo', 'online']));
   });
 });
