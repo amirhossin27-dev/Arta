@@ -134,9 +134,28 @@ export function buzz(ms: number | number[] = 18) {
 
 // ───────────────────────── Touch ─────────────────────────
 
+/** Elemente, die ihr normales Tippverhalten behalten: Knöpfe, Links, Eingabefelder und Listen zum Scrollen (data-free). */
+const TAP_FREE = 'button, a, input, textarea, select, label, [contenteditable], [data-free]';
+const EDITABLE = 'input, textarea, select, [contenteditable]';
+
+function editable(t: EventTarget | null) {
+  return t instanceof Element && !!t.closest(EDITABLE);
+}
+
+/** Liegt der Finger in einer Liste, die gerade wirklich scrollen kann? Dann darf er sie auch scrollen. */
+function inScroller(t: Element, root: Element) {
+  for (let el: Element | null = t; el && el !== root; el = el.parentElement) {
+    const st = getComputedStyle(el);
+    if (/auto|scroll/.test(st.overflowY) && el.scrollHeight > el.clientHeight + 1) return true;
+    if (/auto|scroll/.test(st.overflowX) && el.scrollWidth > el.clientWidth + 1) return true;
+  }
+  return false;
+}
+
 /**
- * Kein Markieren, keine Lupe, kein Kopieren-Menü: In Echtzeitspielen heißt ein langer Finger auf dem
- * Bildschirm Lenken oder Kämpfen. Knöpfe bleiben antippbar.
+ * Kein Markieren, keine Lupe, kein Kopieren-Menü – in keinem Spiel: Ein langer Finger auf dem Bildschirm heißt
+ * Lenken, Kämpfen oder Ziehen. Gilt für den ganzen Spielbildschirm (und die App dahinter), solange er offen ist.
+ * Knöpfe, Eingabefelder und scrollbare Listen bleiben bedienbar.
  */
 export function useTouchLock(ref: RefObject<HTMLElement | null>) {
   useEffect(() => {
@@ -144,30 +163,36 @@ export function useTouchLock(ref: RefObject<HTMLElement | null>) {
     if (!el) return;
     const html = document.documentElement;
     html.classList.add('touch-lock');
-    const block = (e: Event) => {
-      // Knöpfe und Listen zum Scrollen (data-free) bleiben bedienbar.
-      if (e.target instanceof Element && e.target.closest('button, [data-free]')) return;
+    const touch = (e: TouchEvent) => {
+      const t = e.target;
+      if (!(t instanceof Element) || t.closest(TAP_FREE) || inScroller(t, el)) return;
       if (e.cancelable) e.preventDefault();
+      // Ohne Standardverhalten schließt ein Tipp daneben die Tastatur nicht mehr von selbst.
+      if (e.type === 'touchstart' && editable(document.activeElement)) (document.activeElement as HTMLElement).blur();
+    };
+    const block = (e: Event) => {
+      if (!editable(e.target) && e.cancelable) e.preventDefault();
     };
     const unselect = () => {
+      if (editable(document.activeElement)) return;
       const sel = document.getSelection();
       if (sel && !sel.isCollapsed) sel.removeAllRanges();
     };
     const opts = { passive: false } as const;
-    el.addEventListener('touchstart', block, opts);
-    el.addEventListener('touchmove', block, opts);
-    el.addEventListener('contextmenu', block);
-    el.addEventListener('selectstart', block);
-    el.addEventListener('dragstart', block);
+    el.addEventListener('touchstart', touch, opts);
+    el.addEventListener('touchmove', touch, opts);
+    document.addEventListener('contextmenu', block);
+    document.addEventListener('selectstart', block);
+    document.addEventListener('dragstart', block);
     document.addEventListener('gesturestart', block, opts);
     document.addEventListener('selectionchange', unselect);
     return () => {
       html.classList.remove('touch-lock');
-      el.removeEventListener('touchstart', block);
-      el.removeEventListener('touchmove', block);
-      el.removeEventListener('contextmenu', block);
-      el.removeEventListener('selectstart', block);
-      el.removeEventListener('dragstart', block);
+      el.removeEventListener('touchstart', touch);
+      el.removeEventListener('touchmove', touch);
+      document.removeEventListener('contextmenu', block);
+      document.removeEventListener('selectstart', block);
+      document.removeEventListener('dragstart', block);
       document.removeEventListener('gesturestart', block);
       document.removeEventListener('selectionchange', unselect);
     };

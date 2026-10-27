@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as RMouseEvent, type PointerEvent as RPointerEvent } from 'react';
 import { cls } from '../lib/hooks';
-import { buzz, hum, sfx, tone, useLoop, useTouchLock } from './engine';
+import { buzz, hum, sfx, tone, useLoop } from './engine';
 import {
   COUNTDOWN,
   ITEM_EMOJI,
@@ -402,8 +402,6 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
   }, [duo]);
 
   // Kein Markieren, keine Lupe, kein Kopieren-Menü: Ein langer Finger auf dem Bildschirm heißt hier Lenken.
-  const root = useRef<HTMLDivElement>(null);
-  useTouchLock(root);
 
   // Tastatur: ←/→ lenken, ↑ oder Leertaste für das Item – zu zweit oben mit A/D und W.
   useEffect(() => {
@@ -942,7 +940,7 @@ export function Kart({ mode, p1, p2, starter, best, net, onEnd }: GameProps) {
   });
 
   return (
-    <div ref={root} className={cls('kart', duo ? 'duo' : 'single')}>
+    <div className={cls('kart', duo ? 'duo' : 'single')}>
       {views.map((side) => {
         const h = hud[side];
         const flipped = duo && side === 'p2';
