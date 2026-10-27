@@ -103,6 +103,10 @@ export function HealthSheet({ onClose }: { onClose: () => void }) {
             <li>
               Füge die Aktion <b>„Health-Messungen suchen“</b> hinzu (heißt manchmal auch „Health-Samples suchen“). Typ: <b>Schritte</b> · Filter:{' '}
               <b>Startdatum ist heute</b> · <b>Gruppieren nach: Tag</b> · <b>Fehlende ausfüllen: aus</b>.
+              <br />
+              Trägst du eine <b>Apple Watch</b> (oder zählt noch eine andere App Schritte)? Dann tippe auf <b>Filter hinzufügen</b>: <b>Quelle ist</b> deine
+              Apple Watch – oder dein iPhone, wenn du die Uhr nicht den ganzen Tag trägst. Sonst zählt jeder Schritt doppelt: Die Health-App rechnet Doppeltes
+              heraus, ein Kurzbefehl nicht.
             </li>
             <li>
               Füge direkt darunter <b>„Inhalte von URL abrufen“</b> hinzu und ersetze die Adresse durch deine:
@@ -143,6 +147,10 @@ export function HealthSheet({ onClose }: { onClose: () => void }) {
               </li>
               <li>
                 <b>⚠️ oben trotz Antwort</b>: Bei <code>ct</code> fehlt die Variable, oder es ist nicht „Wert“ ausgewählt.
+              </li>
+              <li>
+                <b>Mehr Schritte als in der Health-App</b> (oben bei ✅ steht eine viel größere Zahl): Zwei Geräte zählen mit, meist iPhone und Apple Watch. Füg
+                in Schritt 2 den Filter <b>Quelle</b> hinzu – dann kommt beim nächsten Lauf die richtige Zahl an und ersetzt die alte.
               </li>
             </ul>
           </details>

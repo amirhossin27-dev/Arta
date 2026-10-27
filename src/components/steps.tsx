@@ -18,15 +18,15 @@ import { Bar, Chips, ProgressRing, Sheet } from './ui';
  * Schritte eines Tages – bei dir selbst inklusive der gerade gezählten, noch nicht gespeicherten,
  * und bei beiden inklusive dessen, was Apple Health schon gemeldet hat.
  */
-function useSteps(date: string, person: Person): DaySteps & { counting: boolean; healthAt?: number } {
+function useSteps(date: string, person: Person): DaySteps & { counting: boolean } {
   const data = useData();
   const device = useDevice();
   const pedo = usePedometer();
-  const health = useHealth()[person.id];
+  useHealth();
   const s = stepsOn(data, date, person.id);
   const counting = person.id === device.me && pedo.running && pedo.date === date;
   const own = { ...s, count: s.count + (counting ? pedo.pending : 0) };
-  return { ...withHealth(own, person.id), counting, healthAt: health?.date === date && health.count > 0 ? health.at : undefined };
+  return { ...withHealth(own, person.id), counting };
 }
 
 /** Kompakte Schritte-Zeile für „Unser Tag“. */
@@ -163,6 +163,7 @@ export function StepsCard({ date }: { date: string }) {
 export function StepsSheet({ date, onClose }: { date: string; onClose: () => void }) {
   const { me } = usePeople();
   const pedo = usePedometer();
+  const health = useHealth()[me.id];
   const s = useSteps(date, me);
   const [text, setText] = useState('');
   const isToday = date === todayKey();
@@ -204,7 +205,9 @@ export function StepsSheet({ date, onClose }: { date: string; onClose: () => voi
       <div className="inset">
         <h3>✏️ Eintragen</h3>
         <p className="muted small">
-          Am genauesten: die Zahl aus der Health-App (iPhone), Google Fit oder Samsung Health übernehmen. Die zählen den ganzen Tag, auch wenn Arta zu ist.
+          {isToday && health && !health.broken
+            ? 'Mit Apple Health verbunden: Der nächste Stand aus Health ersetzt deine Zahl wieder. Nur was du unten von Hand dazuzählst, bleibt obendrauf.'
+            : 'Am genauesten: die Zahl aus der Health-App (iPhone), Google Fit oder Samsung Health übernehmen. Die zählen den ganzen Tag, auch wenn Arta zu ist.'}
         </p>
         <div className="add-form">
           <input
@@ -240,7 +243,7 @@ export function StepsSheet({ date, onClose }: { date: string; onClose: () => voi
         <p className="muted small">Jeder Tag mit erreichtem Ziel bringt euch 5 Herzpunkte. 💗</p>
       </div>
 
-      <HealthLink date={date} />
+      <HealthLink steps={s} />
 
       <details className="steps-why">
         <summary>Warum kann Arta nicht selbst in Apple Health schauen?</summary>
@@ -280,10 +283,14 @@ export function useStepMoments(onboarded: boolean) {
   }, [onboarded, data.steps, device.me, data, health]);
 }
 
-/** Hinweis im Schritte-Fenster: Apple Health verbunden – oder wie man es verbindet. */
-function HealthLink({ date }: { date: string }) {
+/** Hinweis im Schritte-Fenster: Apple Health verbunden (und was zur Health-Zahl dazukommt) – oder wie man es verbindet. */
+function HealthLink({ steps }: { steps: DaySteps }) {
   const device = useDevice();
   const health = useHealth()[device.me];
+  const { date } = steps;
+  const extra = steps.extra ?? 0;
+  const since = health?.date === date && health.at === steps.healthAt ? steps.count - health.count - extra : 0;
+  const added = [since > 0 && `+${formatSteps(since)} seitdem in Arta gezählt`, extra > 0 && `+${formatSteps(extra)} von Hand`].filter(Boolean);
   return (
     <div className="inset">
       <h3>🍎 Automatisch aus Apple Health</h3>
@@ -293,6 +300,7 @@ function HealthLink({ date }: { date: string }) {
         <p className="muted small">
           ✅ Verbunden – zuletzt {formatSteps(health.count)} Schritte ({relativeDay(health.date)}, {formatTime(health.at)} Uhr).
           {health.date !== date && ' Für diesen Tag kam noch nichts an.'}
+          {added.length > 0 && ` Dazu: ${added.join(' · ')}.`}
         </p>
       ) : (
         <p className="muted small">iPhone: Ein Kurzbefehl schickt deine Schritte aus Apple Health an Arta – auch wenn Arta zu ist. Einmal 5 Minuten einrichten, danach läuft es von allein.</p>
