@@ -28,7 +28,7 @@ function useHealthUrl(): string | undefined {
   return url;
 }
 
-function CopyBox({ label, text }: { label: string; text: string }) {
+export function CopyBox({ label, text }: { label: string; text: string }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {

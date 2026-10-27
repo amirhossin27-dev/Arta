@@ -159,6 +159,36 @@ export interface StepDay extends Rec {
   goal: number;
 }
 
+export type Repeat = 'woche' | 'monat' | 'jahr';
+
+/**
+ * Ein gemeinsamer Termin. Beide Handys dürfen ihn anlegen und ändern – er gehört euch beiden.
+ * Ohne `time` ist er ganztägig. Er landet auch im iPhone-Kalender (Kalender-Abo, siehe calendarFeed.ts).
+ */
+export interface CalEvent extends Rec {
+  title: string;
+  emoji: string;
+  /** Erster Tag (YYYY-MM-DD). */
+  date: string;
+  /** Beginn (HH:MM) – ohne Uhrzeit ganztägig. */
+  time?: string;
+  /** Ende (HH:MM); liegt es vor dem Beginn, endet der Termin am nächsten Tag. */
+  endTime?: string;
+  /** Letzter Tag bei ganztägigen Terminen über mehrere Tage (z. B. Urlaub). */
+  endDate?: string;
+  place?: string;
+  note?: string;
+  /** Wen betrifft der Termin? Eingetragen sehen ihn immer beide. */
+  who: 'both' | PersonId;
+  repeat?: Repeat;
+  /** Erinnerung im Kalender: so viele Minuten vorher. */
+  alarm?: number;
+  /** Zeitzone beim Anlegen – damit 18:00 auf beiden Handys dieselbe Uhrzeit ist. */
+  tz: string;
+  createdBy: PersonId;
+  createdAt: number;
+}
+
 export interface AppData {
   v: 1;
   persons: Record<PersonId, Person>;
@@ -174,6 +204,7 @@ export interface AppData {
   periods: Record<string, Period>;
   cycleDays: Record<string, CycleDay>;
   steps: Record<string, StepDay>;
+  events: Record<string, CalEvent>;
 }
 
 export type CollectionKey =
@@ -187,10 +218,11 @@ export type CollectionKey =
   | 'games'
   | 'periods'
   | 'cycleDays'
-  | 'steps';
+  | 'steps'
+  | 'events';
 export type RecOf<K extends CollectionKey> = AppData[K][string];
 
-export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts', 'games', 'periods', 'cycleDays', 'steps'];
+export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts', 'games', 'periods', 'cycleDays', 'steps', 'events'];
 
 export type PopupFreq = 'oft' | 'normal' | 'selten' | 'aus';
 

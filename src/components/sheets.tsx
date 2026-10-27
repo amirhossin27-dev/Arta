@@ -529,6 +529,31 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
       <h3>🔔 Mitteilungen</h3>
       <NotifySettings />
 
+      <h3>📅 Termine & iPhone-Kalender</h3>
+      <div className="inset">
+        <p className="muted small">Gemeinsame Termine tragt ihr unter „Heute“ bei „Unsere Termine“ ein. Hier holst du sie dir auch in den Kalender deines iPhones.</p>
+        <div className="btn-row">
+          <button
+            className="btn soft"
+            onClick={() => {
+              onClose();
+              nav.open({ type: 'events' });
+            }}
+          >
+            📅 Termine
+          </button>
+          <button
+            className="btn soft"
+            onClick={() => {
+              onClose();
+              nav.open({ type: 'calendar' });
+            }}
+          >
+            📲 iPhone-Kalender
+          </button>
+        </div>
+      </div>
+
       <h3>📱 Dieses Handy</h3>
       <div className="inset">
         <p className="muted small">

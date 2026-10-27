@@ -30,8 +30,9 @@ export function buildPayload(d: AppData, from: PersonId, deviceId: string, today
       if (DATED.includes(key)) return (r.date ?? '') >= since;
       if (key === 'shopping') return !r.deleted || r.updatedAt > Date.now() - 30 * 86_400_000;
       // Spielbilanzen sind winzig (eine Zeile pro Spiel und Gerät) – immer komplett mitschicken.
-      // Dasselbe gilt für Perioden – die Vorhersage braucht die ganze Historie.
-      if (key === 'games' || key === 'periods') return true;
+      // Dasselbe gilt für Perioden – die Vorhersage braucht die ganze Historie – und für Termine,
+      // damit beide Handys denselben Kalender ins Abo schreiben.
+      if (key === 'games' || key === 'periods' || key === 'events') return true;
       return r.updatedAt > recentTs || (key === 'notes' && !r.seen);
     });
     (out as unknown as Record<string, unknown>)[key] = Object.fromEntries(kept);
@@ -46,6 +47,7 @@ export interface MergeStats {
   newCoupons: number;
   newShopping: number;
   newPlan: number;
+  newEvents: number;
 }
 
 function newer<T extends Rec>(local: T | undefined, remote: T): boolean {
@@ -54,7 +56,7 @@ function newer<T extends Rec>(local: T | undefined, remote: T): boolean {
 
 export function mergeData(local: AppData, remoteRaw: AppData, me: PersonId): { data: AppData; stats: MergeStats } {
   const remote = normalizeData(remoteRaw);
-  const stats: MergeStats = { changed: 0, newNotes: 0, newSurprises: 0, newCoupons: 0, newShopping: 0, newPlan: 0 };
+  const stats: MergeStats = { changed: 0, newNotes: 0, newSurprises: 0, newCoupons: 0, newShopping: 0, newPlan: 0, newEvents: 0 };
   let maxTs = 0;
   const out: AppData = { ...local, persons: { ...local.persons } };
 
@@ -93,6 +95,7 @@ export function mergeData(local: AppData, remoteRaw: AppData, me: PersonId): { d
       if (key === 'coupons' && (rec as unknown as { to: PersonId }).to === me) stats.newCoupons++;
       if (key === 'shopping') stats.newShopping++;
       if (key === 'plan') stats.newPlan++;
+      if (key === 'events') stats.newEvents++;
     }
     (out as unknown as Record<string, unknown>)[key] = merged;
   }

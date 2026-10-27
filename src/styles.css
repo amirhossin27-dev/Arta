@@ -3646,6 +3646,192 @@ input::-webkit-date-and-time-value {
   min-width: 0;
 }
 
+/* ───────────── Termine ───────────── */
+.sheet-foot {
+  padding: 10px 16px calc(env(safe-area-inset-bottom) + 12px);
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.sheet-body:has(+ .sheet-foot) {
+  padding-bottom: 16px;
+}
+
+.event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.event-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  transition: transform 0.12s;
+}
+
+.sheet .event-row {
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.event-row:active {
+  transform: scale(0.98);
+}
+
+.event-row.virtual {
+  background: linear-gradient(135deg, var(--love-soft), var(--surface-2));
+}
+
+.event-row.past {
+  opacity: 0.7;
+}
+
+.date-badge {
+  flex: none;
+  width: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 5px 0;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  line-height: 1.1;
+}
+
+.sheet .date-badge {
+  background: var(--surface-2);
+}
+
+.date-badge small {
+  font-size: 0.64rem;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.date-badge b {
+  font-size: 1.25rem;
+  font-weight: 850;
+}
+
+.date-badge.today,
+.sheet .date-badge.today {
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
+  border-color: transparent;
+  color: #fff;
+}
+
+.date-badge.today small {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.event-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.event-main b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.event-tag {
+  font-size: 0.7rem;
+  font-weight: 750;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.sheet .event-tag {
+  background: var(--surface-2);
+}
+
+.event-tag.hot,
+.sheet .event-tag.hot {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.events-add {
+  margin-top: 10px;
+}
+
+.event-group .slot-label {
+  margin-top: 14px;
+}
+
+.events-past-toggle {
+  align-self: center;
+  margin: 16px 0 6px;
+}
+
+.calendar-hint {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+}
+
+.calendar-hint .grow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.calendar-hint.ok {
+  background: var(--food-soft);
+}
+
+.calendar-hint-emoji {
+  font-size: 1.6rem;
+}
+
+.sheet .event-kinds {
+  margin: 0 0 6px;
+}
+
+.event-allday {
+  align-self: end;
+  padding: 0 0 12px;
+}
+
+.calendar-manual {
+  margin: 10px 0;
+}
+
+.calendar-manual summary {
+  cursor: pointer;
+  font-weight: 750;
+  font-size: 0.9rem;
+  color: var(--primary);
+}
+
+.calendar-manual[open] > :not(summary) {
+  margin-top: 8px;
+}
+
 /* ───────────── Leere Zustände ───────────── */
 .empty {
   display: flex;
