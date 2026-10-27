@@ -224,7 +224,8 @@ export function runStep(st: RunState, dt: number, inp: RunInput, rnd: Rnd = Math
       st.laneX = Math.max(-LANE, Math.min(LANE, -over * seg.turn));
       st.lane = Math.round(st.laneX / LANE);
       st.d = 0;
-      if (st.made - st.si < 3) {
+      // Immer drei Stücke Vorlauf (made zählt alle je gebauten Stücke, si nur die noch gemerkten)
+      while (st.segs.length - st.si < 3) {
         st.segs.push(makeSeg(st.segs[st.segs.length - 1], st.made, rnd));
         st.made++;
       }
@@ -242,14 +243,17 @@ export function runStep(st: RunState, dt: number, inp: RunInput, rnd: Rnd = Math
       }
     }
   }
+  // Bei hohem Tempo sind Sprung und Rutschen schneller vorbei – so decken sie immer etwa
+  // dieselbe Strecke ab (gut 6 m), und zwei Hindernisse kurz hintereinander bleiben schaffbar.
+  const pace = Math.max(1, st.speed / 9.5);
   if (inp.jump && st.y <= 0.001) {
-    st.vy = JUMP_V;
+    st.vy = JUMP_V * pace;
     st.slide = 0;
     ev.push('jump');
   }
   if (inp.slide) {
-    if (st.y > 0.001) st.vy = Math.min(st.vy, -12);
-    st.slide = SLIDE_T;
+    if (st.y > 0.001) st.vy = Math.min(st.vy, -12 * pace);
+    st.slide = SLIDE_T / pace;
     ev.push('slide');
   }
 
@@ -267,7 +271,7 @@ export function runStep(st: RunState, dt: number, inp: RunInput, rnd: Rnd = Math
   const want = st.lane * LANE;
   st.laneX += Math.max(-dt * 11, Math.min(dt * 11, want - st.laneX));
   if (st.y > 0 || st.vy > 0) {
-    st.vy -= GRAVITY * dt;
+    st.vy -= GRAVITY * pace * pace * dt;
     st.y += st.vy * dt;
     if (st.y <= 0) {
       st.y = 0;
