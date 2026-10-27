@@ -3647,6 +3647,10 @@ input::-webkit-date-and-time-value {
 }
 
 /* ───────────── Termine ───────────── */
+a.btn {
+  text-decoration: none;
+}
+
 .sheet-foot {
   padding: 10px 16px calc(env(safe-area-inset-bottom) + 12px);
   border-top: 1px solid var(--line);
@@ -3810,6 +3814,8 @@ input::-webkit-date-and-time-value {
 
 .sheet .event-kinds {
   margin: 0 0 6px;
+  /* sonst drückt das lange Formular die Chips-Zeile (overflow) auf null Höhe */
+  flex-shrink: 0;
 }
 
 .event-allday {

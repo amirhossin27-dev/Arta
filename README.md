@@ -11,6 +11,7 @@ Sie läuft als **Web-App im Browser** und lässt sich wie eine normale App auf d
 - Gemeinsame Herzpunkte mit Paar-Level (von „Frisch verliebt“ bis „Legenden der Liebe“), Paar-Serie und Wochenziel
 - „Unser Tag“: Fortschritt von euch beiden nebeneinander (Einheiten, kcal, Schritte), mit Anfeuern-Knopf
 - Mein Tagesplan (morgens, mittags, abends) mit Sport und Essen
+- **📅 Unsere Termine** – siehe unten
 - Stimmungs-Check und „Frage des Tages“ für euch zwei
 
 **💪 Sport**
@@ -27,6 +28,14 @@ Sie läuft als **Web-App im Browser** und lässt sich wie eine normale App auf d
 - Nährwerte werden aus den Zutaten berechnet; Portionen sind umrechenbar
 - Schnell-Eintrag für Alltagsessen (Döner, Cappuccino, Pizza …) oder eigene Einträge
 - Zutaten mit einem Tipp auf die Einkaufsliste, Favoriten, kcal-Rechner
+
+**📅 Gemeinsame Termine & iPhone-Kalender**
+- Dates, Arzttermine, Geburtstage, Urlaub … eintragen – mit Uhrzeit oder ganztägig (auch über mehrere Tage), Ort, Notiz, für wen, Wiederholung (wöchentlich, monatlich, jährlich) und Erinnerung. Beide dürfen eintragen, ändern und löschen; alles ist sofort auf beiden Handys
+- Auf „Heute“ die nächsten Termine mit Countdown, dazu die ganze Liste nach Monaten. Der Jahrestag aus den Einstellungen steht automatisch mit drin
+- Trägt dein Schatz einen Termin ein, meldet sich dein Handy mit einer Mitteilung
+- **Kalender-Abo fürs iPhone:** einmal „Kalender abonnieren“ tippen – danach landen alle Termine von euch beiden von allein im iPhone-Kalender, Änderungen und Löschungen auch. Das iPhone holt das Abo selbst ab (meist alle 15 Minuten bis paar Stunden); Arta zeigt, wann zuletzt. Geht auch mit Google Kalender („Per URL“)
+- Oder einzelne Termine direkt übernehmen („📲 In meinen iPhone-Kalender“ → Safari zeigt „Zum Kalender hinzufügen“)
+- Braucht den Live-Sync und den Push-Relay (siehe unten)
 
 **🛒 Einkauf**
 - Gemeinsame Liste mit automatischen Kategorien („500 g Quark“ und „2 Avocados“ werden erkannt)
@@ -98,6 +107,8 @@ Arta nutzt die kostenlose [Firebase Realtime Database](https://firebase.google.c
 
 Google, Apple & Co. nehmen Push-Nachrichten nicht direkt aus dem Browser an. Deshalb gibt es in [`push-relay/`](push-relay/) einen winzigen **Cloudflare Worker** (kostenlos, keine Kreditkarte), der die Mitteilungen nur weiterreicht. Die Nachricht ist dabei schon auf dem sendenden Handy für das Empfänger-Handy verschlüsselt – der Worker speichert nichts und kann nichts lesen. Die Anleitung (ca. 5 Minuten) steht in [`push-relay/README.md`](push-relay/README.md); danach die Adresse des Workers in `src/lib/liveConfig.ts` bei `DEFAULT_PUSH_URL` eintragen (oder beim Bauen per `VITE_ARTA_PUSH_URL` setzen).
 
+Derselbe Worker liefert auch das **Kalender-Abo** für den iPhone-Kalender aus. Wer ihn schon vor den Terminen eingerichtet hat, fügt den neuen Code aus `push-relay/worker.js` einmal bei Cloudflare ein (Abschnitt „Update“ in [`push-relay/README.md`](push-relay/README.md)).
+
 ## Starten
 
 ### Variante 1: Online über GitHub Pages (empfohlen fürs Handy)
@@ -135,6 +146,7 @@ Weitere Befehle:
 - Sync: Datenstand wird komprimiert (`deflate`) und per „last-writer-wins“ zusammengeführt – live über Firebase (REST + Server-Sent Events, AES-GCM-verschlüsselt, `src/lib/live.ts`) oder als Link
 - Online-Spiele: Jedes Handy schreibt einen eigenen verschlüsselten Kanal (`arcade-a` / `arcade-b`) in denselben Live-Raum, der Gastgeber führt den Spielstand (`src/games/online.ts`, Zug-Engine in `src/games/turn.ts`) – dafür sind keine neuen Datenbank-Regeln nötig. Herz-Kart läuft in Echtzeit: Jedes Handy rechnet nur das eigene Kart und schickt es etwa neunmal pro Sekunde mit, das andere wird dazwischen weitergerechnet (`src/games/kart.ts`). Die Grafik (`src/games/kartGfx.ts`) rechnet den Boden im Mode-7-Verfahren auf der Grafikkarte (WebGL, mit Software-Ersatz) mit feinen Detail-Mustern für Asphalt und Gras in der Nähe, Sonnenglanz und Dunst, und malt Karts, Bäume und Item-Boxen als übereinandergelegte Schichten; ruckelt ein Handy, wird das Bild automatisch etwas gröber gerechnet
 - Mitteilungen (`src/lib/notify.ts`): Jedes Handy legt sein Push-Abo verschlüsselt als `push-<Geräte-ID>` in den Live-Raum. Das sendende Handy verschlüsselt die Mitteilung selbst nach RFC 8291 und unterschreibt per VAPID (`src/lib/webpush.ts`, nur WebCrypto), der Service Worker zeigt sie an. Ohne Push-Relay zeigt die laufende App die Mitteilung selbst, die Live-Verbindung bleibt dafür im Hintergrund offen
+- Termine & Kalender-Abo (`src/lib/events.ts`, `src/lib/ics.ts`, `src/lib/calendar.ts`): Termine sind eine eigene Sync-Sammlung `events`. Jedes Handy schreibt zusätzlich seine Sicht als `cal-feed-a` / `cal-feed-b` in den Live-Raum – als fertige VEVENTs (Ortszeit mit TZID und VTIMEZONE, damit Wiederholungen die Zeitumstellung überstehen), AES-GCM-verschlüsselt mit einem eigenen, aus dem Raum-Geheimnis abgeleiteten Kalender-Schlüssel. Die Abo-Adresse `…/kalender/<datenbank>/<raum>/<schlüssel>/<a|b>.ics` zeigt auf den Push-Relay; der entschlüsselt beide Einträge, nimmt je Termin den neuesten Stand und liefert eine .ics aus. Beim Abholen hinterlässt er `cal-seen-a|b`, daran sieht Arta, dass das Abo läuft
 - Keine Tracker, kein Firebase-SDK; außer der verschlüsselten Live-Datenbank und dem optionalen Push-Relay keine externen Dienste
 
 ```

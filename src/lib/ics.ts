@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { addDays, diffDays } from './date';
+import { ANNIVERSARY_ID } from './events';
 import { PUSH_RELAY_URL } from './liveConfig';
 import { toB64Url } from './sync';
 import type { CalEvent } from './types';
@@ -170,7 +171,7 @@ export interface VeventNames {
 export function vevent(e: CalEvent, names: VeventNames): string {
   const who = e.who === 'both' ? '' : ` (${names[e.who]})`;
   const summary = `${e.emoji} ${e.title}${who}`.trim();
-  const from = `💞 Aus Arta · eingetragen von ${names[e.createdBy]}`;
+  const from = e.id === ANNIVERSARY_ID ? '💞 Aus Arta' : `💞 Aus Arta · eingetragen von ${names[e.createdBy]}`;
   const description = e.note ? `${e.note}\n\n${from}` : from;
   let start: string;
   let end: string;

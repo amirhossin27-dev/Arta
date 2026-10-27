@@ -119,7 +119,7 @@ function CalendarHint() {
         {mine ? (
           <>
             <b>Im iPhone-Kalender abonniert ✓</b>
-            <span className="muted small">zuletzt abgeholt {formatDateTime(mine)}</span>
+            <span className="muted small">zuletzt abgeholt: {formatDateTime(mine)}</span>
           </>
         ) : (
           <>
@@ -206,7 +206,8 @@ export function EventSheet({ id, date, back, onClose }: { id?: string; date?: st
   const [endDate, setEndDate] = useState(existing?.endDate ?? '');
   const [who, setWho] = useState<Who>(!existing || existing.who === 'both' ? 'both' : existing.who === me.id ? 'me' : 'partner');
   const [repeat, setRepeat] = useState<Repeat | 'nie'>(existing?.repeat ?? 'nie');
-  const [alarm, setAlarm] = useState(existing?.alarm ?? 0);
+  // Neue Termine erinnern standardmäßig (1 Std vorher bzw. am Tag um 9 Uhr).
+  const [alarm, setAlarm] = useState(existing ? existing.alarm ?? 0 : 60);
   const [place, setPlace] = useState(existing?.place ?? '');
   const [note, setNote] = useState(existing?.note ?? '');
   const [toPhone, setToPhone] = useState(false);
@@ -415,6 +416,30 @@ export function EventSheet({ id, date, back, onClose }: { id?: string; date?: st
 
 // ───────────────────────── Kalender-Abo ─────────────────────────
 
+/** „Heute, 14:05“ mitten im Satz klein: „zuletzt heute, 14:05“. */
+const lowerDay = (ts: number) => formatDateTime(ts).replace(/^(Heute|Gestern|Morgen)/, (m) => m.toLowerCase());
+
+function SubscribeSteps({ webcal, names }: { webcal: string; names: string }) {
+  return (
+    <>
+      <a className="btn primary block" href={webcal}>
+        📅 Kalender abonnieren
+      </a>
+      <ol className="how">
+        <li>
+          Tippe auf „Kalender abonnieren“ und bestätige mit <b>„Abonnieren“</b>.
+        </li>
+        <li>
+          Je nach iPhone fragt es noch nach Name, Farbe und Ort – einfach mit <b>„Hinzufügen“</b> bzw. <b>„Fertig“</b> bestätigen.
+        </li>
+        <li>
+          Fertig! Im Kalender heißt er <b>„Arta 💞 {names}“</b>.
+        </li>
+      </ol>
+    </>
+  );
+}
+
 export function CalendarSheet({ back, onClose }: { back?: boolean; onClose: () => void }) {
   const live = useLive();
   const { me, partner } = usePeople();
@@ -457,30 +482,17 @@ export function CalendarSheet({ back, onClose }: { back?: boolean; onClose: () =
           <div className={cls('inset health-status', !!mine && 'ok')}>
             {mine ? (
               <p>
-                ✓ Dein Kalender ist abonniert und hat die Termine zuletzt <b>{formatDateTime(mine)}</b> abgeholt.
+                ✓ Dein Kalender ist abonniert und hat die Termine zuletzt <b>{lowerDay(mine)}</b> abgeholt.
               </p>
             ) : (
               <p>⏳ Noch nicht abonniert – oder dein iPhone hat noch nicht abgeholt. Nach dem Abonnieren steht hier, wann es zuletzt geklappt hat.</p>
             )}
             <p className="muted small">
-              {theirs ? `✓ ${partner.name} hat auch abonniert (zuletzt ${formatDateTime(theirs)}).` : `${partner.name} kann das genauso auf dem eigenen Handy einrichten.`}
+              {theirs ? `✓ ${partner.name} hat auch abonniert (zuletzt ${lowerDay(theirs)}).` : `${partner.name} kann das genauso auf dem eigenen Handy einrichten.`}
             </p>
           </div>
 
-          <a className="btn primary block" href={urls.webcal}>
-            📅 {mine ? 'Noch einmal abonnieren' : 'Kalender abonnieren'}
-          </a>
-          <ol className="how">
-            <li>
-              Tippe auf „Kalender abonnieren“ und bestätige mit <b>„Abonnieren“</b>.
-            </li>
-            <li>
-              Je nach iPhone fragt es noch nach Name, Farbe und Ort – einfach mit <b>„Hinzufügen“</b> bzw. <b>„Fertig“</b> bestätigen.
-            </li>
-            <li>
-              Fertig! Im Kalender heißt er <b>„Arta 💞 {me.name} & {partner.name}“</b>.
-            </li>
-          </ol>
+          {!mine && <SubscribeSteps webcal={urls.webcal} names={`${me.name} & ${partner.name}`} />}
 
           <h3>Gut zu wissen</h3>
           <ul className="how">
@@ -495,8 +507,15 @@ export function CalendarSheet({ back, onClose }: { back?: boolean; onClose: () =
             <li>✏️ Im iPhone-Kalender kannst du die Termine nur ansehen – eintragen und ändern geht hier in Arta.</li>
           </ul>
 
+          {mine && (
+            <details className="calendar-manual">
+              <summary>Auf einem weiteren Gerät abonnieren (iPad, Mac …)</summary>
+              <SubscribeSteps webcal={urls.webcal} names={`${me.name} & ${partner.name}`} />
+            </details>
+          )}
+
           <details className="calendar-manual">
-            <summary>Klappt der Knopf nicht? Von Hand einrichten</summary>
+            <summary>{mine ? 'Abo-Adresse zum Kopieren' : 'Klappt der Knopf nicht? Von Hand einrichten'}</summary>
             <CopyBox label="Abo-Adresse" text={urls.https} />
             <p className="muted small">
               <b>iPhone:</b> Einstellungen → Kalender → Accounts → Account hinzufügen → Andere → „Kalenderabo hinzufügen“ → Adresse einfügen → Weiter → Sichern.
