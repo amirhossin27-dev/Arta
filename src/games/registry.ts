@@ -4,6 +4,7 @@ export type GameId =
   | 'romme'
   | 'kniffel'
   | 'ludo'
+  | 'solitaire'
   | 'fitdice'
   | 'chess'
   | 'checkers'
@@ -16,6 +17,7 @@ export type GameId =
   | 'memory'
   | 'kart'
   | 'fight'
+  | 'strike'
   | 'pong'
   | 'reaction'
   | 'tetris'
@@ -25,12 +27,17 @@ export type GameId =
   | 'minesweeper'
   | 'snake'
   | 'breakout'
+  | 'ballz'
+  | 'runner'
+  | 'amor'
+  | 'muncher'
+  | 'hopper'
   | 'simon';
 
 /** duo: zu zweit an einem Handy · cpu: gegen die KI 🤖 · online: jeder am eigenen Handy · solo: allein auf Highscore-Jagd */
 export type GameMode = 'duo' | 'cpu' | 'online' | 'solo';
 
-export type GameCategory = 'karten' | 'brett' | 'raten' | 'arcade';
+export type GameCategory = 'karten' | 'brett' | 'raten' | 'action' | 'arcade';
 
 export interface GameMeta {
   id: GameId;
@@ -110,6 +117,20 @@ export const GAMES: GameMeta[] = [
     category: 'karten',
     minutes: '10 Min',
     colors: ['#e63946', '#f4c430'],
+  },
+  {
+    id: 'solitaire',
+    name: 'Solitär',
+    emoji: '♦️',
+    tagline: 'Die Patience zum Entspannen – alle Karten nach Farbe ablegen',
+    rules:
+      'Leg Karten absteigend und abwechselnd rot/schwarz aufeinander, auf freie Plätze dürfen nur Könige. Oben sammelst du jede Farbe vom Ass bis zum König. Tippe den Stapel an, um eine Karte zu ziehen. Eine Karte antippen legt sie automatisch an den besten Platz, du kannst sie aber auch ziehen. Liegt alles offen, legt „Automatisch fertig“ den Rest ab. Es zählt die Zeit – je schneller, desto besser.',
+    modes: ['solo'],
+    category: 'karten',
+    minutes: '6 Min',
+    colors: ['#16804a', '#e0245e'],
+    scoreLabel: 'Sek.',
+    lowerIsBetter: true,
   },
   {
     id: 'fitdice',
@@ -239,9 +260,22 @@ export const GAMES: GameMeta[] = [
     rules:
       'Zwei Gewinnrunden, jede dauert 60 Sekunden. Mit dem Stick läufst du, nach oben gedrückt springst du. 👊 Schlag mehrmals tippen ergibt eine Kombo, 🦶 Tritt trifft weiter und härter. Wer vom Gegner weg hält, blockt. Treffer laden den Powerbalken – ist er voll, leuchtet ⚡ Spezial: Kai schickt die Phönix-Flamme, Mila stürmt als Donnersturm los. Wer zuerst K.O. geht oder nach Ablauf der Zeit weniger Energie hat, verliert die Runde.',
     modes: ['duo', 'online', 'cpu'],
-    category: 'arcade',
+    category: 'action',
     minutes: '3 Min',
     colors: ['#ff3d6e', '#7a3cff'],
+  },
+  {
+    id: 'strike',
+    name: 'Herz-Strike',
+    emoji: '🎯',
+    tagline: 'Paintball-Duell in 3D – wie Counter-Strike, nur mit Farbe statt Kugeln',
+    rules:
+      'Ein Duell in der Arta-Arena mit bunten Luftkissen als Deckung. Mit dem Stick läufst du, durch Wischen im Bild schaust du dich um. 💥 halten schießt Farbkugeln – ziehst du dabei den Finger, zielst du gleichzeitig. Nach 12 Schuss wird nachgeladen (🔄 geht auch früher). Drei Treffer, und man ist voller Farbe: Der andere bekommt einen Punkt, und es geht kurz darauf am Rand weiter. Wer zuerst 5 Punkte hat, gewinnt; nach 4 Minuten gewinnt, wer vorn liegt. Allein trainierst du beim Zielschießen: 60 Sekunden, jedes Pappherz zählt, goldene dreifach. Am Computer: Klick ins Bild, dann zielt die Maus und WASD läuft.',
+    modes: ['online', 'cpu', 'solo'],
+    category: 'action',
+    minutes: '4 Min',
+    colors: ['#ff3d8b', '#14b8d4'],
+    scoreLabel: 'Treffer',
   },
   {
     id: 'kart',
@@ -251,7 +285,7 @@ export const GAMES: GameMeta[] = [
     rules:
       'Drei Runden auf dem Herz-Ring – wer zuerst im Ziel ist, gewinnt. Gas gibt dein Kart von selbst, du lenkst mit ◀ und ▶. Hältst du eine Kurve lange gedrückt, driftest du und es sprühen Funken – beim Loslassen gibt’s einen Mini-Turbo. Fahr durch die ?-Boxen: 🍄 Turbo-Pilz gibt Tempo, 🍌 Bananen legst du hinter dich, 💘 der Herzpfeil fliegt dem anderen hinterher und bringt ihn ins Schleudern. Item einsetzen mit der Taste in der Mitte. Auf der Wiese wird’s langsam, orange Felder geben Schub. Zu zweit an einem Handy sitzt ihr euch gegenüber, allein fährst du Zeitfahren auf Rekordjagd.',
     modes: ['duo', 'online', 'cpu', 'solo'],
-    category: 'arcade',
+    category: 'action',
     minutes: '2 Min',
     colors: ['#ff4f81', '#ffb347'],
     scoreLabel: 'Sek.',
@@ -368,6 +402,71 @@ export const GAMES: GameMeta[] = [
     scoreLabel: 'Punkte',
   },
   {
+    id: 'runner',
+    name: 'Tempel-Lauf',
+    emoji: '🏃',
+    tagline: 'Endlos-Lauf durch den Dschungeltempel – wie Temple Run',
+    rules:
+      'Du rennst über einen alten Tempelpfad, das Knuddelmonster immer hinter dir. Wische nach links oder rechts, um die Spur zu wechseln, nach oben zum Springen und nach unten zum Rutschen. Über Baumstämme und Lücken springst du, unter Steintoren rutschst du durch, um Steinblöcke läufst du herum. An jeder Kreuzung musst du in Pfeilrichtung wischen – sonst geht es in den Abgrund. Stolperst du, holt dich das Monster ein – beim zweiten Mal wirst du geknuddelt. Jeder Meter zählt, jedes Herz 5 Punkte extra.',
+    modes: ['solo'],
+    category: 'action',
+    minutes: '3 Min',
+    colors: ['#e2557f', '#f2a14e'],
+    scoreLabel: 'Punkte',
+  },
+  {
+    id: 'amor',
+    name: 'Amors Pfeile',
+    emoji: '🏹',
+    tagline: 'Schießbude wie Moorhuhn – mit Liebespfeilen statt Schrot',
+    rules:
+      'Du bist Amor: Tippe auf die Vögel, und dein Pfeil macht sie unsterblich verliebt – mit Herzaugen flattern sie davon. Kleine Vögel weit hinten bringen 25 Punkte, die mittleren 10, die großen vorn 5. Goldvögel geben 50, Herzballons 15. Im Köcher sind 8 Pfeile – tippe auf 🏹, um nachzuladen. Halte den linken oder rechten Rand gedrückt, um die Landschaft zu schwenken. In der Landschaft verstecken sich noch ein paar Überraschungen. Du hast 90 Sekunden.',
+    modes: ['solo'],
+    category: 'action',
+    minutes: '2 Min',
+    colors: ['#ff6f91', '#845ec2'],
+    scoreLabel: 'Punkte',
+  },
+  {
+    id: 'muncher',
+    name: 'Herz-Mampfer',
+    emoji: '👻',
+    tagline: 'Herzchen futtern, Grummelgeistern ausweichen – wie Pac-Man',
+    rules:
+      'Wische in eine Richtung (oder nutz die Pfeile) – Mampfi läuft weiter, bis eine Wand kommt, und biegt an der nächsten Abzweigung ab. Futtere alle Herzchen im Labyrinth. Die vier Grummelgeister jagen dich, jeder auf seine Art. Ein großes ❤️ ist ein Liebestrank: Kurz werden die Geister blau und du kannst sie verputzen. Ab und zu taucht unter dem Geisterhaus ein Naschi auf. Durch den Tunnel an der Seite kommst du auf der anderen Seite raus. Du hast 3 Leben.',
+    modes: ['solo'],
+    category: 'arcade',
+    minutes: '4 Min',
+    colors: ['#ff2f78', '#4057ff'],
+    scoreLabel: 'Punkte',
+  },
+  {
+    id: 'hopper',
+    name: 'Herz-Hüpfer',
+    emoji: '🦘',
+    tagline: 'Hüpf von Wolke zu Wolke immer höher – wie Doodle Jump',
+    rules:
+      'Hüpfi springt von selbst. Halte die linke oder rechte Bildschirmhälfte gedrückt (oder schalte „Neigen“ ein und kipp das Handy), um zu lenken – wer an einer Seite rausläuft, kommt auf der anderen wieder rein. Rosa Wolken tragen dich, blaue wandern hin und her, weiße lösen sich nach einem Sprung auf und Waffelkekse zerbröseln. Federn und Herzballons schießen dich nach oben. Spring den Grummelwolken auf den Kopf – nur nicht seitlich berühren! Fällst du unten raus, ist Schluss.',
+    modes: ['solo'],
+    category: 'arcade',
+    minutes: '3 Min',
+    colors: ['#ff6fa5', '#ffb36b'],
+    scoreLabel: 'Meter',
+  },
+  {
+    id: 'ballz',
+    name: 'Ball-Blitz',
+    emoji: '☄️',
+    tagline: 'Zielen, abfeuern, Blöcke zerschmettern – jede Runde ein Ball mehr',
+    rules:
+      'Leg den Finger aufs Feld und ziel – die gepunktete Linie zeigt den Weg. Beim Loslassen fliegen alle Bälle hintereinander los und prallen an Wänden und Blöcken ab. Jeder Treffer zieht dem Block einen Punkt ab, bei 0 zerplatzt er. Fang die 💗-Ringe für einen Ball mehr, ⚡-Ringe treffen eine ganze Reihe oder Spalte. Nach jeder Runde rutschen die Blöcke eine Reihe tiefer – kommt einer unten an, ist Schluss.',
+    modes: ['solo'],
+    category: 'arcade',
+    minutes: '5 Min',
+    colors: ['#ff4f9a', '#6b5cff'],
+    scoreLabel: 'Runden',
+  },
+  {
     id: 'simon',
     name: 'Herz-Simon',
     emoji: '🎵',
@@ -394,5 +493,6 @@ export const CATEGORY_INFO: Record<GameCategory, { emoji: string; title: string;
   karten: { emoji: '🃏', title: 'Karten & Würfel', text: 'Die Klassiker vom Spieleabend – online, an einem Handy oder gegen die KI' },
   brett: { emoji: '♟️', title: 'Brett & Strategie', text: 'Schach, Dame, Mühle und Co. – Köpfchen ist gefragt' },
   raten: { emoji: '🧠', title: 'Rätseln & Raten', text: 'Wer weiß mehr, wer merkt sich mehr?' },
-  arcade: { emoji: '🕹️', title: 'Arcade', text: 'Schnelle Runden – Kampfspiel, Kart-Rennen, gegenüber am Handy oder allein auf Rekordjagd' },
+  action: { emoji: '💥', title: 'Action & 3D', text: 'Kämpfen, rasen, zielen – auch online, jeder am eigenen Handy' },
+  arcade: { emoji: '🕹️', title: 'Arcade', text: 'Schnelle Runden und Klassiker – gegenüber am Handy oder allein auf Rekordjagd' },
 };
