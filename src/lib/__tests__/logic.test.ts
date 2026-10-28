@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { RECIPE_BY_ID } from '../../data/recipes';
 import { guessCategory, parseShoppingInput, recipeToShopping } from '../shopping';
-import { bestCoupleStreak, coupleStreak, levelInfo, points, streak, weekByDay, weekDone } from '../stats';
+import { bestCoupleStreak, coupleStreak, levelInfo, musclesThisWeek, points, streak, weekByDay, weekDone } from '../stats';
 import { emptyData } from '../store';
 import type { AppData, PlanItem, StepDay } from '../types';
 
@@ -38,8 +38,8 @@ describe('Einkaufsliste', () => {
   });
 });
 
-function plan(id: string, date: string, personId: 'a' | 'b', done: boolean, groupId?: string): PlanItem {
-  return { id, date, personId, exerciseId: 'plank', slot: 'morgens', createdBy: personId, done, groupId, updatedAt: 1 };
+function plan(id: string, date: string, personId: 'a' | 'b', done: boolean, groupId?: string, exerciseId = 'plank'): PlanItem {
+  return { id, date, personId, exerciseId, slot: 'morgens', createdBy: personId, done, groupId, updatedAt: 1 };
 }
 
 function withPlan(items: PlanItem[]): AppData {
@@ -112,5 +112,23 @@ describe('Motivation', () => {
     expect(l.current.name).toBe('Turteltauben');
     expect(l.progress).toBeCloseTo(0.5);
     expect(levelInfo(99999).next).toBeUndefined();
+  });
+});
+
+describe('Muskel-Check', () => {
+  it('zählt erledigte Einheiten der Woche je Muskelgruppe', () => {
+    const d = withPlan([
+      plan('1', '2026-10-19', 'a', true, undefined, 'tisch-rudern'),
+      plan('2', '2026-10-21', 'a', true, undefined, 'klimmzuege'),
+      plan('3', '2026-10-22', 'a', false, undefined, 'kniebeugen'),
+      plan('4', '2026-10-18', 'a', true, undefined, 'wadenheben'),
+      plan('5', '2026-10-20', 'b', true, undefined, 'sumo-kniebeugen'),
+    ]);
+    const hits = musclesThisWeek(d, '2026-10-25', 'a');
+    expect(hits.get('ruecken')).toBe(2);
+    expect(hits.get('bizeps')).toBe(2);
+    expect(hits.has('oberschenkel')).toBe(false);
+    expect(hits.has('waden')).toBe(false);
+    expect(hits.has('innenschenkel')).toBe(false);
   });
 });

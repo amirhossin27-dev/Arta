@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { addDays, fromKey, startOfWeek, todayKey, weekdayShort } from '../lib/date';
 import { cls } from '../lib/hooks';
@@ -73,8 +73,18 @@ export function Chips<T extends string>({
   options: [T, ReactNode][];
   onChange: (v: T) => void;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  // Auch von außen gesetzte Auswahl sichtbar machen, wenn sie weiter rechts in der Leiste liegt
+  useEffect(() => {
+    const box = ref.current;
+    const active = box?.querySelector<HTMLElement>('.chip.active');
+    if (!box || !active) return;
+    if (active.offsetLeft < box.scrollLeft || active.offsetLeft + active.offsetWidth > box.scrollLeft + box.clientWidth) {
+      box.scrollLeft = active.offsetLeft - (box.clientWidth - active.offsetWidth) / 2;
+    }
+  }, [value]);
   return (
-    <div className="chips">
+    <div className="chips" ref={ref}>
       {options.map(([v, label]) => (
         <button key={v} className={cls('chip', v === value && 'active')} onClick={() => onChange(v)}>
           {label}

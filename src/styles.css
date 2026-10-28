@@ -2077,6 +2077,61 @@ button.person-steps:active {
   }
 }
 
+/* Muskelgruppen */
+.scroll-anchor {
+  margin-bottom: -14px;
+  scroll-margin-top: calc(env(safe-area-inset-top) + 72px);
+}
+
+.filter-count .link {
+  font-size: inherit;
+  margin-left: 10px;
+}
+
+.badge.muscle-main {
+  background: var(--sport-soft);
+  border-color: transparent;
+}
+
+.muscle-region + .muscle-region {
+  margin-top: 10px;
+}
+
+.muscle-region-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.muscle-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.muscle-chip {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px dashed color-mix(in srgb, var(--muted) 45%, transparent);
+  color: var(--muted);
+  background: transparent;
+}
+
+.muscle-chip.hit {
+  border: 1px solid transparent;
+  background: var(--sport-soft);
+  color: var(--text);
+}
+
+.muscle-chip small {
+  font-weight: 800;
+  color: var(--sport);
+}
+
 .level {
   font-size: 0.55rem;
   letter-spacing: 1px;
