@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as RPointerEvent } from 'react';
 import { cls } from '../lib/hooks';
-import { buzz, noise, tone, useLoop, useTouchLock } from './engine';
+import { buzz, noise, tone, useLoop } from './engine';
 import {
   FLASH_T,
   NET_TIMEOUT,
@@ -203,7 +203,6 @@ export function Fight({ mode, p1, p2, starter, net, onEnd }: GameProps) {
     urgent: false,
   });
 
-  const root = useRef<HTMLDivElement>(null);
   const arena = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const size = useRef({ w: 0, h: 0, dpr: 1, scale: 1 });
@@ -211,7 +210,6 @@ export function Fight({ mode, p1, p2, starter, net, onEnd }: GameProps) {
   const powerEls = useRef<Partial<Record<Side, HTMLDivElement | null>>>({});
   const knobEls = useRef<Partial<Record<Side, HTMLDivElement | null>>>({});
 
-  useTouchLock(root);
 
   useEffect(() => {
     if (!TEST) return;
@@ -632,7 +630,7 @@ export function Fight({ mode, p1, p2, starter, net, onEnd }: GameProps) {
   const waitingFor = online && ready && !remoteSel?.rdy;
 
   return (
-    <div ref={root} className={cls('fg', phase, duo ? 'duo' : 'single')}>
+    <div className={cls('fg', phase, duo ? 'duo' : 'single')}>
       <div ref={arena} className="fg-arena">
         <canvas ref={canvas} className="fg-canvas" />
         {phase === 'select' && (

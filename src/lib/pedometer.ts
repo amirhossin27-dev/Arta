@@ -29,6 +29,8 @@ const FLUSH_MS = 30_000;
 /** So lange nach einem Tipp auf den Bildschirm zählt ein Stoß nicht als Schritt. */
 const TOUCH_MS = 250;
 const MILESTONE = 1000;
+/** War Arta länger im Hintergrund, endet das Mitzählen – sonst zählt es z. B. beim Spielen weiter. */
+const AWAY_MS = 10 * 60_000;
 
 let state: PedometerState = { running: false, date: todayKey(), pending: 0, session: 0, sensing: false };
 const listeners = new Set<() => void>();
@@ -62,6 +64,7 @@ export const pedometerSupported = () => typeof window !== 'undefined' && 'Device
 let detector = new StepDetector();
 let lastFlush = 0;
 let lastTouch = -Infinity;
+let hiddenAt = 0;
 let watchdog: number | undefined;
 let wakeLock: WakeLockSentinel | null = null;
 
@@ -91,6 +94,7 @@ export async function startPedometer(): Promise<boolean> {
   }
   detector = new StepDetector();
   lastFlush = Date.now();
+  hiddenAt = 0;
   window.addEventListener('devicemotion', onMotion);
   window.addEventListener('pointerdown', onTouch, { capture: true, passive: true });
   document.addEventListener('visibilitychange', onVisibility);
@@ -118,19 +122,32 @@ export function stopPedometer() {
   set({ running: false, pending: 0 });
 }
 
-/** Schritte von Hand setzen (z. B. aus der Health-App) – die gezählten sind darin schon enthalten. */
-export function setMySteps(date: string, count: number) {
+/** Ändert die eigenen Schritte und feiert, wenn dabei das Tagesziel fällt. */
+function change(date: string, write: () => void) {
   const before = myLiveSteps(date);
-  if (state.running && state.date === date) set({ pending: 0 });
-  actions.setSteps(date, count);
-  const after = myLiveSteps(date);
-  celebrateSteps(before, after, stepsOn(getData(), date, getDevice().me).goal, date === todayKey());
+  write();
+  celebrateSteps(before, myLiveSteps(date), stepsOn(getData(), date, getDevice().me).goal, date === todayKey());
 }
 
+/** Schritte von Hand setzen (z. B. aus der Health-App) – die gezählten sind darin schon enthalten. */
+export function setMySteps(date: string, count: number) {
+  change(date, () => {
+    if (state.running && state.date === date) set({ pending: 0 });
+    actions.setSteps(date, count);
+  });
+}
+
+/** „+1.000“ für einen Gang ohne Handy. */
 export function addMySteps(date: string, n: number) {
-  const before = myLiveSteps(date);
-  actions.addSteps(date, n);
-  celebrateSteps(before, before + n, stepsOn(getData(), date, getDevice().me).goal, date === todayKey());
+  change(date, () => actions.addSteps(date, n, true));
+}
+
+/** Neuer Stand aus Apple Health – enthält auch alles, was Arta bis dahin mitgezählt hat. */
+export function setHealthSteps(date: string, count: number, at: number) {
+  change(date, () => {
+    if (state.running && state.date === date) set({ pending: 0 });
+    actions.setHealthSteps(date, count, at);
+  });
 }
 
 function flush() {
@@ -146,8 +163,13 @@ function onTouch() {
 }
 
 function onVisibility() {
-  if (document.visibilityState === 'hidden') flush();
-  else if (state.running) void keepAwake();
+  if (document.visibilityState === 'hidden') {
+    hiddenAt = Date.now();
+    flush();
+  } else if (state.running) {
+    if (hiddenAt && Date.now() - hiddenAt > AWAY_MS) stopPedometer();
+    else void keepAwake();
+  }
 }
 
 async function keepAwake() {

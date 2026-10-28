@@ -14,11 +14,15 @@ export interface DaySteps {
   date: string;
   count: number;
   goal: number;
+  /** Zeitpunkt des Apple-Health-Stands, der in `count` steckt. */
+  healthAt?: number;
+  /** Davon von Hand dazugezählt. */
+  extra?: number;
 }
 
 export function stepsOn(d: AppData, date: string, person: PersonId): DaySteps {
   const rec = d.steps[`${date}-${person}`];
-  if (rec && !rec.deleted) return { date, count: rec.count, goal: rec.goal || d.persons[person].stepGoal };
+  if (rec && !rec.deleted) return { date, count: rec.count, goal: rec.goal || d.persons[person].stepGoal, healthAt: rec.healthAt, extra: rec.extra };
   return { date, count: 0, goal: d.persons[person].stepGoal };
 }
 

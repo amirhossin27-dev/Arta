@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
-import { burst, buzz, clamp, drawParticles, heartPath, stepParticles, tone, useFitCanvas, useLoop, useTouchLock, type Particle } from './engine';
+import { burst, buzz, clamp, drawParticles, heartPath, stepParticles, tone, useFitCanvas, useLoop, type Particle } from './engine';
 import type { GameProps } from './types';
 
 export const BZ_COLS = 7;
@@ -240,8 +240,6 @@ function moveBall(st: BzState, b: Ball, dist: number, onHit: ((r: number, c: num
 export function Ballz({ best, onEnd }: GameProps) {
   const s = useRef<BzState>(fresh());
   const [hud, setHud] = useState({ round: 1, balls: 1, flying: false, fast: 1 });
-  const root = useRef<HTMLDivElement>(null);
-  useTouchLock(root);
 
   const sync = () => {
     const st = s.current;
@@ -658,7 +656,7 @@ export function Ballz({ best, onEnd }: GameProps) {
   };
 
   return (
-    <div className="g-col fill" ref={root}>
+    <div className="g-col fill">
       <div className="score-strip">
         <span>☄️ Runde {hud.round}</span>
         <span>⚪ ×{hud.balls}</span>
