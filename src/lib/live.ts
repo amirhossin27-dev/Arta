@@ -4,6 +4,7 @@ import { applyCalNode, CAL_FEED_PREFIX, clearCal, isCal, saveFeedFp } from './ca
 import { applyHealthNode, clearHealth, isHealth } from './health';
 import { LIVE_DB_URL } from './liveConfig';
 import { heartBurst, showLove } from './love';
+import { memosText } from './memos';
 import { heartsOn } from './stats';
 import { actions, commitData, getData, getDevice, subscribe, useDevice } from './store';
 import { buildPayload, canCompress, checkPayload, fromB64Url, mergeData, pipe, toB64Url, type MergeStats, type SyncPayload } from './sync';
@@ -379,7 +380,7 @@ function announce(name: string, stats: MergeStats, hearts: number) {
   // Im Hintergrund sieht niemand die Einblendung – also bis zur Rückkehr in die App aufheben.
   if (document.visibilityState === 'hidden') return whenVisible(() => announce(name, stats, hearts));
   if (hearts) heartBurst(undefined, '❤️', Math.min(hearts * 4, 20));
-  const acc = announced ?? { name, hearts: 0, stats: { changed: 0, newNotes: 0, newSurprises: 0, newCoupons: 0, newShopping: 0, newPlan: 0, newEvents: 0, newPhotos: 0 } };
+  const acc = announced ?? { name, hearts: 0, stats: { changed: 0, newNotes: 0, newSurprises: 0, newCoupons: 0, newShopping: 0, newPlan: 0, newEvents: 0, newPhotos: 0, newMemos: 0 } };
   for (const k of Object.keys(acc.stats) as (keyof MergeStats)[]) acc.stats[k] += stats[k];
   acc.hearts += hearts;
   announced = acc;
@@ -410,6 +411,7 @@ export function liveSummary(stats: MergeStats): string {
   if (stats.newShopping) parts.push(`${stats.newShopping} Einkaufsartikel 🛒`);
   if (stats.newEvents) parts.push(`${stats.newEvents} neue${stats.newEvents === 1 ? 'r' : ''} Termin${stats.newEvents === 1 ? '' : 'e'} 📅`);
   if (stats.newPhotos) parts.push(`${stats.newPhotos} neue${stats.newPhotos === 1 ? 's Foto' : ' Fotos'} 📸`);
+  if (stats.newMemos) parts.push(memosText(stats.newMemos));
   return parts.join(' · ');
 }
 

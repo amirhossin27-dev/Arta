@@ -13,6 +13,7 @@ import {
   type LiveRoom,
   type LoveNote,
   type MealEntry,
+  type Memo,
   type Person,
   type PersonId,
   type PhotoFreq,
@@ -27,6 +28,7 @@ import { MAX_LOVE, MERGE_DAYS } from './cycle';
 import { diffDays, todayKey } from './date';
 import { DEFAULT_STEP_GOAL, MAX_STEPS } from './steps';
 import { MAX_ROUTINES, routineId } from './routines';
+import { MAX_ITEM_TEXT, MAX_MEMO_ITEMS, MAX_MEMO_TEXT, MAX_MEMO_TITLE, MAX_MEMOS, MEMO_COLORS } from './memos';
 
 const DATA_KEY = 'arta.data.v1';
 const DEVICE_KEY = 'arta.device.v1';
@@ -65,6 +67,8 @@ export function emptyData(): AppData {
     routineDays: {},
     events: {},
     photos: {},
+    memos: {},
+    memoItems: {},
   };
 }
 
@@ -158,7 +162,8 @@ export type Sent =
   | { type: 'note'; note: LoveNote }
   | { type: 'coupon'; coupon: Coupon }
   | { type: 'heart'; date: string }
-  | { type: 'event'; event: CalEvent };
+  | { type: 'event'; event: CalEvent }
+  | { type: 'memo'; memo: Memo };
 
 const sentListeners = new Set<(s: Sent) => void>();
 export const onSent = (fn: (s: Sent) => void) => {
@@ -563,6 +568,105 @@ export const actions = {
     if (p && p.by === device.me) patch('photos', id, { deleted: true });
   },
 
+  // ───── Notizen ─────
+  /**
+   * Titel, Text, Symbol oder Farbe einer Notiz speichern – legt sie beim ersten Mal an.
+   * Notizen gehören euch beiden, jedes Handy darf sie ändern. Gibt `false` zurück, wenn nichts ging
+   * (zu viele Notizen, oder sie wurde inzwischen auf dem anderen Handy gelöscht).
+   */
+  saveMemo(id: string, fields: Partial<Pick<Memo, 'title' | 'text' | 'emoji' | 'color' | 'pinned'>>): boolean {
+    const cur = data.memos[id];
+    if (cur?.deleted) return false;
+    const clean = cleanMemo(fields);
+    if (!cur) {
+      if (Object.values(data.memos).filter((m) => !m.deleted).length >= MAX_MEMOS) return false;
+      const me = device.me;
+      const base: Memo = { id, title: '', text: '', emoji: '📝', color: 'gelb', createdBy: me, createdAt: Date.now(), editedBy: me, updatedAt: 0 };
+      commitData(withRec(data, 'memos', { ...base, ...clean }));
+      return true;
+    }
+    const changed = (Object.keys(clean) as (keyof typeof clean)[]).some((k) => clean[k] !== cur[k]);
+    if (changed) commitData(withRec(data, 'memos', { ...cur, ...clean, editedBy: device.me }));
+    return true;
+  },
+
+  /** Eine auf dem anderen Handy gelöschte Notiz mit dem eigenen Stand zurückholen. */
+  restoreMemo(id: string, fields: Pick<Memo, 'title' | 'text' | 'emoji' | 'color'>) {
+    const cur = data.memos[id];
+    if (!cur?.deleted) return;
+    let d = withRec(data, 'memos', { ...cur, ...cleanMemo(fields), deleted: undefined, editedBy: device.me });
+    // Die Punkte, die mit der Notiz gelöscht wurden, kommen mit zurück (ihr Zeitstempel liegt direkt dahinter).
+    for (const i of Object.values(data.memoItems)) {
+      if (i.memoId === id && i.deleted && i.updatedAt > cur.updatedAt) d = withRec(d, 'memoItems', { ...i, deleted: undefined, by: device.me });
+    }
+    commitData(d);
+  },
+
+  /** Die neue Notiz ist fertig – jetzt bekommt der Schatz Bescheid (nicht schon beim ersten Buchstaben). */
+  announceMemo(id: string) {
+    const m = data.memos[id];
+    if (m && !m.deleted && m.createdBy === device.me) emitSent({ type: 'memo', memo: m });
+  },
+
+  /** Löscht die Notiz samt ihrer Punkte – auf beiden Handys. */
+  removeMemo(id: string) {
+    const cur = data.memos[id];
+    if (!cur || cur.deleted) return;
+    let d = withRec(data, 'memos', { ...cur, deleted: true, editedBy: device.me });
+    for (const i of Object.values(data.memoItems)) {
+      if (i.memoId === id && !i.deleted) d = withRec(d, 'memoItems', { ...i, deleted: true, by: device.me });
+    }
+    commitData(d);
+  },
+
+  /** Neuer Punkt ans Ende der Liste. Gibt es die Notiz noch nicht, wird sie mit `fields` angelegt. */
+  addMemoItem(memoId: string, text: string, fields: Partial<Pick<Memo, 'title' | 'text' | 'emoji' | 'color'>> = {}): boolean {
+    const clean = text.trim().slice(0, MAX_ITEM_TEXT);
+    if (!clean) return false;
+    if (!data.memos[memoId] && !actions.saveMemo(memoId, fields)) return false;
+    if (data.memos[memoId]?.deleted) return false;
+    const siblings = Object.values(data.memoItems).filter((i) => i.memoId === memoId && !i.deleted);
+    if (siblings.length >= MAX_MEMO_ITEMS) return false;
+    const pos = Math.max(0, ...siblings.map((i) => i.pos)) + 1;
+    commitData(withRec(data, 'memoItems', { id: uid(), memoId, text: clean, done: false, pos, by: device.me, updatedAt: 0 }));
+    return true;
+  },
+
+  setMemoItemDone(id: string, done: boolean) {
+    const cur = data.memoItems[id];
+    if (cur && !cur.deleted && cur.done !== done) patch('memoItems', id, { done, by: device.me });
+  },
+
+  renameMemoItem(id: string, text: string) {
+    const cur = data.memoItems[id];
+    const clean = text.trim().slice(0, MAX_ITEM_TEXT);
+    if (!cur || cur.deleted || clean === cur.text) return;
+    if (!clean) actions.removeMemoItem(id);
+    else patch('memoItems', id, { text: clean, by: device.me });
+  },
+
+  removeMemoItem(id: string) {
+    const cur = data.memoItems[id];
+    if (cur && !cur.deleted) patch('memoItems', id, { deleted: true, by: device.me });
+  },
+
+  clearDoneMemoItems(memoId: string) {
+    let d = data;
+    for (const i of Object.values(data.memoItems)) {
+      if (i.memoId === memoId && i.done && !i.deleted) d = withRec(d, 'memoItems', { ...i, deleted: true, by: device.me });
+    }
+    if (d !== data) commitData(d);
+  },
+
+  /** Merkt sich auf diesem Handy, bis wohin du die Notiz gesehen hast. */
+  markMemoSeen(id: string, at: number) {
+    const seen = device.memosSeen ?? {};
+    if ((seen[id] ?? 0) >= at) return;
+    // Gelöschte Notizen fliegen bei der Gelegenheit aus der Liste.
+    const kept = Object.fromEntries(Object.entries(seen).filter(([k]) => data.memos[k] && !data.memos[k].deleted));
+    commitDevice({ memosSeen: { ...kept, [id]: at } });
+  },
+
   // ───── Spiele ─────
   /** Trägt eine Runde in die Bilanz dieses Geräts ein (Sieg, Unentschieden und/oder Punktzahl). */
   recordGame(game: string, outcome: { winner?: PersonId | 'draw'; score?: number; player?: PersonId; lowerIsBetter?: boolean }) {
@@ -633,6 +737,16 @@ function cleanEvent<T extends Partial<CalEvent>>(e: T): T {
   if (out.time || !out.endDate || (out.date && out.endDate <= out.date)) out.endDate = undefined;
   if (!out.alarm) out.alarm = undefined;
   if (!out.repeat) out.repeat = undefined;
+  return out;
+}
+
+/** Nur kürzen, nicht trimmen – sonst verschluckt das automatische Speichern das Leerzeichen, das man gerade tippt. */
+function cleanMemo<T extends Partial<Memo>>(m: T): T {
+  const out = { ...m };
+  if (out.title !== undefined) out.title = out.title.replace(/\n/g, ' ').slice(0, MAX_MEMO_TITLE);
+  if (out.text !== undefined) out.text = out.text.slice(0, MAX_MEMO_TEXT);
+  if (out.color !== undefined && !MEMO_COLORS.some((c) => c.id === out.color)) out.color = 'gelb';
+  if (out.pinned === false) out.pinned = undefined;
   return out;
 }
 
