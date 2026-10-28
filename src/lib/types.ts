@@ -91,6 +91,9 @@ export interface MealEntry extends Rec {
   carbs: number;
   fat: number;
   recipeId?: string;
+  /** Aus der Lebensmittel-Liste eingetragen: welches und wie viel (g bzw. ml). */
+  foodId?: string;
+  grams?: number;
   createdBy: PersonId;
 }
 
