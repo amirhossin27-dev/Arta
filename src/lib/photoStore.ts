@@ -4,14 +4,14 @@ import { canvasToJpeg, drawScaled, loadBitmap } from './image';
 /**
  * Die Bilder der gemeinsamen Fotos liegen auf jedem Handy in der IndexedDB – localStorage wäre
  * mit rund 5 MB viel zu klein und hält schon den restlichen App-Stand. Pro Foto gibt es zwei
- * JPEGs: groß für Hintergrund und Ansicht, klein fürs Album (sonst müsste das Handy für die
+ * JPEGs: groß für Amors Vollbild und die Ansicht, klein fürs Album (sonst müsste das Handy für die
  * Übersicht jedes große Bild entpacken).
  */
 
 const DB_NAME = 'arta-photos';
 const STORE = 'photos';
 
-/** Längste Seite im Hintergrund und in der Ansicht. */
+/** Längste Seite im Vollbild und in der Ansicht. */
 const FULL_SIDE = 1280;
 /** Kleinere Stufe, falls ein Foto (z. B. viel Laub, Nachtaufnahme) trotzdem zu groß wird. */
 const FALLBACK_SIDE = 1024;
@@ -201,7 +201,7 @@ export interface PreparedPhoto {
   h: number;
 }
 
-/** Verkleinert ein Foto aus der Mediathek (oder der Kamera) auf Hintergrund-Größe. */
+/** Verkleinert ein Foto aus der Mediathek (oder der Kamera) auf Vollbild-Größe. */
 export async function preparePhoto(file: Blob): Promise<PreparedPhoto> {
   const bmp = await loadBitmap(file);
   try {

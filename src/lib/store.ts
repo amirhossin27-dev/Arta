@@ -594,6 +594,10 @@ export const actions = {
     commitDevice({ photoFreq });
   },
 
+  countCupidTap() {
+    commitDevice({ cupidTaps: (getDevice().cupidTaps ?? 0) + 1 });
+  },
+
   setSound(sound: boolean) {
     commitDevice({ sound });
   },
