@@ -1,7 +1,7 @@
 import { deriveRoom, getLiveStatus, isLive, onLiveStatus, type LiveNode, type RoomKeys } from './live';
 import { LIVE_DB_URL } from './liveConfig';
 import { deletePhoto, justSaved, loadPhotoIndex, localPhotoIds, makeThumb, readPhoto, savePhoto } from './photoStore';
-import { planPhotoSync, requestSlide } from './photos';
+import { planPhotoSync, requestCupid } from './photos';
 import { actions, getData, getDevice, subscribe } from './store';
 import { fromB64Url, toB64Url } from './sync';
 
@@ -139,14 +139,14 @@ async function syncOnce(): Promise<boolean> {
     await fetch(photoUrl(room, id), { method: 'DELETE' }).catch(() => undefined);
   }
 
-  // Ein frisch angekommenes Foto vom Schatz gleich einmal zeigen.
+  // Mit einem frisch angekommenen Foto vom Schatz kommt Amor gleich vorbei.
   const newest = fresh
     .map((id) => getData().photos[id])
     .filter((p) => p && p.by !== me && Date.now() - p.createdAt < 2 * 86_400_000)
     .sort((a, b) => b.createdAt - a.createdAt)[0];
   if (newest && (getDevice().photoFreq ?? 'normal') !== 'aus') {
     const name = getData().persons[newest.by].name;
-    requestSlide({ id: newest.id, label: fresh.length > 1 ? `${fresh.length} neue Fotos von ${name} 💞` : `Neues Foto von ${name} 💞` });
+    requestCupid({ id: newest.id, label: fresh.length > 1 ? `${fresh.length} neue Fotos von ${name} 💞` : `Neues Foto von ${name} 💞` });
   }
   return missing > 0;
 }

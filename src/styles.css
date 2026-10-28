@@ -10136,155 +10136,438 @@ button.sol-slot {
 
 /* ───── Gemeinsame Fotos ───── */
 
-/* Hinter allem: gleitet von rechts herein, steht mit langsamer Kamerafahrt und zieht nach links weiter. */
-.photo-backdrop {
+/* ───── Amor: fliegt über „Heute“ und „Liebe“ und bringt ein Foto ───── */
+
+.cupid-flight,
+.cupid-trail {
   position: fixed;
   inset: 0;
-  z-index: -1;
-  overflow: hidden;
   pointer-events: none;
+}
+
+.cupid-flight {
+  z-index: 40;
+  overflow: hidden;
+}
+
+.cupid {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 92px;
+  height: 92px;
+  padding: 0;
+  border: 0;
+  background: none;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  will-change: transform;
+}
+
+.cupid-figure {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 6px 10px rgba(200, 30, 90, 0.28));
+}
+
+.cupid-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Flattern */
+.cupid-wing {
+  transform-box: view-box;
+  transform-origin: 58px 61px;
+  animation: cupid-flap 0.34s ease-in-out infinite alternate;
+}
+
+.cupid-wing.far {
+  animation-delay: -0.08s;
+}
+
+@keyframes cupid-flap {
+  from {
+    transform: rotate(-16deg);
+  }
+  to {
+    transform: rotate(18deg) scaleY(0.86);
+  }
+}
+
+/* Zielen: Sehne gespannt, Pfeil eingelegt */
+.cupid-svg .drawn,
+.cupid-svg .cupid-nocked {
+  display: none;
+}
+
+.cupid-svg.aiming .drawn,
+.cupid-svg.aiming .cupid-nocked {
+  display: inline;
+}
+
+.cupid-svg.aiming .rest {
+  display: none;
+}
+
+.cupid-bubble {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - 6px);
+  transform: translateX(-50%);
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+  animation: cupid-bubble 2.4s ease-in-out infinite;
+}
+
+@keyframes cupid-bubble {
+  0%,
+  100% {
+    transform: translate(-50%, 0);
+  }
+  50% {
+    transform: translate(-50%, -4px);
+  }
+}
+
+/* Glitzerspur */
+.cupid-spark {
+  position: absolute;
+  margin: -8px 0 0 -6px;
+  color: #ff5c93;
+  font-size: 14px;
+  line-height: 1;
   opacity: 0;
-  transform: translateX(38%);
+  animation: cupid-spark 1.5s ease-out forwards;
+}
+
+@keyframes cupid-spark {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(26px) scale(1.15) rotate(20deg);
+  }
+}
+
+/* Der Schuss – darüber nur noch große Liebesgrüße */
+.cupid-shot {
+  position: fixed;
+  inset: 0;
+  z-index: 75;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cupid-dim {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 46%, rgba(255, 92, 147, 0.22), rgba(30, 4, 18, 0.45) 75%);
+  animation: fade-in 0.35s ease;
+}
+
+.cupid-shot.phase-close .cupid-dim {
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.cupid-still {
+  pointer-events: none;
   transition:
-    opacity 1.6s ease,
-    transform 1.8s cubic-bezier(0.22, 0.8, 0.24, 1);
+    transform 0.3s cubic-bezier(0.3, 0.7, 0.4, 1),
+    opacity 0.9s ease;
 }
 
-.photo-backdrop.in {
-  opacity: 1;
-  transform: none;
+.cupid-still .cupid-figure {
+  transition: transform 0.28s ease;
 }
 
-.photo-backdrop.out {
+.cupid-shot.phase-hit .cupid-still,
+.cupid-shot.phase-open .cupid-still {
+  transition:
+    transform 0.95s cubic-bezier(0.5, 0, 0.75, 0.4),
+    opacity 0.9s ease 0.15s;
+}
+
+.cupid-heart {
+  position: absolute;
+  filter: drop-shadow(0 0 28px rgba(255, 64, 128, 0.55)) drop-shadow(0 10px 22px rgba(160, 10, 60, 0.35));
+  animation: cupid-heart-in 0.6s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+
+.cupid-heart svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.cupid-heart.hit svg {
+  animation: cupid-heart-beat 0.5s ease;
+}
+
+.cupid-heart.gone svg {
+  transform: scale(1.5);
   opacity: 0;
-  transform: translateX(-28%);
-  transition-duration: 1.5s;
-  transition-timing-function: ease-in;
+  transition:
+    transform 0.9s ease,
+    opacity 0.6s ease 0.2s;
 }
 
-.photo-backdrop img {
+@keyframes cupid-heart-in {
+  from {
+    transform: scale(0.1);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes cupid-heart-beat {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.16);
+  }
+  55% {
+    transform: scale(0.95);
+  }
+  80% {
+    transform: scale(1.07);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.cupid-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+}
+
+.cupid-burst span {
+  position: absolute;
+  margin: -10px 0 0 -8px;
+  color: #fff;
+  font-size: 18px;
+  text-shadow: 0 0 8px rgba(255, 80, 140, 0.9);
+  animation: cupid-burst 0.7s ease-out forwards;
+}
+
+.cupid-burst span:nth-child(3n) {
+  color: #ffe08a;
+}
+
+@keyframes cupid-burst {
+  from {
+    opacity: 1;
+    transform: rotate(var(--a)) translateY(-10px) scale(0.6);
+  }
+  to {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(-120px) scale(1.1);
+  }
+}
+
+.cupid-arrow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 64px;
+  height: 18px;
+  transform-origin: 100% 50%;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
+}
+
+.cupid-arrow svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.cupid-arrow.gone {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+/* Das Foto: erst im Herz, dann öffnet sich das Herz über den ganzen Bildschirm */
+.cupid-photo {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #1a0710;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.28s ease,
+    clip-path 0.85s cubic-bezier(0.6, 0, 0.25, 1),
+    -webkit-clip-path 0.85s cubic-bezier(0.6, 0, 0.25, 1);
+}
+
+.cupid-photo.in {
+  opacity: 1;
+}
+
+.cupid-shot.phase-show .cupid-photo {
+  pointer-events: auto;
+}
+
+.cupid-shot.phase-close .cupid-photo {
+  opacity: 0;
+  transform: scale(0.96);
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+
+.cupid-photo-blur,
+.cupid-photo-img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  pointer-events: none;
+}
+
+.cupid-photo-blur {
   object-fit: cover;
-  opacity: 0.62;
-  animation: photo-drift 28s linear forwards;
+  filter: blur(26px) brightness(0.6) saturate(1.2);
+  transform: scale(1.15);
 }
 
-.photo-backdrop.move-1 img {
-  transform-origin: 20% 30%;
-}
-.photo-backdrop.move-2 img {
-  transform-origin: 80% 40%;
-  animation-name: photo-drift-out;
-}
-.photo-backdrop.move-3 img {
-  transform-origin: 50% 80%;
+.cupid-photo-img {
+  object-fit: contain;
 }
 
-/* Oben unter der Leiste und unten über den Tabs sanft in den Hintergrund übergehen. */
-.photo-backdrop-fade {
+.cupid-photo.note {
+  background: radial-gradient(circle at 50% 35%, #ff9cc2, #ff3f80 55%, #b3104a);
+}
+
+.cupid-note {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(
-      to bottom,
-      var(--bg) 0,
-      color-mix(in srgb, var(--bg) 35%, transparent) 16%,
-      transparent 34%,
-      transparent 72%,
-      color-mix(in srgb, var(--bg) 70%, transparent) 100%
-    ),
-    radial-gradient(ellipse at 50% 50%, transparent 55%, color-mix(in srgb, var(--bg) 35%, transparent) 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px 32px;
+  color: #fff;
+  text-align: center;
 }
 
-@keyframes photo-drift {
-  from {
-    transform: scale(1.04);
-  }
-  to {
-    transform: scale(1.16);
-  }
+.cupid-note-emoji {
+  font-size: 64px;
+  line-height: 1;
 }
 
-@keyframes photo-drift-out {
-  from {
-    transform: scale(1.16);
-  }
-  to {
-    transform: scale(1.04);
-  }
+.cupid-note-text {
+  margin: 0;
+  max-width: 420px;
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.35;
+  text-shadow: 0 2px 10px rgba(120, 0, 40, 0.35);
 }
 
-/* Solange ein Foto zu sehen ist, werden die Karten zu Milchglas. */
-.app .card,
-.app .stat,
-.app .hero {
-  transition:
-    background-color 1.2s ease,
-    opacity 1.2s ease;
-}
-
-body.photo-on .app .card,
-body.photo-on .app .stat {
-  background-color: color-mix(in srgb, var(--surface) 78%, transparent);
-  backdrop-filter: blur(22px) saturate(1.2);
-  -webkit-backdrop-filter: blur(22px) saturate(1.2);
-}
-
-body.photo-on .app .hero {
+.cupid-note-hint {
+  margin: 0;
+  max-width: 380px;
+  font-size: 0.92rem;
   opacity: 0.9;
 }
 
-body.photo-on .topbar {
-  background: color-mix(in srgb, var(--bg) 70%, transparent);
-}
-
-.photo-pill {
-  position: fixed;
+.cupid-caption {
+  position: absolute;
   left: 50%;
-  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 14px);
-  z-index: 25;
-  max-width: min(86vw, 420px);
-  padding: 7px 14px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  bottom: calc(env(safe-area-inset-bottom) + 58px);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: min(88vw, 440px);
+  padding: 8px 16px;
+  border-radius: 18px;
+  background: rgba(20, 4, 12, 0.5);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  box-shadow: var(--shadow);
-  font-size: 0.85rem;
-  font-weight: 750;
+  color: #fff;
+  pointer-events: none;
+  animation: cupid-rise 0.5s ease both;
+}
+
+.cupid-caption-text {
+  max-width: 100%;
+  font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  pointer-events: none;
-  opacity: 0;
-  animation: photo-pill 8s ease 1s forwards;
 }
 
-@keyframes photo-pill {
-  0% {
+.cupid-caption-by {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.cupid-close-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(env(safe-area-inset-bottom) + 22px);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: cupid-rise 0.5s ease 1.2s both;
+}
+
+.cupid-shot.phase-close .cupid-caption,
+.cupid-shot.phase-close .cupid-close-hint {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+@keyframes cupid-rise {
+  from {
     opacity: 0;
-    transform: translate(-50%, 12px);
+    transform: translate(var(--rise-x, 0), 10px);
   }
-  8%,
-  86% {
+  to {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translate(var(--rise-x, 0), 0);
   }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, 0);
-  }
+}
+
+.cupid-caption {
+  --rise-x: -50%;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .photo-backdrop,
-  .photo-backdrop.out {
-    transform: none;
-  }
-  .photo-backdrop img {
+  .cupid-wing,
+  .cupid-bubble {
     animation: none;
   }
 }

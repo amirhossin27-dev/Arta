@@ -332,7 +332,7 @@ export type RecOf<K extends CollectionKey> = AppData[K][string];
 export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts', 'games', 'periods', 'cycleDays', 'loveDays', 'steps', 'routineDays', 'events', 'photos', 'memos', 'memoItems'];
 
 export type PopupFreq = 'oft' | 'normal' | 'selten' | 'aus';
-/** Wie oft gemeinsame Fotos in den Hintergrund gleiten. */
+/** Wie oft Amor mit einem gemeinsamen Foto vorbeifliegt. */
 export type PhotoFreq = PopupFreq;
 
 /** Gerätebezogene Einstellungen – werden nicht synchronisiert. */
@@ -341,8 +341,10 @@ export interface DeviceState {
   me: PersonId;
   onboarded: boolean;
   popupFreq: PopupFreq;
-  /** Fotos im Hintergrund (`undefined` = „normal“). */
+  /** Wie oft Amor mit Fotos vorbeifliegt (`undefined` = „normal“, alle 5 Minuten). */
   photoFreq?: PhotoFreq;
+  /** So oft wurde Amor schon angetippt – bis dahin zeigt er „Tipp mich an!“. */
+  cupidTaps?: number;
   lastDailyPopup?: string;
   lastSyncAt?: number;
   /** Retro-Sounds in den Spielen (Standard: an). */

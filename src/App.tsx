@@ -6,7 +6,7 @@ import { ExerciseSheet } from './components/exercise';
 import { GameScreen } from './games/GameScreen';
 import { ArcadeInvite } from './games/Invite';
 import { LoveLayer } from './components/LoveLayer';
-import { PhotoBackdrop } from './components/PhotoBackdrop';
+import { Cupid } from './components/Cupid';
 import { PhotoSheet } from './components/photos';
 import { CheerSheet, CoupleSheet, SettingsSheet, SyncSheet } from './components/sheets';
 import { StreakSheet, WeekGoalSheet } from './components/goals';
@@ -45,8 +45,8 @@ const TABS: { id: Tab; label: string; emoji: string }[] = [
 
 const POPUP_INTERVAL = { oft: 90_000, normal: 4 * 60_000, selten: 10 * 60_000 } as const;
 
-/** Während ein Fenster oder ein Spiel offen ist, stören wir nicht mit Einblendungen. */
-const busy = () => !!document.querySelector('.sheet, .game-screen');
+/** Während ein Fenster, ein Spiel oder Amors Foto offen ist, stören wir nicht mit Einblendungen. */
+const busy = () => !!document.querySelector('.sheet, .game-screen, .cupid-shot');
 
 function currentNames() {
   const d = getData();
@@ -199,7 +199,6 @@ export default function App() {
 
   return (
     <div className="app" data-tab={ui.tab}>
-      <PhotoBackdrop />
       <header className="topbar">
         <button className="brand" onClick={() => nav.setTab('heute')}>
           <span className="brand-heart">❤</span> Arta
@@ -260,6 +259,7 @@ export default function App() {
       {sheet?.type === 'memo' && <MemoSheet key={sheet.id ?? `neu-${sheet.template ?? ''}`} id={sheet.id} template={sheet.template} back={sheet.back} onClose={close} />}
       {sheet?.type === 'game' && <GameScreen key={`${sheet.id}-${sheet.join ?? ''}`} id={sheet.id} join={sheet.join} onClose={close} />}
       {live && <ArcadeInvite />}
+      <Cupid />
 
       <LoveLayer />
     </div>

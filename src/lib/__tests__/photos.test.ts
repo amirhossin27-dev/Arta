@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { deriveRoom, liveSummary, newRoom } from '../live';
-import { HELP_UPLOAD_AFTER, livePhotos, nextSlide, planPhotoSync } from '../photos';
+import { HELP_UPLOAD_AFTER, livePhotos, nextPhoto, planPhotoSync } from '../photos';
 import { sealPhoto, unsealPhoto } from '../photoSync';
 import { actions, commitData, emptyData, getData, getDevice } from '../store';
 import { buildPayload, mergeData } from '../sync';
@@ -63,22 +63,22 @@ describe('Foto-Abgleich', () => {
   });
 });
 
-describe('Diashow im Hintergrund', () => {
+describe('Amors Fotoauswahl', () => {
   it('zeigt jedes Foto, bevor sich eins wiederholt', () => {
     const ids = ['a1', 'b2', 'c3', 'd4', 'e5'];
     const recent: string[] = [];
     let seed = 7;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
     for (let i = 0; i < 4; i++) {
-      const next = nextSlide(ids, recent, rnd)!;
+      const next = nextPhoto(ids, recent, rnd)!;
       expect(recent).not.toContain(next);
       recent.push(next);
     }
   });
 
   it('kommt mit einem einzigen oder gar keinem Foto zurecht', () => {
-    expect(nextSlide(['solo'], ['solo'])).toBe('solo');
-    expect(nextSlide([], [])).toBeUndefined();
+    expect(nextPhoto(['solo'], ['solo'])).toBe('solo');
+    expect(nextPhoto([], [])).toBeUndefined();
   });
 
   it('kennt nur nicht gelöschte Fotos, neueste zuerst', () => {
