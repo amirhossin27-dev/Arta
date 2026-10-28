@@ -1,4 +1,4 @@
-import { EXERCISE_BY_ID } from '../data/exercises';
+import { EXERCISE_BY_ID, type Muscle } from '../data/exercises';
 import { LEVELS } from '../data/messages';
 import { addDays, startOfWeek } from './date';
 import { exerciseKcal, ZERO, type Nutrition } from './nutrition';
@@ -49,6 +49,19 @@ export function burnedFor(d: AppData, date: string, person: PersonId): number {
   return planFor(d, date, person)
     .filter((p) => p.done)
     .reduce((sum, p) => sum + exerciseKcal(EXERCISE_BY_ID[p.exerciseId], weight), 0);
+}
+
+/** Wie oft jede Muskelgruppe in der Woche des Datums (Mo–So) mit erledigten Einheiten trainiert wurde. */
+export function musclesThisWeek(d: AppData, date: string, person: PersonId): Map<Muscle, number> {
+  const from = startOfWeek(date);
+  const to = addDays(from, 6);
+  const hits = new Map<Muscle, number>();
+  for (const p of alive(d.plan)) {
+    const ex = EXERCISE_BY_ID[p.exerciseId];
+    if (!ex || !p.done || p.personId !== person || p.date < from || p.date > to) continue;
+    for (const m of ex.muscles) hits.set(m, (hits.get(m) ?? 0) + 1);
+  }
+  return hits;
 }
 
 export function activeMinutes(d: AppData, date: string, person: PersonId): number {

@@ -12,7 +12,7 @@ import { other, type Person, type PopupFreq } from '../lib/types';
 import { nav } from '../lib/ui';
 import { WeekGoalPicker } from './goals';
 import { NotifySettings } from './notify';
-import { PhotoFreqPicker } from './photos';
+import { CUPID_FREQ_HINT, PhotoFreqPicker } from './photos';
 import { Segmented, Sheet } from './ui';
 
 // ───────────────────────── Sync ─────────────────────────
@@ -546,10 +546,11 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
         />
       </div>
 
-      <h3>📸 Fotos im Hintergrund</h3>
+      <h3>💘 Amor mit euren Fotos</h3>
       <div className="inset">
-        <p className="muted small">Wie oft sollen eure gemeinsamen Fotos sanft in den Hintergrund gleiten?</p>
+        <p className="muted small">Unter „Heute“ und „Liebe“ fliegt ab und zu ein kleiner Amor vorbei. Tippst du ihn an, schießt er seinen Pfeil in ein Herz und zeigt dir eins eurer Fotos. Wie oft soll er kommen?</p>
         <PhotoFreqPicker />
+        <p className="hint">{CUPID_FREQ_HINT}</p>
         <button
           className="btn soft block"
           onClick={() => {

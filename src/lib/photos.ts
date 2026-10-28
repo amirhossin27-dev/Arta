@@ -1,13 +1,10 @@
 import type { AppData, Photo, PersonId, PhotoFreq } from './types';
 
-/** Mehr Fotos braucht der Hintergrund nicht – und so bleiben Handy und Datenbank schlank. */
+/** Mehr Fotos braucht Amor nicht – und so bleiben Handy und Datenbank schlank. */
 export const MAX_PHOTOS = 60;
 
-/** Pause zwischen zwei Fotos im Hintergrund. */
-export const PHOTO_INTERVAL: Record<Exclude<PhotoFreq, 'aus'>, number> = { oft: 2 * 60_000, normal: 5 * 60_000, selten: 12 * 60_000 };
-
-/** So lange bleibt ein Foto im Hintergrund stehen. */
-export const PHOTO_SHOW_MS = 24_000;
+/** Pause zwischen zwei Flügen von Amor (unter „Heute“ und „Liebe“). */
+export const CUPID_INTERVAL: Record<Exclude<PhotoFreq, 'aus'>, number> = { oft: 2 * 60_000, normal: 5 * 60_000, selten: 12 * 60_000 };
 
 /** Lädt das Handy, das ein Foto hinzugefügt hat, es nicht hoch, springt nach dieser Zeit das andere ein. */
 export const HELP_UPLOAD_AFTER = 60 * 60_000;
@@ -68,10 +65,10 @@ export function planPhotoSync(input: {
 }
 
 /**
- * Nächstes Foto für den Hintergrund: zufällig, aber keines der zuletzt gezeigten – erst wenn alle
+ * Nächstes Foto, das Amor zeigt: zufällig, aber keines der zuletzt gezeigten – erst wenn alle
  * einmal dran waren, geht es von vorne los.
  */
-export function nextSlide(ids: readonly string[], recent: readonly string[], rnd: () => number = Math.random): string | undefined {
+export function nextPhoto(ids: readonly string[], recent: readonly string[], rnd: () => number = Math.random): string | undefined {
   if (!ids.length) return undefined;
   const keep = Math.min(recent.length, Math.max(0, ids.length - 1), Math.ceil(ids.length * 0.7));
   const blocked = new Set(recent.slice(-keep));
@@ -79,24 +76,24 @@ export function nextSlide(ids: readonly string[], recent: readonly string[], rnd
   return pool[Math.floor(rnd() * pool.length)] ?? ids[0];
 }
 
-// ───── „Jetzt zeigen“ ─────
+// ───── „Amor, bring das mal vorbei“ ─────
 
-export interface SlideRequest {
+export interface CupidRequest {
   id: string;
-  /** Statt der Bildunterschrift, z. B. „Neues Foto von Mila“. */
+  /** Statt der Bildunterschrift, z. B. „Neues Foto von Mila“ – steht auch in Amors Sprechblase. */
   label?: string;
 }
 
-const slideListeners = new Set<(r: SlideRequest) => void>();
+const cupidListeners = new Set<(r: CupidRequest) => void>();
 
-/** Ein bestimmtes Foto sofort in den Hintergrund gleiten lassen. */
-export function requestSlide(r: SlideRequest) {
-  slideListeners.forEach((l) => l(r));
+/** Amor gleich (sobald man unter „Heute“ oder „Liebe“ ist) mit genau diesem Foto losschicken. */
+export function requestCupid(r: CupidRequest) {
+  cupidListeners.forEach((l) => l(r));
 }
 
-export function onSlideRequest(fn: (r: SlideRequest) => void) {
-  slideListeners.add(fn);
+export function onCupidRequest(fn: (r: CupidRequest) => void) {
+  cupidListeners.add(fn);
   return () => {
-    slideListeners.delete(fn);
+    cupidListeners.delete(fn);
   };
 }

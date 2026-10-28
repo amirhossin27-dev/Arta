@@ -4,7 +4,7 @@ import { cls, usePeople } from '../lib/hooks';
 import { useLive } from '../lib/live';
 import { showLove } from '../lib/love';
 import { askPersistentStorage, deletePhoto, preparePhoto, savePhoto, useLocalPhotos, usePhotoUrl } from '../lib/photoStore';
-import { livePhotos, MAX_PHOTOS, requestSlide } from '../lib/photos';
+import { livePhotos, MAX_PHOTOS, requestCupid } from '../lib/photos';
 import { uid } from '../lib/random';
 import { actions, useData, useDevice } from '../lib/store';
 import { other, type Photo, type PhotoFreq } from '../lib/types';
@@ -14,7 +14,7 @@ import { Empty, Segmented, Sheet } from './ui';
 /** So viele Fotos zeigt das Album, bevor „Alle anzeigen“ kommt. */
 const PREVIEW = 9;
 
-/** Wie oft Fotos in den Hintergrund gleiten – im Album und in den Einstellungen. */
+/** Wie oft Amor mit einem Foto vorbeifliegt – im Album und in den Einstellungen. */
 export function PhotoFreqPicker() {
   const device = useDevice();
   return (
@@ -32,6 +32,9 @@ export function PhotoFreqPicker() {
   );
 }
 
+/** Was die Häufigkeiten bedeuten. */
+export const CUPID_FREQ_HINT = 'Oft = alle 2 Min. · Normal = alle 5 Min. · Selten = alle 12 Min. – nur unter „Heute“ und „Liebe“.';
+
 function PhotoTile({ photo }: { photo: Photo }) {
   const { partner } = usePeople();
   const live = useLive();
@@ -45,7 +48,7 @@ function PhotoTile({ photo }: { photo: Photo }) {
   );
 }
 
-/** „Unsere Fotos“ unter Liebe: Fotos hinzufügen, ansehen und einstellen, wie oft sie erscheinen. */
+/** „Unsere Fotos“ unter Liebe: Fotos hinzufügen, ansehen und einstellen, wie oft Amor sie bringt. */
 export function PhotoAlbum() {
   const data = useData();
   const { partner } = usePeople();
@@ -94,10 +97,10 @@ export function PhotoAlbum() {
       showLove({
         emoji: '📸',
         title: n === 1 ? 'Foto hinzugefügt!' : `${n} Fotos hinzugefügt!`,
-        text: live ? `Ab und zu gleiten sie in den Hintergrund – auch bei ${partner.name}. 💞` : 'Ab und zu gleiten sie jetzt sanft in den Hintergrund. 💞',
+        text: live ? `Amor bringt sie ab jetzt vorbei – auch bei ${partner.name}. Gleich kommt er! 💘` : 'Amor bringt sie ab jetzt vorbei – gleich kommt er zum ersten Mal! 💘',
         tone: 'love',
       });
-      requestSlide({ id: newest, label: 'Neu in eurem Album 💞' });
+      requestCupid({ id: newest, label: 'Neu im Album 💞' });
     }
   };
 
@@ -125,7 +128,7 @@ export function PhotoAlbum() {
       />
       {photos.length === 0 ? (
         <Empty emoji="🖼️" title="Noch keine gemeinsamen Fotos">
-          <p>Füge eure Lieblingsbilder hinzu – ab und zu gleitet eins sanft in den Hintergrund der App. 💞</p>
+          <p>Füge eure Lieblingsbilder hinzu – alle paar Minuten fliegt dann ein kleiner Amor über „Heute“ und „Liebe“. Tipp ihn an, und er schießt eins davon aus einem Herz hervor. 💘</p>
           <button className="btn primary" onClick={() => fileRef.current?.click()} disabled={!!progress}>
             📷 Fotos auswählen
           </button>
@@ -151,8 +154,9 @@ export function PhotoAlbum() {
       )}
       {error && <p className="notice warn small">{error}</p>}
       <div className="photo-freq">
-        <span className="field-label">Im Hintergrund zeigen</span>
+        <span className="field-label">💘 Wie oft Amor vorbeifliegt</span>
         <PhotoFreqPicker />
+        <span className="hint">{CUPID_FREQ_HINT}</span>
       </div>
       {live ? (
         <p className="hint">⚡ Verschlüsselt geteilt – eure Fotos landen auch auf dem Handy von {partner.name}.</p>
@@ -252,10 +256,10 @@ export function PhotoSheet({ id, onClose }: { id: string; onClose: () => void })
           onClick={() => {
             saveCaption();
             onClose();
-            requestSlide({ id });
+            requestCupid({ id });
           }}
         >
-          ✨ Im Hintergrund zeigen
+          💘 Von Amor bringen lassen
         </button>
         {mine && !confirm && (
           <button className="btn danger-ghost" onClick={() => setConfirm(true)}>

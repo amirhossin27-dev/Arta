@@ -1,4 +1,4 @@
-import { EXERCISES, type Exercise } from '../data/exercises';
+import { EXERCISES, MUSCLE_BY_ID, type Exercise } from '../data/exercises';
 import { RECIPES, type Recipe } from '../data/recipes';
 import { DAILY_LOVE, QUESTIONS } from '../data/messages';
 import { pickSeeded, seededShuffle } from './random';
@@ -15,8 +15,10 @@ export interface DailyUnits {
  * damit beide Handys dieselben Vorschläge zeigen.
  */
 export function dailyUnits(dateKey: string): DailyUnits {
+  const month = Number(dateKey.slice(5, 7));
+  const pool = EXERCISES.filter((e) => !e.months || e.months.includes(month));
   const home = seededShuffle(
-    EXERCISES.filter((e) => e.place === 'zuhause'),
+    pool.filter((e) => e.place === 'zuhause'),
     `home-${dateKey}`,
   );
   // Abwechslung: möglichst eine Übung je Kategorie
@@ -25,16 +27,19 @@ export function dailyUnits(dateKey: string): DailyUnits {
     const ex = home.find((e) => e.category === cat && !zuhause.includes(e));
     if (ex) zuhause.push(ex);
   }
-  const extra = home.find((e) => !zuhause.includes(e) && e.category === 'Kraft');
+  // Die zweite Kraftübung zielt auf eine andere Körperregion, damit über den Tag möglichst viele Muskeln drankommen
+  const region = (e: Exercise | undefined) => (e?.muscles[0] ? MUSCLE_BY_ID[e.muscles[0]].region : undefined);
+  const kraft = home.filter((e) => !zuhause.includes(e) && e.category === 'Kraft');
+  const extra = kraft.find((e) => region(e) !== region(zuhause[0])) ?? kraft[0];
   if (extra) zuhause.splice(1, 0, extra);
 
   const draussen = seededShuffle(
-    EXERCISES.filter((e) => e.place === 'draussen'),
+    pool.filter((e) => e.place === 'draussen'),
     `out-${dateKey}`,
   ).slice(0, 3);
 
   const together = seededShuffle(
-    EXERCISES.filter((e) => e.place === 'zusammen'),
+    pool.filter((e) => e.place === 'zusammen'),
     `duo-${dateKey}`,
   );
   const indoor = together.find((e) => !e.outdoor);
