@@ -255,6 +255,37 @@ export interface Photo extends Rec {
   ready?: boolean;
 }
 
+export type MemoColor = 'gelb' | 'rosa' | 'mint' | 'himmel' | 'lila' | 'pfirsich';
+
+/**
+ * Eine gemeinsame Notiz (Packliste, Geschenkideen, To-dos …). Sie gehört euch beiden – jedes
+ * Handy darf sie ändern. Die Punkte einer Checkliste sind eigene Datensätze (`memoItems`), damit
+ * beim Sync keiner verloren geht, wenn ihr gleichzeitig etwas abhakt oder hinzufügt.
+ */
+export interface Memo extends Rec {
+  title: string;
+  text: string;
+  emoji: string;
+  color: MemoColor;
+  /** Angepinnte Notizen stehen oben. */
+  pinned?: boolean;
+  createdBy: PersonId;
+  createdAt: number;
+  /** Wer Titel, Text, Farbe oder Pin zuletzt geändert hat. */
+  editedBy: PersonId;
+}
+
+/** Ein Punkt auf der Checkliste einer Notiz. */
+export interface MemoItem extends Rec {
+  memoId: string;
+  text: string;
+  done: boolean;
+  /** Reihenfolge – neue Punkte kommen ans Ende. */
+  pos: number;
+  /** Wer den Punkt zuletzt geändert (angelegt, abgehakt, umbenannt) hat. */
+  by: PersonId;
+}
+
 export interface AppData {
   v: 1;
   persons: Record<PersonId, Person>;
@@ -274,6 +305,8 @@ export interface AppData {
   events: Record<string, CalEvent>;
   routineDays: Record<string, RoutineDay>;
   photos: Record<string, Photo>;
+  memos: Record<string, Memo>;
+  memoItems: Record<string, MemoItem>;
 }
 
 export type CollectionKey =
@@ -291,10 +324,12 @@ export type CollectionKey =
   | 'steps'
   | 'routineDays'
   | 'events'
-  | 'photos';
+  | 'photos'
+  | 'memos'
+  | 'memoItems';
 export type RecOf<K extends CollectionKey> = AppData[K][string];
 
-export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts', 'games', 'periods', 'cycleDays', 'loveDays', 'steps', 'routineDays', 'events', 'photos'];
+export const COLLECTIONS: CollectionKey[] = ['plan', 'meals', 'shopping', 'notes', 'coupons', 'moods', 'hearts', 'games', 'periods', 'cycleDays', 'loveDays', 'steps', 'routineDays', 'events', 'photos', 'memos', 'memoItems'];
 
 export type PopupFreq = 'oft' | 'normal' | 'selten' | 'aus';
 /** Wie oft gemeinsame Fotos in den Hintergrund gleiten. */
@@ -316,6 +351,8 @@ export interface DeviceState {
   notify?: boolean;
   /** Gemeinsamer Live-Sync-Raum (Echtzeit über das Internet). */
   live?: LiveRoom;
+  /** Notizen: bis zu welcher Änderung (Zeitstempel) hast du sie gesehen? Für das „neu“ bei Änderungen vom Schatz. */
+  memosSeen?: Record<string, number>;
 }
 
 /**

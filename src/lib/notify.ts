@@ -14,10 +14,11 @@ import {
 } from './live';
 import { PUSH_RELAY_URL } from './liveConfig';
 import { extraDays, freshEvents, nextStart, whenText } from './events';
+import { memoLabel } from './memos';
 import { heartsOn } from './stats';
 import { actions, getData, getDevice, onSent, subscribe, type Sent } from './store';
 import { fromB64Url, toB64Url } from './sync';
-import { other, type AppData, type CalEvent, type Coupon, type LoveNote, type PersonId } from './types';
+import { other, type AppData, type CalEvent, type Coupon, type LoveNote, type Memo, type PersonId } from './types';
 import { buildRelayRequest, generateVapidKeys, type PushMessage, type PushTarget, type VapidKeys } from './webpush';
 
 /**
@@ -59,6 +60,11 @@ export function eventMessage(e: CalEvent, from: string, today = todayKey()): Pus
   const start = nextStart(e, today) ?? e.date;
   const when = whenText({ event: e, start, end: addDays(start, extraDays(e)) }, today);
   return { title: `📅 Neuer Termin von ${from}`, body: `${e.emoji} ${e.title} · ${when}`, tag: `event-${e.id}`, tab: 'heute' };
+}
+
+/** `label`: Titel der Notiz (oder ihre erste Zeile), siehe memoLabel. */
+export function memoMessage(m: Memo, from: string, label: string): PushMessage {
+  return { title: `📝 Neue Notiz von ${from}`, body: `${m.emoji} ${label}`, tag: `memo-${m.id}`, tab: 'heute' };
 }
 
 export function inviteMessage(game: { name: string; emoji: string }, from: string, id: string): PushMessage {
@@ -390,6 +396,8 @@ function onOutgoing(sent: Sent) {
     void sendToPartner(couponMessage(sent.coupon, me), 2 * 24 * HOUR);
   } else if (sent.type === 'event') {
     void sendToPartner(eventMessage(sent.event, me), 2 * 24 * HOUR);
+  } else if (sent.type === 'memo') {
+    void sendToPartner(memoMessage(sent.memo, me, memoLabel(d, sent.memo)), 2 * 24 * HOUR);
   } else {
     window.clearTimeout(heartTimer);
     heartTimer = window.setTimeout(() => {

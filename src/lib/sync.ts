@@ -18,6 +18,7 @@ export interface SyncPayload {
 }
 
 const DATED: CollectionKey[] = ['plan', 'meals', 'moods', 'hearts', 'cycleDays', 'steps', 'routineDays'];
+const ALWAYS_FULL: CollectionKey[] = ['games', 'periods', 'loveDays', 'events', 'photos', 'memos', 'memoItems'];
 
 /** Nur relevante Daten mitschicken, damit der Link kurz bleibt. */
 export function buildPayload(d: AppData, from: PersonId, deviceId: string, today: string): SyncPayload {
@@ -32,8 +33,9 @@ export function buildPayload(d: AppData, from: PersonId, deviceId: string, today
       // Spielbilanzen sind winzig (eine Zeile pro Spiel und Gerät) – immer komplett mitschicken.
       // Dasselbe gilt für Perioden und Liebestage – Vorhersage und Rückblick brauchen die ganze Historie –
       // und für Termine (damit beide Handys denselben Kalender ins Abo schreiben) und die
-      // Foto-Beschreibungen (die Bilder selbst reisen getrennt, siehe photoSync.ts).
-      if (key === 'games' || key === 'periods' || key === 'loveDays' || key === 'events' || key === 'photos') return true;
+      // Foto-Beschreibungen (die Bilder selbst reisen getrennt, siehe photoSync.ts) und die
+      // gemeinsamen Notizen (eine alte Packliste soll auch auf einem neu verbundenen Handy da sein).
+      if (ALWAYS_FULL.includes(key)) return true;
       return r.updatedAt > recentTs || (key === 'notes' && !r.seen);
     });
     (out as unknown as Record<string, unknown>)[key] = Object.fromEntries(kept);
@@ -50,6 +52,7 @@ export interface MergeStats {
   newPlan: number;
   newEvents: number;
   newPhotos: number;
+  newMemos: number;
 }
 
 function newer<T extends Rec>(local: T | undefined, remote: T): boolean {
@@ -58,7 +61,7 @@ function newer<T extends Rec>(local: T | undefined, remote: T): boolean {
 
 export function mergeData(local: AppData, remoteRaw: AppData, me: PersonId): { data: AppData; stats: MergeStats } {
   const remote = normalizeData(remoteRaw);
-  const stats: MergeStats = { changed: 0, newNotes: 0, newSurprises: 0, newCoupons: 0, newShopping: 0, newPlan: 0, newEvents: 0, newPhotos: 0 };
+  const stats: MergeStats = { changed: 0, newNotes: 0, newSurprises: 0, newCoupons: 0, newShopping: 0, newPlan: 0, newEvents: 0, newPhotos: 0, newMemos: 0 };
   let maxTs = 0;
   const out: AppData = { ...local, persons: { ...local.persons } };
 
@@ -99,6 +102,7 @@ export function mergeData(local: AppData, remoteRaw: AppData, me: PersonId): { d
       if (key === 'plan') stats.newPlan++;
       if (key === 'events') stats.newEvents++;
       if (key === 'photos' && (rec as unknown as { by: PersonId }).by !== me) stats.newPhotos++;
+      if (key === 'memos' && (rec as unknown as { createdBy: PersonId }).createdBy !== me) stats.newMemos++;
     }
     (out as unknown as Record<string, unknown>)[key] = merged;
   }

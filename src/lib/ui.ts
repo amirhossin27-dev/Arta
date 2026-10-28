@@ -25,6 +25,9 @@ export type SheetState =
   | { type: 'calendar'; back?: boolean }
   | { type: 'gesund'; view?: 'routinen' | 'tipps' }
   | { type: 'photo'; id: string }
+  | { type: 'memos' }
+  /** Notiz öffnen (`id`) oder neu anlegen (aus `template`); `back`: danach wieder zur Notizliste. */
+  | { type: 'memo'; id?: string; template?: string; back?: boolean }
   | { type: 'game'; id: GameId; join?: string };
 
 interface UIState {

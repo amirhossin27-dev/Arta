@@ -13,6 +13,7 @@ import { StreakSheet, WeekGoalSheet } from './components/goals';
 import { HealthSheet } from './components/healthSetup';
 import { CalendarSheet, EventSheet, EventsSheet } from './components/events';
 import { GesundSheet, useRoutineReminders } from './components/routines';
+import { MemoSheet, MemosSheet } from './components/memos';
 import { StepsSheet, useStepMoments } from './components/steps';
 import { dailyLove } from './lib/daily';
 import { todayKey } from './lib/date';
@@ -255,6 +256,8 @@ export default function App() {
       {sheet?.type === 'calendar' && <CalendarSheet back={sheet.back} onClose={close} />}
       {sheet?.type === 'gesund' && <GesundSheet view={sheet.view} onClose={close} />}
       {sheet?.type === 'photo' && <PhotoSheet id={sheet.id} onClose={close} />}
+      {sheet?.type === 'memos' && <MemosSheet onClose={close} />}
+      {sheet?.type === 'memo' && <MemoSheet key={sheet.id ?? `neu-${sheet.template ?? ''}`} id={sheet.id} template={sheet.template} back={sheet.back} onClose={close} />}
       {sheet?.type === 'game' && <GameScreen key={`${sheet.id}-${sheet.join ?? ''}`} id={sheet.id} join={sheet.join} onClose={close} />}
       {live && <ArcadeInvite />}
 

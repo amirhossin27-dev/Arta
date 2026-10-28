@@ -2,6 +2,7 @@ import type { MouseEvent } from 'react';
 import { MEAL_LABEL } from '../data/recipes';
 import { MOODS } from '../data/messages';
 import { UpcomingCard } from '../components/events';
+import { MemosCard } from '../components/memos';
 import { PlanRow } from '../components/exercise';
 import { HealthCard } from '../components/routines';
 import { PersonSteps } from '../components/steps';
@@ -162,6 +163,8 @@ export function Today() {
       <CycleTodayCard />
 
       <UpcomingCard />
+
+      <MemosCard />
 
       <div className="stats-row">
         <div className="stat">
