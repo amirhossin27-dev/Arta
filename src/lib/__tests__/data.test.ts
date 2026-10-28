@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EXERCISES } from '../../data/exercises';
+import { EXERCISES, MUSCLE_BY_ID, MUSCLES } from '../../data/exercises';
 import { CATEGORY_ORDER, CUISINE_ORDER, RECIPES } from '../../data/recipes';
 import { INGREDIENT_DB } from '../../data/ingredients';
 import { recipeNutrition, exerciseKcal, formatQty, suggestKcalGoal } from '../nutrition';
@@ -82,6 +82,26 @@ describe('Inhalte', () => {
   });
 });
 
+describe('Übungen', () => {
+  it('nennt für jede Übung gültige Muskelgruppen', () => {
+    for (const e of EXERCISES) {
+      for (const m of e.muscles) expect(MUSCLE_BY_ID[m], `${e.id}: ${m}`).toBeDefined();
+      expect(new Set(e.muscles).size, e.id).toBe(e.muscles.length);
+      if (e.category !== 'Mobilität') expect(e.muscles.length, e.id).toBeGreaterThan(0);
+      for (const month of e.months ?? []) expect(month >= 1 && month <= 12, e.id).toBe(true);
+    }
+  });
+
+  it('trainiert jede Muskelgruppe auch zuhause ohne Geräte', () => {
+    expect(EXERCISES.length).toBeGreaterThanOrEqual(90);
+    for (const m of MUSCLES) {
+      const all = EXERCISES.filter((e) => e.muscles.includes(m.id) && e.category !== 'Mobilität');
+      expect(all.length, m.label).toBeGreaterThanOrEqual(4);
+      expect(all.some((e) => e.place === 'zuhause'), m.label).toBe(true);
+    }
+  });
+});
+
 describe('Tagesangebot', () => {
   it('ist pro Tag stabil und wechselt zwischen Tagen', () => {
     const a = dailyUnits('2026-10-25');
@@ -98,6 +118,29 @@ describe('Tagesangebot', () => {
     expect(u.zusammen.length).toBe(2);
     expect(u.zuhause.every((e) => e.place === 'zuhause')).toBe(true);
     expect(new Set(u.zuhause.map((e) => e.category)).size).toBeGreaterThanOrEqual(4);
+  });
+
+  it('verteilt die Kraftübungen auf verschiedene Körperregionen', () => {
+    for (let i = 1; i <= 28; i++) {
+      const date = `2026-02-${String(i).padStart(2, '0')}`;
+      const kraft = dailyUnits(date).zuhause.filter((e) => e.category === 'Kraft');
+      expect(kraft.length, date).toBe(2);
+      expect(MUSCLE_BY_ID[kraft[0].muscles[0]].region, date).not.toBe(MUSCLE_BY_ID[kraft[1].muscles[0]].region);
+    }
+  });
+
+  it('schlägt Saisonsport nur in der passenden Jahreszeit vor', () => {
+    const ids = (month: string) =>
+      new Set(
+        Array.from({ length: 28 }, (_, i) => {
+          const u = dailyUnits(`2026-${month}-${String(i + 1).padStart(2, '0')}`);
+          return [...u.draussen, ...u.zusammen].map((e) => e.id);
+        }).flat(),
+      );
+    const winter = ids('01');
+    const summer = ids('07');
+    expect(winter.has('stand-up-paddling') || winter.has('kajak')).toBe(false);
+    expect(summer.has('eislaufen')).toBe(false);
   });
 
   it('schlägt für jede Mahlzeit ein Gericht vor', () => {

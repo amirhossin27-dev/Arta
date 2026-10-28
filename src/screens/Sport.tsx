@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { EXERCISES, PLACE_LABEL, type ExerciseCategory } from '../data/exercises';
-import { ExerciseCard, PlanRow } from '../components/exercise';
+import { useRef, useState } from 'react';
+import { EXERCISES, MUSCLE_BY_ID, MUSCLES, PLACE_LABEL, type ExerciseCategory, type Muscle } from '../data/exercises';
+import { ExerciseCard, MuscleCheck, PlanRow } from '../components/exercise';
 import { StepsCard } from '../components/steps';
 import { Chips, Empty, Segmented, WeekStrip } from '../components/ui';
 import { dailyUnits } from '../lib/daily';
@@ -33,7 +33,9 @@ export function Sport() {
   const [view, setView] = useState<View>('angebot');
   const [place, setPlace] = useState<'alle' | Place>('alle');
   const [cat, setCat] = useState<'alle' | ExerciseCategory>('alle');
+  const [muscle, setMuscle] = useState<'alle' | Muscle>('alle');
   const [query, setQuery] = useState('');
+  const allRef = useRef<HTMLDivElement>(null);
 
   const units = dailyUnits(date);
   const myPlan = planFor(data, date, me.id);
@@ -45,8 +47,18 @@ export function Sport() {
     (e) =>
       (place === 'alle' || e.place === place) &&
       (cat === 'alle' || e.category === cat) &&
+      (muscle === 'alle' || e.muscles.includes(muscle)) &&
       (!query.trim() || e.name.toLowerCase().includes(query.trim().toLowerCase())),
   );
+
+  const findFor = (m: Muscle) => {
+    setView('alle');
+    setPlace('alle');
+    setCat('alle');
+    setQuery('');
+    setMuscle(m);
+    requestAnimationFrame(() => allRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
 
   return (
     <section className="screen">
@@ -80,6 +92,7 @@ export function Sport() {
 
       <StepsCard date={date} />
 
+      <div ref={allRef} className="scroll-anchor" />
       <Segmented
         value={view}
         onChange={setView}
@@ -112,6 +125,7 @@ export function Sport() {
               </div>
             );
           })}
+          <MuscleCheck date={date} onFind={findFor} />
         </>
       )}
 
@@ -134,6 +148,7 @@ export function Sport() {
               </Empty>
             )}
           </div>
+          <MuscleCheck date={date} onFind={findFor} />
           <div className="card">
             <div className="card-head">
               <h2>
@@ -183,6 +198,19 @@ export function Sport() {
               ['Mobilität', 'Mobilität'],
             ]}
           />
+          <Chips value={muscle} onChange={setMuscle} options={[['alle', 'Alle Muskeln'], ...MUSCLES.map((m): [Muscle, string] => [m.id, m.label])]} />
+          <p className="muted small filter-count">
+            {filtered.length} {filtered.length === 1 ? 'Übung' : 'Übungen'}
+            {muscle !== 'alle' && (
+              <>
+                {' '}
+                für <b>{MUSCLE_BY_ID[muscle].label}</b>
+                <button className="link" onClick={() => setMuscle('alle')}>
+                  ✕ Filter weg
+                </button>
+              </>
+            )}
+          </p>
           <div className="ex-list">
             {filtered.map((ex) => (
               <ExerciseCard key={ex.id} ex={ex} date={date} planned={planned.has(ex.id)} />

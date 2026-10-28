@@ -1,11 +1,21 @@
 import { useState, type MouseEvent } from 'react';
-import { EXERCISE_BY_ID, LEVEL_LABEL, PLACE_LABEL, type Exercise } from '../data/exercises';
+import {
+  EXERCISE_BY_ID,
+  LEVEL_LABEL,
+  MUSCLE_BY_ID,
+  MUSCLES,
+  PLACE_LABEL,
+  REGION_LABEL,
+  type BodyRegion,
+  type Exercise,
+  type Muscle,
+} from '../data/exercises';
 import { celebrateDone } from '../lib/celebrate';
-import { addDays, relativeDay, todayKey } from '../lib/date';
+import { addDays, formatShort, relativeDay, startOfWeek, todayKey } from '../lib/date';
 import { cls, usePeople } from '../lib/hooks';
 import { heartBurst, showLove } from '../lib/love';
 import { exerciseKcal } from '../lib/nutrition';
-import { SLOT_LABEL, SLOT_ORDER } from '../lib/stats';
+import { musclesThisWeek, SLOT_LABEL, SLOT_ORDER } from '../lib/stats';
 import { actions, useData, type Who } from '../lib/store';
 import type { PlanItem, Slot } from '../lib/types';
 import { nav } from '../lib/ui';
@@ -79,6 +89,52 @@ export function PlanRow({ item, editable }: { item: PlanItem; editable: boolean 
           ✕
         </button>
       )}
+    </div>
+  );
+}
+
+const REGIONS: BodyRegion[] = ['oben', 'mitte', 'unten'];
+
+/** Welche Muskelgruppen diese Woche schon dran waren – offene führen zu passenden Übungen. */
+export function MuscleCheck({ date, onFind }: { date: string; onFind: (m: Muscle) => void }) {
+  const data = useData();
+  const { me } = usePeople();
+  const hits = musclesThisWeek(data, date, me.id);
+  const count = MUSCLES.filter((m) => hits.has(m.id)).length;
+  const week = startOfWeek(date);
+  const weekLabel = week === startOfWeek(todayKey()) ? 'diese Woche' : `Woche ab ${formatShort(week)}`;
+  return (
+    <div className="card muscle-check">
+      <div className="card-head">
+        <h2>🗺️ Muskel-Check</h2>
+        <span className="muted small">
+          {count}/{MUSCLES.length} · {weekLabel}
+        </span>
+      </div>
+      {REGIONS.map((r) => (
+        <div key={r} className="muscle-region">
+          <span className="muscle-region-label">
+            {REGION_LABEL[r].emoji} {REGION_LABEL[r].label}
+          </span>
+          <div className="muscle-chips">
+            {MUSCLES.filter((m) => m.region === r).map((m) => {
+              const n = hits.get(m.id) ?? 0;
+              return (
+                <button key={m.id} className={cls('muscle-chip', n > 0 && 'hit')} onClick={() => onFind(m.id)}>
+                  {n > 0 && '✓ '}
+                  {m.label}
+                  {n > 1 && <small> ×{n}</small>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      <p className="hint">
+        {count === MUSCLES.length
+          ? 'Ganzkörper-Woche geschafft – jede Muskelgruppe war dran! 🏆'
+          : 'Zählt deine erledigten Einheiten von Montag bis Sonntag. Tipp auf eine Muskelgruppe, um passende Übungen zu finden.'}
+      </p>
     </div>
   );
 }
@@ -181,6 +237,18 @@ export function ExerciseSheet({ id, date, planFirst, onClose }: { id: string; da
           <span>kcal {partner.name}</span>
         </div>
       </div>
+      {ex.muscles.length > 0 && (
+        <>
+          <h3>{ex.category === 'Mobilität' ? '🧘 Das lockerst du' : '💪 Das trainierst du'}</h3>
+          <div className="badges">
+            {ex.muscles.map((m, i) => (
+              <span key={m} className={cls('badge', i === 0 && 'muscle-main')}>
+                {MUSCLE_BY_ID[m].label}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
       {planFirst && form}
       <h3>So geht’s</h3>
       <ol className="steps">
