@@ -78,25 +78,17 @@ export function Games() {
         </p>
       </div>
 
-      <div className={cls('online-banner', live && 'on')}>
-        <span className="online-banner-emoji">🌐</span>
-        <span className="grow">
-          {live ? (
-            <>
-              <b>Online spielen ist bereit.</b> Wählt im Spiel „🌐 Online“ – {partner.name} bekommt die Einladung direkt aufs Handy.
-            </>
-          ) : (
-            <>
-              <b>Online gegeneinander spielen?</b> Einmal per Live-Sync verbinden – dann klappt's auch aus der Ferne.
-            </>
-          )}
-        </span>
-        {!live && (
+      {!live && (
+        <div className="online-banner">
+          <span className="online-banner-emoji">🌐</span>
+          <span className="grow">
+            <b>Online gegeneinander spielen?</b> Einmal per Live-Sync verbinden – dann klappt's auch aus der Ferne.
+          </span>
           <button className="btn soft small" onClick={() => nav.open({ type: 'sync' })}>
             🔄 Verbinden
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {SECTIONS.map((cat) => (
         <div key={cat}>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
-import { buzz, heartPath, noise, outlinedText, oval, tone, useFillCanvas, useLoop, useTouchLock } from './engine';
+import { buzz, heartPath, noise, outlinedText, oval, tone, useFillCanvas, useLoop } from './engine';
 import { FWD, HALF, LANE, newRun, rightOf, runScore, runStep, segPoint, TURN_WINDOW, yawOf, type Decor, type Obstacle, type RunInput, type RunState, type Seg } from './runner';
 import type { GameProps } from './types';
 
@@ -495,10 +495,8 @@ export function Runner({ best, onEnd }: GameProps) {
   const [hud, setHud] = useState({ m: 0, hearts: 0, score: 0 });
   const [started, setStarted] = useState(false);
   const startedRef = useRef(false);
-  const root = useRef<HTMLDivElement>(null);
   const ended = useRef(false);
   const fx = useRef({ shake: 0, flash: 0, phase: 0, pops: [] as { x: number; y: number; life: number }[] });
-  useTouchLock(root);
 
   useEffect(() => {
     // Nur beim Entwickeln: Zustand für automatische Tests erreichbar
@@ -820,7 +818,7 @@ export function Runner({ best, onEnd }: GameProps) {
   };
 
   return (
-    <div className="g-col fill runner" ref={root}>
+    <div className="g-col fill runner">
       <div className="score-strip">
         <span>⭐ {hud.score}</span>
         <span>💗 {hud.hearts}</span>
