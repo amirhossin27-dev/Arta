@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { INGREDIENT_DB } from '../data/ingredients';
-import { QUICK_FOODS } from '../data/foods';
 import { CATEGORY_LABEL, CUISINE_LABEL, MEAL_LABEL, MEAL_ORDER, MEAL_SHORT, RECIPES, RECIPE_BY_ID, TAG_LABEL, type Recipe } from '../data/recipes';
 import { celebrateMeal } from '../lib/celebrate';
 import { todayKey } from '../lib/date';
+import { defaultGrams, entryName, foodNutrition, searchFoods, stepGrams } from '../lib/foods';
 import { cls, usePeople } from '../lib/hooks';
 import { heartBurst, showLove } from '../lib/love';
 import { formatQty, recipeNutrition } from '../lib/nutrition';
@@ -11,6 +11,7 @@ import { recipeToShopping } from '../lib/shopping';
 import { actions, type Who } from '../lib/store';
 import type { MealEntry, MealType } from '../lib/types';
 import { nav } from '../lib/ui';
+import { FoodList, Plate, type PlateItem } from './foodPicker';
 import { FoodScan } from './foodScan';
 import { Segmented, Sheet, Stepper } from './ui';
 
@@ -182,7 +183,7 @@ export function RecipeSheet({ id, date, onClose }: { id: string; date?: string; 
   );
 }
 
-type AddTab = 'rezepte' | 'schnell' | 'foto' | 'eigenes';
+type AddTab = 'rezepte' | 'lebensmittel' | 'foto' | 'eigenes';
 
 export function AddMealSheet({ date, meal, onClose }: { date: string; meal: MealType; onClose: () => void }) {
   const { me } = usePeople();
@@ -190,6 +191,7 @@ export function AddMealSheet({ date, meal, onClose }: { date: string; meal: Meal
   const [who, setWho] = useState<Who>('me');
   const [query, setQuery] = useState('');
   const [allMeals, setAllMeals] = useState(false);
+  const [plate, setPlate] = useState<PlateItem[]>([]);
   const [custom, setCustom] = useState({ name: '', kcal: '', protein: '', carbs: '', fat: '' });
   const q = query.trim().toLowerCase();
 
@@ -197,13 +199,25 @@ export function AddMealSheet({ date, meal, onClose }: { date: string; meal: Meal
     const list = RECIPES.filter((r) => (allMeals || q ? true : r.meal === meal) && (!q || r.name.toLowerCase().includes(q)));
     return list.sort((a, b) => Number(me.favorites.includes(b.id)) - Number(me.favorites.includes(a.id)));
   }, [allMeals, q, meal, me.favorites]);
-
-  const foods = QUICK_FOODS.filter((f) => !q || f.name.toLowerCase().includes(q));
-  const groups = [...new Set(foods.map((f) => f.group))];
+  const foodHits = useMemo(() => (q ? searchFoods(q).length : 0), [q]);
 
   const done = (name: string) => {
     celebrateMeal(name);
     onClose();
+  };
+
+  // Noch einmal antippen legt eine Einheit mehr auf den Teller.
+  const addFood = (food: PlateItem['food'], grams = defaultGrams(food)) => {
+    const i = plate.findIndex((p) => p.food.id === food.id);
+    if (i < 0) setPlate([...plate, { food, grams }]);
+    else setPlate(plate.map((p, j) => (j === i ? { ...p, grams: stepGrams(food, p.grams, 1) } : p)));
+  };
+
+  const logPlate = () => {
+    for (const { food, grams } of plate) {
+      actions.addMeal({ date, meal, name: entryName(food, grams), emoji: food.emoji, ...foodNutrition(food, grams), foodId: food.id, grams, who });
+    }
+    done(plate.length === 1 ? plate[0].food.name : `${plate.length} Lebensmittel`);
   };
 
   const addCustom = () => {
@@ -224,7 +238,11 @@ export function AddMealSheet({ date, meal, onClose }: { date: string; meal: Meal
   };
 
   return (
-    <Sheet title={`${MEAL_LABEL[meal].emoji} ${MEAL_LABEL[meal].label} eintragen`} onClose={onClose}>
+    <Sheet
+      title={`${MEAL_LABEL[meal].emoji} ${MEAL_LABEL[meal].label} eintragen`}
+      onClose={onClose}
+      footer={tab === 'lebensmittel' && plate.length > 0 ? <Plate plate={plate} onChange={setPlate} onLog={logPlate} /> : undefined}
+    >
       <Segmented
         value={who}
         onChange={setWho}
@@ -237,20 +255,32 @@ export function AddMealSheet({ date, meal, onClose }: { date: string; meal: Meal
         value={tab}
         onChange={setTab}
         small
+        fit
         options={[
           ['rezepte', '📖 Rezepte'],
-          ['schnell', '⚡ Schnell'],
+          ['lebensmittel', '🍎 Lebensmittel'],
           ['foto', '📸 Foto'],
           ['eigenes', '✏️ Eigenes'],
         ]}
       />
       {tab === 'foto' && <FoodScan date={date} meal={meal} who={who} onDone={onClose} />}
-      {(tab === 'rezepte' || tab === 'schnell') && (
-        <input className="search" type="search" placeholder="Suchen …" value={query} onChange={(e) => setQuery(e.target.value)} />
+      {(tab === 'rezepte' || tab === 'lebensmittel') && (
+        <input
+          className="search"
+          type="search"
+          placeholder={tab === 'rezepte' ? 'Rezept suchen …' : 'Lebensmittel suchen, z. B. Banane …'}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
       )}
 
       {tab === 'rezepte' && (
         <>
+          {foodHits > 0 && (
+            <button className="food-hint" onClick={() => setTab('lebensmittel')}>
+              🍎 {foodHits} Lebensmittel zu „{query.trim()}“ <span aria-hidden>→</span>
+            </button>
+          )}
           <label className="toggle-line">
             <input type="checkbox" checked={allMeals} onChange={(e) => setAllMeals(e.target.checked)} />
             Rezepte aller Mahlzeiten zeigen
@@ -284,44 +314,7 @@ export function AddMealSheet({ date, meal, onClose }: { date: string; meal: Meal
         </>
       )}
 
-      {tab === 'schnell' &&
-        groups.map((g) => (
-          <div key={g}>
-            <p className="group-label">{g}</p>
-            <div className="pick-list">
-              {foods
-                .filter((f) => f.group === g)
-                .map((f) => (
-                  <button
-                    key={f.id}
-                    className="pick-row"
-                    onClick={() => {
-                      actions.addMeal({
-                        date,
-                        meal,
-                        name: f.name,
-                        emoji: f.emoji,
-                        kcal: f.kcal,
-                        protein: f.protein,
-                        carbs: f.carbs,
-                        fat: f.fat,
-                        who,
-                      });
-                      done(f.name);
-                    }}
-                  >
-                    <span className="pick-emoji">{f.emoji}</span>
-                    <span className="pick-info">
-                      <b>{f.name}</b>
-                      <span className="muted">{f.portion}</span>
-                    </span>
-                    <span className="pick-kcal">{f.kcal} kcal</span>
-                    <span className="pick-add">+</span>
-                  </button>
-                ))}
-            </div>
-          </div>
-        ))}
+      {tab === 'lebensmittel' && <FoodList query={query} personId={me.id} plate={plate} onAdd={addFood} />}
 
       {tab === 'eigenes' && (
         <div className="form">

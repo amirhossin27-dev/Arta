@@ -47,14 +47,17 @@ export function Segmented<T extends string>({
   options,
   onChange,
   small,
+  fit,
 }: {
   value: T;
   options: [T, ReactNode][];
   onChange: (v: T) => void;
   small?: boolean;
+  /** Breite nach Beschriftung statt gleich breit – für einen längeren Reiter. */
+  fit?: boolean;
 }) {
   return (
-    <div className={cls('segmented', small && 'small')} role="tablist">
+    <div className={cls('segmented', small && 'small', fit && 'fit')} role="tablist">
       {options.map(([v, label]) => (
         <button key={v} role="tab" aria-selected={v === value} className={cls('seg', v === value && 'active')} onClick={() => onChange(v)}>
           {label}
@@ -68,13 +71,15 @@ export function Chips<T extends string>({
   value,
   options,
   onChange,
+  className,
 }: {
   value: T;
   options: [T, ReactNode][];
   onChange: (v: T) => void;
+  className?: string;
 }) {
   return (
-    <div className="chips">
+    <div className={cls('chips', className)}>
       {options.map(([v, label]) => (
         <button key={v} className={cls('chip', v === value && 'active')} onClick={() => onChange(v)}>
           {label}

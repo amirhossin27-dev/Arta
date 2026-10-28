@@ -1826,6 +1826,11 @@ button.person-steps:active {
   font-size: 0.78rem;
 }
 
+.segmented.fit .seg {
+  flex: 1 1 auto;
+  padding-inline: 3px;
+}
+
 .seg.active {
   background: var(--surface);
   color: var(--text);
@@ -2874,6 +2879,156 @@ input::-webkit-date-and-time-value {
   letter-spacing: 0.05em;
   color: var(--muted);
   margin: 14px 0 6px;
+}
+
+/* Lebensmittel & Teller */
+.sheet .chips.scroll {
+  flex: none;
+  flex-wrap: nowrap;
+  margin: 6px -16px 0;
+  padding-inline: 16px;
+}
+
+.pick-row.on-plate {
+  border-color: var(--food);
+  background: var(--food-soft);
+}
+
+.pick-row.on-plate .pick-add {
+  background: var(--food);
+  color: #fff;
+}
+
+.food-hint {
+  margin: 4px 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--food-soft);
+  color: var(--food);
+  font-weight: 800;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.plate {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plate-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+}
+
+.plate-head-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.plate-toggle {
+  flex: none;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--food);
+}
+
+.plate-summary {
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plate-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 32dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.plate-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px 8px 10px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.plate-emoji {
+  font-size: 1.4rem;
+  flex: none;
+}
+
+.plate-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.plate-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.plate-title b {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.88rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plate-kcal {
+  flex: none;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--food);
+}
+
+.plate-amount {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.plate-count {
+  min-width: 78px;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.plate-grams {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.plate-grams input:not([type='checkbox']) {
+  width: 64px;
+  padding: 5px 8px;
+  border-radius: 10px;
+  text-align: right;
 }
 
 /* Rezeptbuch-Filter */
