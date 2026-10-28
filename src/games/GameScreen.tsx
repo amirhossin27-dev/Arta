@@ -16,7 +16,7 @@ import { Breakout } from './Breakout';
 import { Checkers } from './Checkers';
 import { Chess } from './Chess';
 import { ConnectFour } from './ConnectFour';
-import { sfx, unlockAudio } from './engine';
+import { sfx, unlockAudio, useTouchLock } from './engine';
 import { Fight } from './Fight';
 import { FitDice } from './FitDice';
 import { Flappy } from './Flappy';
@@ -173,6 +173,7 @@ export function GameScreen({ id, join, onClose }: { id: GameId; join?: string; o
   const [result, setResult] = useState<RoundResult | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const stakePaid = useRef(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const summary = gameSummary(data, id);
   const sound = device.sound !== false;
   const online = mode === 'online';
@@ -311,6 +312,8 @@ export function GameScreen({ id, join, onClose }: { id: GameId; join?: string; o
     document.body.classList.add('no-scroll');
     return () => document.body.classList.remove('no-scroll');
   }, []);
+  // In keinem Spiel soll Steuern Text markieren oder das Kopieren-Menü öffnen.
+  useTouchLock(rootRef);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && back();
@@ -414,7 +417,7 @@ export function GameScreen({ id, join, onClose }: { id: GameId; join?: string; o
   const theyWantAgain = online && !!mv && mv.readyTheirs > round;
 
   return createPortal(
-    <div className={cls('game-screen', `game-${id}`, `phase-${phase}`)} style={{ '--g1': meta.colors[0], '--g2': meta.colors[1] } as CSSProperties}>
+    <div ref={rootRef} className={cls('game-screen', `game-${id}`, `phase-${phase}`)} style={{ '--g1': meta.colors[0], '--g2': meta.colors[1] } as CSSProperties}>
       <header className="game-head">
         <button className="game-btn" onClick={back} aria-label={phase === 'play' ? 'Zurück zum Menü' : 'Spiel schließen'}>
           {phase === 'play' || phase === 'invite' ? '‹' : '✕'}

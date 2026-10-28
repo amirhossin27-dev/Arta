@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { toKey } from '../date';
 import { applyHealthNode, clearHealth, parseHealthNode, parseStepText, withHealth } from '../health';
+import { addMySteps, setMySteps } from '../pedometer';
 import { stepsOn } from '../steps';
-import { getData, getDevice } from '../store';
+import { actions, getData, getDevice } from '../store';
 
 describe('Apple Health', () => {
   it('liest die Schrittzahl aus dem, was der Kurzbefehl einsetzt', () => {
@@ -46,9 +47,6 @@ describe('Apple Health', () => {
     const today = toKey(new Date(now));
     applyHealthNode(`health-${me}`, { v: 1, at: now, iv: 'health', ct: '7.120' });
     expect(stepsOn(getData(), today, me).count).toBe(7120);
-    // Weniger als schon gezählt → bleibt beim Maximum
-    applyHealthNode(`health-${me}`, { v: 1, at: now + 1, iv: 'health', ct: '5000' });
-    expect(stepsOn(getData(), today, me).count).toBe(7120);
 
     applyHealthNode(`health-${partner}`, { v: 1, at: now, iv: 'health', ct: '9100' });
     // Partnerdaten schreibt nur sein eigenes Handy – hier nur angezeigt
@@ -57,6 +55,61 @@ describe('Apple Health', () => {
     expect(withHealth(stepsOn(getData(), '2020-01-01', partner), partner).count).toBe(0);
     clearHealth();
     expect(withHealth(stepsOn(getData(), today, partner), partner).count).toBe(0);
+  });
+});
+
+describe('Apple Health ist die Wahrheit', () => {
+  const me = () => getDevice().me;
+  const node = (at: number, ct: string) => ({ v: 1, at, iv: 'health', ct });
+  const day = (d: number, h = 12) => new Date(2026, 5, d, h).getTime();
+  const count = (d: number) => stepsOn(getData(), toKey(new Date(day(d))), me()).count;
+
+  it('ersetzt zu viel Gezähltes – auch nach unten (Health 8.367, Arta zeigte 15.497)', () => {
+    const date = toKey(new Date(day(1)));
+    applyHealthNode(`health-${me()}`, node(day(1, 10), '5000'));
+    // Mitzählen in Arta: Diese Schritte zählt das iPhone für Health ebenfalls.
+    actions.addSteps(date, 10_497);
+    expect(count(1)).toBe(15_497);
+    applyHealthNode(`health-${me()}`, node(day(1, 18), '8.367'));
+    expect(count(1)).toBe(8367);
+  });
+
+  it('korrigiert auch Tage, die noch nach dem alten Maximum gespeichert sind', () => {
+    const date = toKey(new Date(day(2)));
+    setMySteps(date, 15_497); // ohne healthAt, wie vor dem Update
+    applyHealthNode(`health-${me()}`, node(day(2, 20), '8367'));
+    expect(count(2)).toBe(8367);
+  });
+
+  it('behält, was seit dem letzten Stand gezählt wurde, wenn derselbe Stand nochmal ankommt', () => {
+    const date = toKey(new Date(day(3)));
+    applyHealthNode(`health-${me()}`, node(day(3, 9), '4000'));
+    actions.addSteps(date, 300);
+    // Beim Neuverbinden schickt der Live-Raum den alten Stand noch einmal.
+    applyHealthNode(`health-${me()}`, node(day(3, 9), '4000'));
+    expect(count(3)).toBe(4300);
+    expect(withHealth(stepsOn(getData(), date, me()), me()).count).toBe(4300);
+  });
+
+  it('lässt von Hand Dazugezähltes obendrauf, eine eingetippte Gesamtzahl ersetzt es', () => {
+    const date = toKey(new Date(day(4)));
+    applyHealthNode(`health-${me()}`, node(day(4, 9), '4000'));
+    addMySteps(date, 1000); // Spaziergang ohne Handy – kennt Health nicht
+    applyHealthNode(`health-${me()}`, node(day(4, 15), '6000'));
+    expect(count(4)).toBe(7000);
+    setMySteps(date, 6500);
+    expect(stepsOn(getData(), date, me()).extra).toBeUndefined();
+    applyHealthNode(`health-${me()}`, node(day(4, 21), '6800'));
+    expect(count(4)).toBe(6800);
+  });
+
+  it('zeigt beim Partner den neuen Stand plus seine Handschritte', () => {
+    const partner = me() === 'a' ? 'b' : 'a';
+    const date = toKey(new Date(day(5)));
+    applyHealthNode(`health-${partner}`, node(day(5, 9), '3000'));
+    expect(withHealth({ date, count: 9999, goal: 8000, healthAt: day(5, 9) }, partner).count).toBe(9999);
+    expect(withHealth({ date, count: 2000, goal: 8000, healthAt: day(5, 8), extra: 500 }, partner).count).toBe(3500);
+    clearHealth();
   });
 });
 

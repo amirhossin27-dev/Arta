@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
 import { cls } from '../lib/hooks';
-import { burst, buzz, clamp, drawParticles, heartPath, oval, noise, outlinedText, stepParticles, tone, useFillCanvas, useLoop, useTouchLock, type Particle } from './engine';
+import { burst, buzz, clamp, drawParticles, heartPath, oval, noise, outlinedText, stepParticles, tone, useFillCanvas, useLoop, type Particle } from './engine';
 import type { GameProps } from './types';
 
 /** Breite des Panoramas (vorderste Ebene) */
@@ -621,12 +621,10 @@ export function Amor({ best, onEnd }: GameProps) {
   const s = useRef<AmorState>(fresh());
   const [hud, setHud] = useState({ score: 0, time: ROUND, ammo: AMMO, reloading: false });
   const [started, setStarted] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
   const keys = useRef({ l: false, r: false });
   const edge = useRef<{ id: number; dir: number } | null>(null);
   const mouseEdge = useRef(0);
   const ended = useRef(false);
-  useTouchLock(root);
 
   const sync = () => {
     const st = s.current;
@@ -1041,7 +1039,7 @@ export function Amor({ best, onEnd }: GameProps) {
 
 
   return (
-    <div className="g-col fill amor" ref={root}>
+    <div className="g-col fill amor">
       <div className="score-strip">
         <span>🎯 {hud.score}</span>
         <span className={cls(hud.time <= 10 && 'amor-hurry')}>⏱ {hud.time}</span>
