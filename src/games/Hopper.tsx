@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
-import { burst, buzz, clamp, drawParticles, heartPath, oval, outlinedText, stepParticles, tone, useFitCanvas, useLoop, useTouchLock, type Particle } from './engine';
+import { burst, buzz, clamp, drawParticles, heartPath, oval, outlinedText, stepParticles, tone, useFitCanvas, useLoop, type Particle } from './engine';
 import type { GameProps } from './types';
 
 const W = 320;
@@ -414,9 +414,7 @@ export function Hopper({ best, onEnd }: GameProps) {
   const [tilt, setTilt] = useState(loadTilt);
   const [tiltNote, setTiltNote] = useState<string | null>(null);
   const input = useRef({ left: 0, right: 0, keyL: false, keyR: false, gamma: 0, gammaAt: 0 });
-  const root = useRef<HTMLDivElement>(null);
   const ended = useRef(false);
-  useTouchLock(root);
 
   const { wrapRef, canvasRef, paint } = useFitCanvas(W, H, (ctx) => {
     const st = s.current;
@@ -784,7 +782,7 @@ export function Hopper({ best, onEnd }: GameProps) {
   };
 
   return (
-    <div className="g-col fill" ref={root}>
+    <div className="g-col fill">
       <div className="score-strip">
         <span>🦘 {score} m</span>
         <button className={`hop-tilt${tilt ? ' on' : ''}`} onClick={() => void tryTilt()}>

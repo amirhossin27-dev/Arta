@@ -21,6 +21,7 @@ import {
   type Routine,
   type ShopCategory,
   type Slot,
+  type StepDay,
 } from './types';
 import { uid } from './random';
 import { MAX_LOVE, MERGE_DAYS } from './cycle';
@@ -202,6 +203,32 @@ function patch<K extends CollectionKey>(key: K, id: string, changes: Partial<Rec
   const cur = data[key][id] as RecOf<K> | undefined;
   if (!cur) return;
   commitData(withRec(data, key, { ...cur, ...changes }));
+}
+
+const ownSteps = (date: string): StepDay | undefined => {
+  const cur = data.steps[`${date}-${device.me}`];
+  return cur && !cur.deleted ? cur : undefined;
+};
+
+/** Schreibt den eigenen Schritte-Tag; nicht genannte Felder (Ziel, Health-Stand, von Hand) bleiben. */
+function writeSteps(date: string, changes: { count: number; extra?: number; healthAt?: number }) {
+  const me = device.me;
+  const cur = ownSteps(date);
+  const clean = (n: number) => Math.max(0, Math.min(MAX_STEPS, Math.round(n)));
+  const extra = clean(changes.extra ?? cur?.extra ?? 0);
+  const healthAt = changes.healthAt ?? cur?.healthAt;
+  commitData(
+    withRec(data, 'steps', {
+      id: `${date}-${me}`,
+      date,
+      personId: me,
+      count: clean(changes.count),
+      goal: cur ? cur.goal : data.persons[me].stepGoal,
+      ...(healthAt ? { healthAt } : {}),
+      ...(extra ? { extra } : {}),
+      updatedAt: 0,
+    }),
+  );
 }
 
 export type Who = 'me' | 'partner' | 'both';
@@ -465,20 +492,23 @@ export const actions = {
   },
 
   // ───── Schritte ─────
-  /** Schritte des eigenen Tages setzen (z. B. aus der Health-App übernommen). */
+  /** Schritte des eigenen Tages von Hand setzen (z. B. aus der Health-App abgelesen) – das ist dann die ganze Zahl. */
   setSteps(date: string, count: number) {
-    const me = device.me;
-    const id = `${date}-${me}`;
-    const cur = data.steps[id];
-    const goal = cur && !cur.deleted ? cur.goal : data.persons[me].stepGoal;
-    const clean = Math.max(0, Math.min(MAX_STEPS, Math.round(count)));
-    commitData(withRec(data, 'steps', { id, date, personId: me, count: clean, goal, updatedAt: 0 }));
+    writeSteps(date, { count, extra: 0 });
   },
 
-  /** Schritte dazuzählen (Schrittzähler oder „+1.000“ für einen Gang ohne Handy). */
-  addSteps(date: string, n: number) {
-    const cur = data.steps[`${date}-${device.me}`];
-    actions.setSteps(date, (cur && !cur.deleted ? cur.count : 0) + n);
+  /** Schritte dazuzählen: vom Schrittzähler oder von Hand („+1.000“ für einen Gang ohne Handy). */
+  addSteps(date: string, n: number, byHand = false) {
+    const cur = ownSteps(date);
+    writeSteps(date, { count: (cur?.count ?? 0) + n, extra: (cur?.extra ?? 0) + (byHand ? n : 0) });
+  },
+
+  /**
+   * Neuer Stand aus Apple Health. Er ersetzt alles Mitgezählte (das iPhone zählt dieselben Schritte
+   * ja selbst) – nur das von Hand Dazugezählte kennt Health nicht, das bleibt obendrauf.
+   */
+  setHealthSteps(date: string, count: number, at: number) {
+    writeSteps(date, { count: count + (ownSteps(date)?.extra ?? 0), healthAt: at });
   },
 
   /** Neues Schrittziel – gilt ab heute, vergangene Tage behalten ihr Ziel. */

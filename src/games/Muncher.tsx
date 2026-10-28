@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
-import { burst, buzz, drawParticles, heartPath, oval, stepParticles, tone, useFitCanvas, useLoop, useTouchLock, type Particle } from './engine';
+import { burst, buzz, drawParticles, heartPath, oval, stepParticles, tone, useFitCanvas, useLoop, type Particle } from './engine';
 import {
   canGo,
   chooseDir,
@@ -341,9 +341,7 @@ function drawMe(ctx: CanvasRenderingContext2D, st: MState) {
 export function Muncher({ best, onEnd }: GameProps) {
   const s = useRef<MState>(fresh());
   const [hud, setHud] = useState({ score: 0, lives: LIVES, level: 1 });
-  const root = useRef<HTMLDivElement>(null);
   const ended = useRef(false);
-  useTouchLock(root);
 
   const sync = () => {
     const st = s.current;
@@ -694,7 +692,7 @@ export function Muncher({ best, onEnd }: GameProps) {
   );
 
   return (
-    <div className="g-col fill mu" ref={root}>
+    <div className="g-col fill mu">
       <div className="score-strip">
         <span>👻 Level {hud.level}</span>
         <span>🏆 Rekord {best ?? '–'}</span>

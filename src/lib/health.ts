@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from 'react';
 import { toKey } from './date';
-import { myLiveSteps, setMySteps } from './pedometer';
-import type { DaySteps } from './steps';
-import { getDevice } from './store';
+import { setHealthSteps } from './pedometer';
+import { stepsOn, type DaySteps } from './steps';
+import { getData, getDevice } from './store';
 import type { PersonId } from './types';
 
 /**
@@ -100,6 +100,11 @@ export function clearHealth() {
  * Ein `health-…`-Eintrag aus dem Live-Raum. Für dich selbst übernimmt Arta die Zahl in deinen
  * Schritte-Tag (dein Handy schreibt ja nur deine eigenen Daten); beim Partner wird sie nur
  * angezeigt, bis sein Handy sie selbst übernimmt.
+ *
+ * Apple Health ist dabei die Wahrheit: Ein neuerer Stand ersetzt, was Arta mitgezählt hat, denn
+ * das iPhone hat dieselben Schritte selbst gezählt. (Früher galt das Maximum – dann blieb eine zu
+ * hohe Zahl für immer stehen.) Derselbe Stand kommt bei jedem Verbinden wieder an; `healthAt` im
+ * Schritte-Tag merkt sich, welcher schon drinsteckt, damit seitdem Mitgezähltes nicht verloren geht.
  */
 export function applyHealthNode(name: string, node: unknown) {
   const person = name.slice(HEALTH_PREFIX.length);
@@ -119,12 +124,14 @@ export function applyHealthNode(name: string, node: unknown) {
     return;
   }
   if (!cur || cur.broken || cur.at !== h.at || cur.count !== h.count) setHealth({ ...health, [person]: h });
-  // Apple Health zählt alles, was Arta selbst mitgezählt hat, ebenfalls – deshalb das Maximum.
-  if (person === getDevice().me && h.count > myLiveSteps(h.date)) setMySteps(h.date, h.count);
+  if (person === getDevice().me && isNewer(h, stepsOn(getData(), h.date, person))) setHealthSteps(h.date, h.count, h.at);
 }
 
-/** Schritte eines Tages inklusive dessen, was Apple Health schon gemeldet hat. */
+/** Steckt dieser Health-Stand noch nicht in den gespeicherten Schritten des Tages? */
+const isNewer = (h: HealthSteps, s: DaySteps) => !h.broken && h.date === s.date && h.at > (s.healthAt ?? 0);
+
+/** Schritte eines Tages inklusive eines Health-Stands, den das Handy der Person noch nicht übernommen hat. */
 export function withHealth(s: DaySteps, person: PersonId): DaySteps {
   const h = health[person];
-  return h && h.date === s.date && h.count > s.count ? { ...s, count: h.count } : s;
+  return h && isNewer(h, s) ? { ...s, count: h.count + (s.extra ?? 0), healthAt: h.at } : s;
 }
