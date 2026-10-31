@@ -27,6 +27,7 @@ import {
 import { uid } from './random';
 import { MAX_LOVE, MERGE_DAYS } from './cycle';
 import { diffDays, todayKey } from './date';
+import { showLove } from './love';
 import { DEFAULT_STEP_GOAL, MAX_STEPS } from './steps';
 import { MAX_ROUTINES, routineId } from './routines';
 import { MAX_ITEM_TEXT, MAX_MEMO_ITEMS, MAX_MEMO_TEXT, MAX_MEMO_TITLE, MAX_MEMOS, MEMO_COLORS } from './memos';
@@ -125,11 +126,19 @@ function read(key: string): unknown {
   }
 }
 
+let warnedFull = false;
+
 function write(key: string, value: unknown) {
   try {
     globalThis.localStorage?.setItem(key, JSON.stringify(value));
   } catch {
-    // Speicher voll oder privat – die App läuft trotzdem weiter.
+    // Speicher voll oder gesperrt – die App läuft weiter, aber nach dem Schließen wäre das Neue weg.
+    if (warnedFull) return;
+    warnedFull = true;
+    setTimeout(
+      () => showLove({ emoji: '⚠️', title: 'Speicher voll', text: 'Arta kann auf diesem Handy gerade nichts mehr speichern. Sichere deine Daten unter ⚙️ → „Backup sichern“.', big: true, tone: 'info' }),
+      1500,
+    );
   }
 }
 

@@ -24,9 +24,13 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put('./index.html', copy));
-          return res;
+          if (res.ok) {
+            keepShell(res.clone()).catch(() => undefined);
+            return res;
+          }
+          // Fehlerseite (z. B. GitHub kurz gestört): nicht merken und lieber die gespeicherte App zeigen.
+          if (res.type === 'opaqueredirect') return res;
+          return caches.match('./index.html').then((cached) => cached || res);
         })
         .catch(() => caches.match('./index.html')),
     );
@@ -49,6 +53,25 @@ self.addEventListener('fetch', (event) => {
     }),
   );
 });
+
+/**
+ * Neue Startseite für offline merken. Bringt sie eine neue App-Version mit, fliegen die Dateien der
+ * alten Versionen aus dem Speicher – jede Version hat eigene Dateinamen, sonst wächst er ewig.
+ */
+async function keepShell(res) {
+  const html = await res.clone().text();
+  const cache = await caches.open(CACHE);
+  const old = await cache.match('./index.html');
+  const changed = !old || (await old.text()) !== html;
+  await cache.put('./index.html', res);
+  const keep = new Set(html.match(/assets\/[\w.-]+/g));
+  if (!changed || !keep.size) return;
+  for (const req of await cache.keys()) {
+    const path = new URL(req.url).pathname;
+    const at = path.lastIndexOf('/assets/');
+    if (at >= 0 && !keep.has(path.slice(at + 1))) await cache.delete(req);
+  }
+}
 
 // ───── Mitteilungen ─────
 
@@ -90,7 +113,8 @@ self.addEventListener('notificationclick', (event) => {
       const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       const win = windows.find((w) => w.visibilityState === 'visible') || windows[0];
       if (win) {
-        await win.focus();
+        // Klappt das Nach-vorne-Holen nicht (das Handy hat Arta oft schon selbst geöffnet), trotzdem den Bereich zeigen.
+        await win.focus().catch(() => undefined);
         if (tab) win.postMessage({ arta: 'open', tab });
         return;
       }

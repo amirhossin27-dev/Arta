@@ -31,31 +31,49 @@ let dbPromise: Promise<IDBDatabase> | null = null;
 
 function openDb(): Promise<IDBDatabase> {
   if (!dbPromise) {
-    dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
+    const opening = new Promise<IDBDatabase>((resolve, reject) => {
       if (typeof indexedDB === 'undefined') return reject(new Error('Kein IndexedDB'));
       const req = indexedDB.open(DB_NAME, 1);
       req.onupgradeneeded = () => req.result.createObjectStore(STORE, { keyPath: 'id' });
-      req.onsuccess = () => resolve(req.result);
+      req.onsuccess = () => {
+        // Schließt der Browser die Verbindung, beim nächsten Zugriff neu öffnen.
+        req.result.onclose = () => {
+          if (dbPromise === opening) dbPromise = null;
+        };
+        resolve(req.result);
+      };
       req.onerror = () => reject(req.error);
     });
-    dbPromise.catch(() => {
-      dbPromise = null;
+    dbPromise = opening;
+    opening.catch(() => {
+      if (dbPromise === opening) dbPromise = null;
     });
   }
   return dbPromise;
 }
 
-function run<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  return openDb().then(
-    (db) =>
-      new Promise<T>((resolve, reject) => {
-        const t = db.transaction(STORE, mode);
-        const req = fn(t.objectStore(STORE));
-        t.oncomplete = () => resolve(req.result);
-        t.onerror = () => reject(t.error ?? req.error);
-        t.onabort = () => reject(t.error ?? new Error('Abgebrochen'));
-      }),
-  );
+/** iOS trennt die Datenbank gern, wenn Arta lange im Hintergrund lag („connection is closing“, „server lost“). */
+const connectionLost = (err: unknown) => err instanceof DOMException && (err.name === 'InvalidStateError' || err.name === 'UnknownError');
+
+function run<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>, retry = true): Promise<T> {
+  const using = openDb();
+  return using
+    .then(
+      (db) =>
+        new Promise<T>((resolve, reject) => {
+          const t = db.transaction(STORE, mode);
+          const req = fn(t.objectStore(STORE));
+          t.oncomplete = () => resolve(req.result);
+          t.onerror = () => reject(t.error ?? req.error);
+          t.onabort = () => reject(t.error ?? new Error('Abgebrochen'));
+        }),
+    )
+    .catch((err: unknown) => {
+      // Dann einmal frisch verbinden – sonst blieben Album und Amor bis zum Neustart leer.
+      if (!retry || !connectionLost(err)) throw err;
+      if (dbPromise === using) dbPromise = null;
+      return run(mode, fn, false);
+    });
 }
 
 // ───── Welche Bilder liegen auf diesem Handy? ─────
@@ -93,7 +111,9 @@ export function loadPhotoIndex(): Promise<void> {
   if (!indexLoaded) {
     indexLoaded = run('readonly', (s) => s.getAllKeys())
       .then((keys) => setIds(new Set(keys.map(String))))
-      .catch(() => undefined);
+      .catch(() => {
+        indexLoaded = null; // beim nächsten Abgleich nochmal versuchen
+      });
   }
   return indexLoaded;
 }

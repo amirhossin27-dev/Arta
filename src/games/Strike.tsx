@@ -351,7 +351,11 @@ export function Strike({ mode, p1, p2, net, best, onEnd }: GameProps) {
       i.look = e.pointerId;
       i.lx = e.clientX;
       i.ly = e.clientY;
-      e.currentTarget.setPointerCapture?.(e.pointerId);
+      try {
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+      } catch {
+        // Während der Zeigerfang startet, lässt der Browser kein Festhalten zu – Wischen geht trotzdem.
+      }
     },
     onPointerMove: (e: RPointerEvent<HTMLDivElement>) => {
       const i = inp.current;

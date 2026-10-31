@@ -16,14 +16,18 @@ export const SHOP_CATEGORIES: { id: ShopCategory; label: string; emoji: string }
 
 // Reihenfolge ist wichtig: spezifische Begriffe zuerst. „=“ = ganzes Wort, „^“ = Wortanfang.
 const KEYWORDS: [ShopCategory, string[]][] = [
-  ['tk', ['tiefkühl', '=tk', '=eis', 'eiscreme', 'pommes', 'edamame', 'tk-']],
-  ['drogerie', ['shampoo', 'zahnpasta', 'zahnbürste', 'duschgel', 'toilettenpapier', 'klopapier', 'spülmittel', 'waschmittel', 'seife', '=deo', 'taschentücher', 'müllbeutel', 'creme', 'küchenrolle', 'schwamm', 'spüli', 'tabs', 'rasier', 'pflaster', 'sonnencreme']],
-  ['getraenke', ['wasser', 'saft', '=cola', 'bier', 'wein', 'sprudel', 'limo', 'drink', 'schorle', 'kaffeebohnen', 'eistee', 'sekt']],
+  // Zusammengesetzte Wörter, die sonst an einem anderen Teil hängen blieben („Wassermelone“ ist kein Wasser).
+  ['obst', ['wassermelone']],
+  ['kuehl', ['creme fraiche', 'crème fraîche']],
+  ['vorrat', ['kokosmilch', 'erdnussbutter', 'butterkeks', 'milchschokolade', 'brühe', 'sauce', 'soße', 'dicksaft', 'chips', 'dressing']],
+  ['tk', ['tiefkühl', '=tk', '=eis', 'eiscreme', 'speiseeis', 'wassereis', 'pommes', 'edamame', 'tk-']],
+  ['drogerie', ['shampoo', 'zahnpasta', 'zahnbürste', 'zahnseide', 'duschgel', 'toilettenpapier', 'klopapier', 'spülmittel', '^wasch', 'seife', '=deo', 'taschentücher', 'müllbeutel', 'creme', 'küchenrolle', 'schwamm', 'spüli', 'tabs', 'rasier', 'pflaster', 'sonnencreme', 'watte', 'folie', 'backpapier']],
+  ['getraenke', ['wasser', 'saft', '=cola', 'bier', 'wein', 'sprudel', 'limo', 'drink', 'schorle', 'kaffeebohnen', 'eistee', 'sekt', 'likör']],
   ['fleisch', ['hähnchen', 'huhn', 'pute', 'rind', '^hack', 'lachs', 'fisch', 'garnelen', 'wurst', 'schinken', 'steak', 'filet', 'salami', 'speck', 'forelle']],
-  ['kuehl', ['milch', 'joghurt', 'quark', 'skyr', 'käse', 'feta', 'mozzarella', 'butter', 'sahne', '=ei', '=eier', 'frischkäse', 'tofu', 'hummus', 'parmesan', 'kefir', 'buttermilch', 'halloumi', 'schmand']],
+  ['kuehl', ['milch', 'joghurt', 'quark', 'skyr', 'käse', 'feta', 'mozzarella', 'butter', 'sahne', '=ei', '=eier', 'frischkäse', 'tofu', 'hummus', 'parmesan', 'kefir', 'buttermilch', 'halloumi', 'schmand', 'gouda', 'emmentaler', 'mascarpone', 'ricotta', 'margarine']],
   ['brot', ['brot', 'brötchen', 'toast', '^wrap', 'tortilla', 'croissant', 'brezel', 'baguette', 'semmel', 'knäckebrot', 'fladen']],
-  ['vorrat', ['nudeln', 'pasta', 'spaghetti', '^reis', 'vollkornreis', 'basmati', 'quinoa', 'couscous', 'linsen', 'bohnen', 'kichererbsen', 'mehl', 'zucker', '^öl', 'olivenöl', 'rapsöl', 'essig', 'haferflocken', 'müsli', 'dose', 'passiert', 'gehackte tomaten', 'tomatenmark', 'honig', 'nüsse', 'nuss', 'mandeln', 'gewürz', '=salz', 'pfeffer', 'kaffee', '=tee', 'schokolade', 'kakao', '=mais', 'kokosmilch', 'soja', 'datteln', 'chia', 'brühe', 'erdnuss', 'marmelade', 'senf', 'ketchup', 'popcorn', 'thunfisch', 'riegel', 'chips']],
-  ['obst', ['apfel', 'äpfel', 'banane', 'tomate', 'gurke', 'salat', 'paprika', 'zwiebel', 'kartoffel', 'möhre', 'karotte', 'beere', 'zitrone', 'limette', 'avocado', 'spinat', 'brokkoli', 'zucchini', 'kräuter', 'petersilie', 'basilikum', 'minze', 'knoblauch', 'ingwer', '^pilz', 'champignon', 'obst', 'gemüse', 'orange', 'traube', 'mango', 'kiwi', 'birne', 'rucola', 'lauch', 'sellerie', 'kohl', 'aubergine', 'melone', 'ananas', 'pflaume', 'kirsche', 'erdbeere']],
+  ['vorrat', ['nudeln', 'pasta', 'spaghetti', '^reis', 'vollkornreis', 'basmati', 'quinoa', 'couscous', 'linsen', 'bohnen', 'kichererbsen', 'mehl', 'zucker', '^öl', 'olivenöl', 'rapsöl', 'essig', 'haferflocken', 'müsli', 'dose', 'passiert', 'gehackte tomaten', 'tomatenmark', 'honig', 'nüsse', 'nuss', 'mandeln', 'gewürz', '=salz', 'pfeffer', 'kaffee', '=tee', 'schokolade', 'kakao', '=mais', 'kokosmilch', 'soja', 'datteln', 'chia', 'brühe', 'erdnuss', 'marmelade', 'senf', 'ketchup', 'popcorn', 'thunfisch', 'riegel', 'pulver', 'kerne', 'samen', 'sesam', 'kokos', 'sirup', 'cashew', 'pistazie', 'rosine', 'teebeutel', 'lasagne', 'hefe']],
+  ['obst', ['apfel', 'äpfel', 'banane', 'tomate', 'gurke', 'salat', 'paprika', 'zwiebel', 'kartoffel', 'möhre', 'karotte', 'beere', 'zitrone', 'limette', 'avocado', 'spinat', 'brokkoli', 'zucchini', 'kräuter', 'petersilie', 'basilikum', 'minze', 'knoblauch', 'ingwer', '^pilz', 'champignon', 'obst', 'gemüse', 'orange', 'traube', 'mango', 'kiwi', 'birne', 'rucola', 'lauch', 'sellerie', 'kohl', 'aubergine', 'melone', 'ananas', 'pflaume', 'kirsche', 'erdbeere', 'erbse', 'kürbis', 'bete', 'radieschen', '=dill', 'koriander', 'fenchel', 'maiskolben', 'spargel', 'pfirsich', 'nektarine', 'mandarine', 'clementine', 'aprikose', 'feige', 'rhabarber', 'schalotte']],
 ];
 
 export function guessCategory(name: string): ShopCategory {
