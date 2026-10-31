@@ -7,6 +7,7 @@ import { GameScreen } from './games/GameScreen';
 import { ArcadeInvite } from './games/Invite';
 import { LoveLayer } from './components/LoveLayer';
 import { Cupid } from './components/Cupid';
+import { CrashGuard, SheetCrashed, TabCrashed } from './components/CrashGuard';
 import { PhotoSheet } from './components/photos';
 import { CheerSheet, CoupleSheet, SettingsSheet, SyncSheet } from './components/sheets';
 import { StreakSheet, WeekGoalSheet } from './components/goals';
@@ -17,7 +18,7 @@ import { MemoSheet, MemosSheet } from './components/memos';
 import { StepsSheet, useStepMoments } from './components/steps';
 import { dailyLove } from './lib/daily';
 import { todayKey } from './lib/date';
-import { cls, usePeople, useVisible } from './lib/hooks';
+import { cls, usePeople, useToday, useVisible } from './lib/hooks';
 import { useLive, useLiveStatus } from './lib/live';
 import { showLove } from './lib/love';
 import { pickRandom } from './lib/random';
@@ -168,6 +169,9 @@ export default function App() {
   useStepMoments(device.onboarded);
   useRoutineReminders(device.onboarded);
   useOpenFromNotification();
+  // Nach Mitternacht zeigen Sport und Essen wieder den neuen Tag (nicht „Gestern“).
+  const today = useToday();
+  useEffect(() => nav.followToday(today), [today]);
 
   useEffect(() => {
     if (linkCode && device.onboarded) nav.open({ type: 'sync', code: linkCode });
@@ -220,12 +224,14 @@ export default function App() {
       </header>
 
       <main key={ui.tab}>
-        {ui.tab === 'heute' && <Today />}
-        {ui.tab === 'sport' && <Sport />}
-        {ui.tab === 'essen' && <Food />}
-        {ui.tab === 'einkauf' && <Shopping />}
-        {ui.tab === 'liebe' && <Love />}
-        {ui.tab === 'spiele' && <Games />}
+        <CrashGuard fallback={(retry) => <TabCrashed retry={retry} />}>
+          {ui.tab === 'heute' && <Today />}
+          {ui.tab === 'sport' && <Sport />}
+          {ui.tab === 'essen' && <Food />}
+          {ui.tab === 'einkauf' && <Shopping />}
+          {ui.tab === 'liebe' && <Love />}
+          {ui.tab === 'spiele' && <Games />}
+        </CrashGuard>
       </main>
 
       <nav className="tabbar" aria-label="Bereiche">
@@ -238,26 +244,29 @@ export default function App() {
         ))}
       </nav>
 
-      {sheet?.type === 'exercise' && <ExerciseSheet key={sheet.id} id={sheet.id} date={sheet.date} planFirst={sheet.planFirst} onClose={close} />}
-      {sheet?.type === 'recipe' && <RecipeSheet key={sheet.id} id={sheet.id} date={sheet.date} onClose={close} />}
-      {sheet?.type === 'addMeal' && <AddMealSheet date={sheet.date} meal={sheet.meal} onClose={close} />}
-      {sheet?.type === 'foodScan' && <FoodScanSheet date={sheet.date} meal={sheet.meal} onClose={close} />}
-      {sheet?.type === 'sync' && <SyncSheet code={sheet.code} onClose={close} />}
-      {sheet?.type === 'settings' && <SettingsSheet onClose={close} />}
-      {sheet?.type === 'cheer' && <CheerSheet onClose={close} />}
-      {sheet?.type === 'couple' && <CoupleSheet onClose={close} />}
-      {sheet?.type === 'weekGoal' && <WeekGoalSheet onClose={close} />}
-      {sheet?.type === 'streak' && <StreakSheet onClose={close} />}
-      {sheet?.type === 'steps' && <StepsSheet date={sheet.date} onClose={close} />}
-      {sheet?.type === 'health' && <HealthSheet onClose={close} />}
-      {sheet?.type === 'events' && <EventsSheet onClose={close} />}
-      {sheet?.type === 'event' && <EventSheet key={sheet.id ?? 'neu'} id={sheet.id} date={sheet.date} back={sheet.back} onClose={close} />}
-      {sheet?.type === 'calendar' && <CalendarSheet back={sheet.back} onClose={close} />}
-      {sheet?.type === 'gesund' && <GesundSheet view={sheet.view} onClose={close} />}
-      {sheet?.type === 'photo' && <PhotoSheet id={sheet.id} onClose={close} />}
-      {sheet?.type === 'memos' && <MemosSheet onClose={close} />}
-      {sheet?.type === 'memo' && <MemoSheet key={sheet.id ?? `neu-${sheet.template ?? ''}`} id={sheet.id} template={sheet.template} back={sheet.back} onClose={close} />}
-      {sheet?.type === 'game' && <GameScreen key={`${sheet.id}-${sheet.join ?? ''}`} id={sheet.id} join={sheet.join} onClose={close} />}
+      {/* Stürzt ein Fenster oder Spiel ab, geht nur dieses zu – neues Fenster, neuer Versuch. */}
+      <CrashGuard key={sheet?.type ?? 'zu'} fallback={() => <SheetCrashed onClose={close} />}>
+        {sheet?.type === 'exercise' && <ExerciseSheet key={sheet.id} id={sheet.id} date={sheet.date} planFirst={sheet.planFirst} onClose={close} />}
+        {sheet?.type === 'recipe' && <RecipeSheet key={sheet.id} id={sheet.id} date={sheet.date} onClose={close} />}
+        {sheet?.type === 'addMeal' && <AddMealSheet date={sheet.date} meal={sheet.meal} onClose={close} />}
+        {sheet?.type === 'foodScan' && <FoodScanSheet date={sheet.date} meal={sheet.meal} onClose={close} />}
+        {sheet?.type === 'sync' && <SyncSheet code={sheet.code} onClose={close} />}
+        {sheet?.type === 'settings' && <SettingsSheet onClose={close} />}
+        {sheet?.type === 'cheer' && <CheerSheet onClose={close} />}
+        {sheet?.type === 'couple' && <CoupleSheet onClose={close} />}
+        {sheet?.type === 'weekGoal' && <WeekGoalSheet onClose={close} />}
+        {sheet?.type === 'streak' && <StreakSheet onClose={close} />}
+        {sheet?.type === 'steps' && <StepsSheet date={sheet.date} onClose={close} />}
+        {sheet?.type === 'health' && <HealthSheet onClose={close} />}
+        {sheet?.type === 'events' && <EventsSheet onClose={close} />}
+        {sheet?.type === 'event' && <EventSheet key={sheet.id ?? 'neu'} id={sheet.id} date={sheet.date} back={sheet.back} onClose={close} />}
+        {sheet?.type === 'calendar' && <CalendarSheet back={sheet.back} onClose={close} />}
+        {sheet?.type === 'gesund' && <GesundSheet view={sheet.view} onClose={close} />}
+        {sheet?.type === 'photo' && <PhotoSheet id={sheet.id} onClose={close} />}
+        {sheet?.type === 'memos' && <MemosSheet onClose={close} />}
+        {sheet?.type === 'memo' && <MemoSheet key={sheet.id ?? `neu-${sheet.template ?? ''}`} id={sheet.id} template={sheet.template} back={sheet.back} onClose={close} />}
+        {sheet?.type === 'game' && <GameScreen key={`${sheet.id}-${sheet.join ?? ''}`} id={sheet.id} join={sheet.join} onClose={close} />}
+      </CrashGuard>
       {live && <ArcadeInvite />}
       <Cupid />
 

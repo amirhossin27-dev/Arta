@@ -27,6 +27,21 @@ describe('Einkaufsliste', () => {
     expect(guessCategory('Geschenkpapier')).toBe('sonstiges');
   });
 
+  it('lässt sich von Wortteilen nicht in die Irre führen', () => {
+    expect(guessCategory('Wassermelone')).toBe('obst');
+    expect(guessCategory('Kokosmilch')).toBe('vorrat');
+    expect(guessCategory('Erdnussbutter')).toBe('vorrat');
+    expect(guessCategory('Rinderbrühe')).toBe('vorrat');
+    expect(guessCategory('Paprikapulver')).toBe('vorrat');
+    expect(guessCategory('Tortillachips')).toBe('vorrat');
+    expect(guessCategory('Kürbiskerne')).toBe('vorrat');
+    expect(guessCategory('Kürbis')).toBe('obst');
+    expect(guessCategory('Wassereis')).toBe('tk');
+    expect(guessCategory('Waschpulver')).toBe('drogerie');
+    expect(guessCategory('Creme fraiche')).toBe('kuehl');
+    expect(guessCategory('Gouda')).toBe('kuehl');
+  });
+
   it('übernimmt Rezeptzutaten ohne Grundzutaten', () => {
     const items = recipeToShopping(RECIPE_BY_ID['overnight-oats'], 2);
     const names = items.map((i) => i.name);
